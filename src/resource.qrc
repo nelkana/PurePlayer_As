@@ -1,0 +1,16 @@
+<RCC>
+  <qresource prefix="/">
+    <file>icons/heart.png</file>
+    <file>icons/stop.png</file>
+    <file>icons/play.png</file>
+    <file>icons/pause.png</file>
+    <file>icons/frame.png</file>
+    <file>icons/next.png</file>
+    <file>icons/prev.png</file>
+    <file>icons/repeata.png</file>
+    <file>icons/repeatb.png</file>
+    <file>icons/repeatreset.png</file>
+    <file>icons/loop.png</file>
+    <file>icons/screenshot.png</file>
+  </qresource>
+</RCC>
