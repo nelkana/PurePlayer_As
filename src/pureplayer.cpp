@@ -105,8 +105,8 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _recordingProcess = new RecordingProcess(this);
     connect(_recordingProcess, SIGNAL(outputLine(const QString&)),
             this,              SLOT(recordingOutputLine(const QString&)));
-    connect(_recordingProcess, SIGNAL(finished()),
-            this,              SLOT(recordingProcessFinished()));
+//  connect(_recordingProcess, SIGNAL(finished()),
+//          this,              SLOT(recordingProcessFinished()));
 
     _chName = "PurePlayer*";
     setWindowTitle(_chName);
