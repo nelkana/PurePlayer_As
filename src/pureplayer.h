@@ -277,7 +277,7 @@ private:
     QActionGroup*   _actGroupDeinterlace;
 
     QTimer          _timerReconnect;
-    quint16         _receiveErrorCount;
+    quint16         _receivedErrorCount;
     qint8           _reconnectCount;
     int             _reconnectControlTime;
 

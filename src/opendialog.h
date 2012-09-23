@@ -16,8 +16,8 @@
 #ifndef OPENDIALOG_H
 #define OPENDIALOG_H
 
-#include <QFileDialog>
 #include "ui_opendialog.h"
+#include "commonlib.h"
 
 class OpenDialog : public QDialog, Ui::OpenDialog
 {
@@ -49,9 +49,7 @@ inline OpenDialog::OpenDialog(QWidget* parent) : QDialog(parent)
 
 inline void OpenDialog::selectFile()
 {
-    QString file = QFileDialog::getOpenFileName(this, tr("ファイルを選択"), "",
-                                    tr("全てのファイル(*.*)"));
-                                    //tr("All Files (*.*)"));
+    QString file = CommonLib::getOpenFileNameDialog(this, tr("ファイルを選択"));
 
     if( !file.isEmpty() )
         _lineEdit->setText(file);

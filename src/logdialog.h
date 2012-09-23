@@ -75,9 +75,11 @@ inline void LogDialog::printOut(const QString& text)
 
 inline void LogDialog::debugOut(const QString& text)
 {
-#ifndef QT_NO_DEBUG_OUTPUT
+#ifdef QT_NO_DEBUG_OUTPUT
+    Q_UNUSED(text);
+#else
     QColor old = _textEdit->textColor();
-    
+
     _textEdit->setTextColor(QColor(128,128,128));
     _textEdit->append(text);
     _textEdit->setTextColor(old);
@@ -89,7 +91,10 @@ inline void LogDialog::debugOut(const QString& text)
 
 inline void LogDialog::debugOut(const QString& text, const QColor& color)
 {
-#ifndef QT_NO_DEBUG_OUTPUT
+#ifdef QT_NO_DEBUG_OUTPUT
+    Q_UNUSED(text);
+    Q_UNUSED(color);
+#else
     QColor old = _textEdit->textColor();
 
     _textEdit->setTextColor(color);
@@ -129,14 +134,19 @@ inline void LogDialog::closeDialog()
 
 inline void LogDialog::debug(const QString& text)
 {
-#ifndef QT_NO_DEBUG_OUTPUT
+#ifdef QT_NO_DEBUG_OUTPUT
+    Q_UNUSED(text);
+#else
     s_logDialog->debugOut(text);
 #endif
 }
 
 inline void LogDialog::debug(const QString& text, const QColor& color)
 {
-#ifndef QT_NO_DEBUG_OUTPUT
+#ifdef QT_NO_DEBUG_OUTPUT
+    Q_UNUSED(text);
+    Q_UNUSED(color);
+#else
     s_logDialog->debugOut(text, color);
 #endif
 }

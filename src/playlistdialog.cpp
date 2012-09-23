@@ -18,6 +18,7 @@
 #include <QDropEvent>
 #include "playlistdialog.h"
 #include "playlist.h"
+#include "commonlib.h"
 #include "logdialog.h"
 
 PlayListTreeWidget::PlayListTreeWidget(QWidget* parent) : QTreeWidget(parent)
@@ -112,6 +113,10 @@ void PlayListTreeWidget::dropEvent(QDropEvent* e)
     else
     if( dropIndicatorPosition() == QAbstractItemView::OnViewport )
         insert = topLevelItemCount();
+    else
+        insert = topLevelItemCount();
+
+//  LogDialog::debug(QString("dropEvent(): %1 %2").arg(insert).arg(dropIndicatorPosition()));
 
     QList<QTreeWidgetItem*> items = selectedItems();
     emit movedItems(insert, items);
@@ -206,7 +211,7 @@ void PlayListDialog::updateCurrentItemBackground()
 
 void PlayListDialog::buttonAddClicked()
 {
-    QString file = QFileDialog::getOpenFileName(this, tr("ファイルを選択"), "", tr("*"));
+    QString file = CommonLib::getOpenFileNameDialog(this, tr("ファイルを選択"));
 
     if( !file.isEmpty() ) {
          _playList->add(file);

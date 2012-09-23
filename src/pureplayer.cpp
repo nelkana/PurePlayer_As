@@ -111,7 +111,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _chName = "PurePlayer*";
     setWindowTitle(_chName);
 
-    _receiveErrorCount = 0;
+    _receivedErrorCount = 0;
     _reconnectCount = 0;
     _reconnectControlTime  = 0;
     connect(&_timerReconnect, SIGNAL(timeout()), this, SLOT(timerReconnectTimeout()));
@@ -129,6 +129,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 //  _actScreenshot->setVisible(ConfigData::data()->screenshot);
 //  _screenshotButton->setVisible(ConfigData::data()->screenshot);
     loadVideoSettings();
+    _state = STOP;
     loadInteractiveSettings();
 
     setStatus(STOP);
@@ -687,7 +688,6 @@ void PurePlayer::openCommonProcess(const QString& path)
     _contactUrl = "";
     _actOpenContactUrl->setEnabled(false);
 
-    _noVideo = false;
     _infoLabel->clearClipInfo();
 
     setCurrentDirectory();
@@ -945,7 +945,7 @@ void PurePlayer::setVolume(int value)
             mpCmd(QString("pausing_keep_force volume %1 1").arg(_volume));
     }
 
-    _labelVolume->setText(QString("%1").arg(_volume));
+    _labelVolume->setText(QString::number(_volume));
 }
 
 void PurePlayer::setVolumeFactor(VOLUME_FACTOR_MODE mode)
@@ -1383,40 +1383,12 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
 //  case Qt::Key_O: mpCmd("osd");           break;
     case Qt::Key_X:
         {
-        _toolBar->hide();
-        Qt::WindowFlags flags = Qt::Widget | Qt::FramelessWindowHint;
-        _toolBar->setWindowFlags(flags);
-        _toolBar->show();
+
         break;
         }
     case Qt::Key_Z:
         {
-        QRect rc = frameGeometry();
-//      QString out;
-//      out = _networkReply->readAll();
-//      LogDialog::debug("PurePlayer::KeyPressEvent(): " + QString::number(out.size()));
-//      LogDialog::debug("PurePlayer::KeyPressEvent(): " + out);
-//      qDebug() << _videoScreen->geometry();
-//      QWidget* c = centralWidget();
-//      LogDialog::debug(QString().sprintf("%d,%d %dx%d", c->x(),c->y(),c->width(),c->height()));
-        LogDialog::debug(QString().sprintf("%d,%d %dx%d", rc.x(),rc.y(),rc.width(),rc.height()));
-//      _toolBar->setMovable(!_toolBar->isMovable());
-        _toolBar->setAllowedAreas(Qt::NoToolBarArea);
 
-            _toolBar->hide();
-            Qt::WindowFlags flags = Qt::Tool | Qt::FramelessWindowHint;
-//                                           | Qt::X11BypassWindowManagerHint;
-
-//#ifdef Q_WS_MAC
-//          flags |= Qt::WindowStaysOnTopHint;
-//#endif // Q_WS_MAC
-            _toolBar->setWindowFlags(flags);
-            _toolBar->show();
-            _toolBar->resize(width() * (10 - 2*2)/10, _toolBar->height());
-            _toolBar->move(pos().x() + (width()-_toolBar->width())/2,
-                           pos().y() + height()-statusBar()->height()-_toolBar->height());
-//          LogDialog::debug(tr("").sprintf("%d %d", _statusbarSpaceL->width(),
-//                      width() * 2/10));
         break;
         }
     case Qt::Key_B:
@@ -1428,17 +1400,6 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
     case Qt::Key_N:
         {
 //      recordingStartStop();
-//      QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
-//      LogDialog::debug(s.fileName());
-//      LogDialog::debug(QDir::currentPath());
-//      LogDialog::debug(QFileInfo("/home/nkana/").absolutePath());
-//      LogDialog::debug(QFileInfo("/abc/def/bb").absolutePath());
-
-//      LogDialog::debug(QString("httpsa://adfafsfa/adfafda/adffds").left(8));
-//      if( QString("httpsa://adfafsfa/adfafda/adffds").left(8).contains("://") )
-//          LogDialog::debug("1");
-//      else
-//          LogDialog::debug("0");
 /*
         // ボリュームテキストの色を変える
         QPalette p = _labelVolume->palette();
@@ -1930,6 +1891,17 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
         // mplayerプロセスの子プロセスIDを取得する
         _mpProcess->receiveMplayerChildProcess();
 
+        // ビデオサイズの設定
+        if( _noVideo )
+            _videoSize = QSize(320, 240);
+        else {
+            _videoSize.setWidth(rxVideoWH.cap(1).toInt());
+            if( _videoSize.width() <= 0 ) _videoSize.setWidth(320);
+
+            _videoSize.setHeight(rxVideoWH.cap(2).toInt());
+            if( _videoSize.height() <= 0 ) _videoSize.setHeight(240);
+        }
+
         if( _openedNewPath )
         {
             _labelFrame->setText("0");
@@ -1951,25 +1923,10 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
                 _actStatusBar->setEnabled(true);
             }
 
-            // ビデオサイズの設定
-            if( _noVideo ) {
-                _videoSize.setWidth(320);
-                _videoSize.setHeight(240);
-            }
-            else {
-                _videoSize.setWidth(rxVideoWH.cap(1).toInt());
-                if( _videoSize.width() <= 0 ) _videoSize.setWidth(320);
-
-                _videoSize.setHeight(rxVideoWH.cap(2).toInt());
-                if( _videoSize.height() <= 0 ) _videoSize.setHeight(240);
-            }
-
             // ウィンドウリサイズ
             QSize size;
-            if( ConfigData::data()->openIn320x240Size ) {
-                size.setWidth(320);
-                size.setHeight(240);
-            }
+            if( ConfigData::data()->openIn320x240Size )
+                size = QSize(320, 240);
             else {
                 size.setWidth(_videoSize.width() / 2);
                 size.setHeight(_videoSize.height() / 2);
@@ -2075,7 +2032,7 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
 */
 //          _debugFlg = !_debugFlg;
 
-            _receiveErrorCount++;
+            _receivedErrorCount++;
         }
     }
 }
@@ -2207,7 +2164,7 @@ void PurePlayer::timerReconnectTimeout()
                         .arg(_debugFrame));
 */
 //  LogDialog::debug("PurePlayer::timerReconnectTimeout(): " +
-//                                              QString::number(_receiveErrorCount));
+//                                              QString::number(_receivedErrorCount));
 
     if( _reconnectControlTime == _timeLabel->time() ) {
         LogDialog::debug(QString("PurePlayer::timerReconnectTimeout(): reconnect time %1")
@@ -2219,9 +2176,9 @@ void PurePlayer::timerReconnectTimeout()
             reconnect();
     }
     else
-    if( _receiveErrorCount > 10 ) {
+    if( _receivedErrorCount > 10 ) {
         LogDialog::debug(QString("PurePlayer::timerReconnectTimeout(): reconnect count %1")
-                .arg(_receiveErrorCount), QColor(255,0,0));
+                .arg(_receivedErrorCount), QColor(255,0,0));
 
         reconnect();
     }
@@ -2229,12 +2186,12 @@ void PurePlayer::timerReconnectTimeout()
     if( _searchingConnection )
         updateChannelInfo();
     else
-    if( _receiveErrorCount == 0 )
+    if( _receivedErrorCount == 0 )
         _reconnectCount = 0;
 
     _reconnectControlTime = _timeLabel->time();
 
-    _receiveErrorCount = 0;
+    _receivedErrorCount = 0;
 
 //  _debugFlg = !_debugFlg;
 }
@@ -2281,6 +2238,7 @@ void PurePlayer::playCommonProcess()
         return;
     }
 
+    _noVideo = false;
     setStatus(READY);
 
     QStringList args;
@@ -2430,8 +2388,8 @@ void PurePlayer::loadInteractiveSettings()
 {
     QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
 
-    setVolume(s.value("volume", 30).toInt());
     mute(s.value("mute", false).toBool());
+    setVolume(s.value("volume", 30).toInt());
     setAlwaysShowStatusBar(s.value("statusbar", true).toBool());
     move(s.value("pos", QPoint(0,0)).toPoint());
 
@@ -2641,7 +2599,7 @@ void PurePlayer::setStatus(const STATE s)
         _reconnectWasCalled = false;
 
         _infoLabel->stopClipInfo();
-        _receiveErrorCount = 0;
+        _receivedErrorCount = 0;
 
         if( _timerReconnect.isActive() )
             _timerReconnect.stop();

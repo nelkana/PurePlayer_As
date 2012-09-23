@@ -16,6 +16,7 @@
 #include <math.h>
 #include <QThread>
 #include <QFileInfo>    // retTheFileNameNotExists()
+#include <QFileDialog>  // getOpenFileNameDialog()
 #include "commonlib.h"
 
 class MyThread : public QThread
@@ -60,5 +61,68 @@ QString CommonLib::retTheFileNameNotExists(const QString& requestFileName)
 //      return QString();
 //  else
         return file.fileName();
+}
+
+// ファイルを選択するダイアログを開く。
+QString CommonLib::getOpenFileNameDialog(QWidget* parent, const QString& caption)
+{
+    QString formats =
+        // (S)VCD (Super Video CD)
+        // CDRwin's .bin image file
+        "*.bin"
+        // DVD, including encrypted DVD
+        // MPEG-1/2 (ES/PS/PES/VOB)
+        " *.mpg *.mpeg *.mp1 *.mp2 *.mp3 *.m1v *.m1a *.mpa *.mpv"
+        " *.m2v *.m2a *.m2s"
+        " *.ps *.m2p"
+        " *.ts *.m2t *.m2ts"
+        " *.vob"
+            //" *.vro"
+        " *.mod"
+        // AVI file format
+        " *.avi"
+        // ASF/WMV/WMA format
+        " *.asf *.wmv *.wma"
+        // QT/MOV/MP4 format
+        " *.qt *.mov"
+        " *.mp4 *.m4a *.m4p *.m4b *.m4r *.m4 *.m4v"
+        " *.3gp *.3g2"
+        " *.aac"
+        // RealAudio/RealVideo format
+        " *.rm *.rmvb *.ra *.ram"
+        // Ogg/OGM files
+        " *.ogv *.oga *.ogx *.ogg *.spx *.ogm"
+        // Matroska
+        " *.mkv *.mka *.mks *.mk3d"
+        // NUT
+        " *.nut"
+        // NSV (Nullsoft Streaming Video)
+        " *.nsv"
+        // VIVO format
+        " *.viv"
+        // FLI format
+        " *.fli" //*.flc"
+        // NuppelVideo format
+        " *.nuv"
+        // yuv4mpeg format
+        " *.y4m"
+        // FILM (.cpk) format // SEGA FILM
+        " *.cpk" //*.cak *.film"
+        // RoQ format // Id Software Game Video
+        " *.roq"
+        // PVA format
+        " *.pva"
+        // streaming via HTTP/FTP, RTP/RTSP, MMS/MMST, MPST, SDP
+        // TV grabbing
+
+        // Bink Video
+        //" *.bik"
+        // Flash Video
+        " *.flv *.f4v *.f4p *.f4a *.f4b";
+
+    QString file = QFileDialog::getOpenFileName(parent, caption, "",
+                    QObject::tr("メディアファイル(%1);;全てのファイル(*)").arg(formats));
+
+    return file;
 }
 
