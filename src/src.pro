@@ -4,8 +4,8 @@ DESTDIR = ..
 DEPENDPATH += .
 INCLUDEPATH += .
 QT += network
-CONFIG += release
-#CONFIG += debug
+#CONFIG += release
+CONFIG += debug
 
 HEADERS += \
     pureplayer.h \

@@ -900,7 +900,7 @@ void PurePlayer::mute(bool b)
         p.setColor(_labelVolume->foregroundRole(), QColor(255,255,255));
     }
 
-    if( _state == PLAY ) {
+    if( _state == PLAY ) { //|| _state == READY ) {
         //mpCmd("osd 0");
         mpCmd(cmd);
         //mpCmd("osd 1");
@@ -935,7 +935,7 @@ void PurePlayer::setVolume(int value)
     _volume = value;
 
     if( !isMute() ) {
-        if( _state == PLAY ) {
+        if( _state == PLAY ) { //|| _state == READY ) {
             mpCmd(QString("volume %1 1").arg(_volume));
             if( !(_controlFlags & FLG_HIDE_DISPLAY_MESSAGE) )
                 mpCmd(QString("osd_show_text %1").arg(_volume));
@@ -2307,7 +2307,7 @@ void PurePlayer::playCommonProcess()
     << "-framedrop"
     << "-zoom"
     << "-nokeepaspect"
-    << "-volume" << "0" //(_isMute ? "0" : QString::number(_volume))
+    << "-volume" << (isPeercastStream()||isMute() ? "0" : QString::number(_volume))
     << "-softvol"
     << "-prefer-ipv4"
     << "-nomouseinput"
