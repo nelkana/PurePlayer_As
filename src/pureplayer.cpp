@@ -116,6 +116,9 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _reconnectControlTime  = 0;
     connect(&_timerReconnect, SIGNAL(timeout()), this, SLOT(timerReconnectTimeout()));
 
+    _fpsCount = 0;
+    connect(&_timerFps, SIGNAL(timeout()), this, SLOT(timerFpsTimeout()));
+
     _openDialog        = NULL;
     _videoAdjustDialog = NULL;
     _configDialog      = NULL;
@@ -152,8 +155,9 @@ void PurePlayer::createStatusBar()
 {
     _infoLabel = new InfoLabel(tr("停止 "));
     _timeLabel = new TimeLabel();
-    _labelVolume = new QLabel();
     _labelFrame = new QLabel();
+    _labelFps = new QLabel();
+    _labelVolume = new QLabel();
     _statusbarSpaceL = new QWidget();
     _statusbarSpaceR = new QWidget();
 
@@ -190,6 +194,7 @@ void PurePlayer::createStatusBar()
     statusBar()->addWidget(_statusbarSpaceL);
     statusBar()->addWidget(_infoLabel);
     statusBar()->addPermanentWidget(_labelFrame);
+    statusBar()->addPermanentWidget(_labelFps);
     statusBar()->addPermanentWidget(_timeLabel);
     statusBar()->addPermanentWidget(_labelVolume);
     statusBar()->addPermanentWidget(_statusbarSpaceR);
@@ -202,6 +207,12 @@ void PurePlayer::createStatusBar()
     _labelVolume->setText(tr(" 000"));
     _labelVolume->setMinimumWidth(_labelVolume->sizeHint().width());
     _labelVolume->setText("");
+
+    _labelFps->setFrameShape(QFrame::NoFrame);
+    _labelFps->setAlignment(Qt::AlignRight);
+    _labelFps->setText(tr(" 00fps"));
+    _labelFps->setMinimumWidth(_labelFps->sizeHint().width());
+    _labelFps->setText("0fps");
 
     _labelFrame->setAlignment(Qt::AlignRight);
     _labelFrame->setText(" 00000000");
@@ -1847,8 +1858,8 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
 
         if( rxFrame.indexIn(line) != -1 ) {
             _labelFrame->setText(rxFrame.cap(1));
-
-            _debugFrame = rxFrame.cap(1).toInt(); // debug
+//          _currentFrame = rxFrame.cap(1).toInt();
+            _fpsCount++;
         }
 
         if( _state == PAUSE ) // ポーズが解除された場合
@@ -1905,6 +1916,7 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
         if( _openedNewPath )
         {
             _labelFrame->setText("0");
+            _labelFps->setText("0fps");
             _timeLabel->setTotalTime(_videoLength);
             _playList.currentItem()->setTime(_videoLength);
             playListDialog()->updateCurrentItemTime();
@@ -2028,7 +2040,7 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
             LogDialog::debug(QString("PurePlayer::parseMplayerOutputLine(): timea %1")
                                 .arg(_currentTime));
             LogDialog::debug(QString("PurePlayer::parseMplayerOutputLine(): frame %1")
-                                .arg(_debugFrame));
+                                .arg(_currentFrame));
 */
 //          _debugFlg = !_debugFlg;
 
@@ -2161,7 +2173,7 @@ void PurePlayer::timerReconnectTimeout()
     LogDialog::debug(QString("PurePlayer::timerReconnectTimeout(): currentTime %1")
                         .arg(_currentTime));
     LogDialog::debug(QString("PurePlayer::timerReconnectTimeout(): frame %1")
-                        .arg(_debugFrame));
+                        .arg(_currentFrame));
 */
 //  LogDialog::debug("PurePlayer::timerReconnectTimeout(): " +
 //                                              QString::number(_receivedErrorCount));
@@ -2194,6 +2206,17 @@ void PurePlayer::timerReconnectTimeout()
     _receivedErrorCount = 0;
 
 //  _debugFlg = !_debugFlg;
+}
+
+void PurePlayer::timerFpsTimeout()
+{
+/*  static QTime time;
+    LogDialog::debug(QString("PurePlayer::timerFpsTimeout(): elapsed %1 fps %2")
+                                                   .arg(time.elapsed()).arg(_fpsCount));
+    time.restart();
+*/
+    _labelFps->setText(QString("%1fps").arg(_fpsCount));
+    _fpsCount = 0;
 }
 
 void PurePlayer::appliedFromConfigDialog(bool restartMplayer)
@@ -2535,6 +2558,9 @@ void PurePlayer::setStatus(const STATE s)
         if( isPeercastStream() )
             _timerReconnect.start(6000);
 
+        if( !_noVideo )
+            _timerFps.start(1000);
+
 #ifdef Q_WS_X11
         if( !_noVideo ) {
             _videoScreen->setAttribute(Qt::WA_NoSystemBackground);
@@ -2601,8 +2627,9 @@ void PurePlayer::setStatus(const STATE s)
         _infoLabel->stopClipInfo();
         _receivedErrorCount = 0;
 
-        if( _timerReconnect.isActive() )
-            _timerReconnect.stop();
+        _timerReconnect.stop();
+        _timerFps.stop();
+        _fpsCount = 0;
 
 #ifdef Q_WS_X11
         if( !_noVideo ) {

@@ -180,6 +180,7 @@ private slots:
     void actGroupAspectChanged(QAction*);
     void actGroupDeinterlaceChanged(QAction*);
     void timerReconnectTimeout();
+    void timerFpsTimeout();
     void appliedFromConfigDialog(bool restartMplayer);
 
 private:
@@ -204,10 +205,10 @@ private:
     TimeSlider*     _timeslider;
     SpeedSpinBox*   _speedSpinBox;
     TimeLabel*      _timeLabel;
-    QLabel*         _labelTime;
+    QLabel*         _labelFrame;
+    QLabel*         _labelFps;
     QLabel*         _labelVolume;
     InfoLabel*      _infoLabel;
-    QLabel*         _labelFrame;
     QWidget*        _statusbarSpaceL;
     QWidget*        _statusbarSpaceR;
 
@@ -281,6 +282,9 @@ private:
     qint8           _reconnectCount;
     int             _reconnectControlTime;
 
+    QTimer          _timerFps;
+    int             _fpsCount;
+
     PlayList        _playList;
 
     OpenDialog*        _openDialog;
@@ -291,7 +295,6 @@ private:
 
     bool _debugFlg;
     int  _debugCount;
-    int  _debugFrame;
 };
 
 #endif // PUREPLAYER_H
