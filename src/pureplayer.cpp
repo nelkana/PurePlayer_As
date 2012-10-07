@@ -1667,7 +1667,7 @@ void PurePlayer::mpProcessFinished()
             LogDialog::debug(QString("PurePlayer::mpProcessFinished(): reconnectCount %1")
                              .arg(_reconnectCount));
 
-            if( _reconnectCount <= 2 ) {
+            if( _reconnectCount <= 3 ) {
                 if( _searchingConnection ) {
                     LogDialog::debug("PurePlayer::mpProcessFinished(): reconnectPurePlayer",
                                      QColor(255,0,0));
