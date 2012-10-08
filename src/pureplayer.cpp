@@ -117,6 +117,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     connect(&_timerReconnect, SIGNAL(timeout()), this, SLOT(timerReconnectTimeout()));
 
     _fpsCount = 0;
+    _oldFrame = 0;
     connect(&_timerFps, SIGNAL(timeout()), this, SLOT(timerFpsTimeout()));
 
     _openDialog        = NULL;
@@ -1858,15 +1859,19 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
 
         if( rxFrame.indexIn(line) != -1 ) {
             _labelFrame->setText(rxFrame.cap(1));
-//          _currentFrame = rxFrame.cap(1).toInt();
-            _fpsCount++;
+
+            unsigned int currentFrame = rxFrame.cap(1).toInt();
+            if( currentFrame==0 || currentFrame!=_oldFrame ) {
+                _fpsCount++;
+                _oldFrame = currentFrame;
+            }
         }
 
         if( _state == PAUSE ) // ポーズが解除された場合
             setStatus(PLAY);
 
 //      if( time < 0 ) _debugFlg = true;
-        if( _debugFlg ) LogDialog::print(line);
+        if( _debugFlg ) LogDialog::print(line + QString::number(_fpsCount));
         return;
     }
 
@@ -2558,8 +2563,11 @@ void PurePlayer::setStatus(const STATE s)
         if( isPeercastStream() )
             _timerReconnect.start(6000);
 
-        if( !_noVideo )
+        if( !_noVideo ) {
             _timerFps.start(1000);
+            _fpsCount = 0;
+            _oldFrame = 0;
+        }
 
 #ifdef Q_WS_X11
         if( !_noVideo ) {
@@ -2629,7 +2637,7 @@ void PurePlayer::setStatus(const STATE s)
 
         _timerReconnect.stop();
         _timerFps.stop();
-        _fpsCount = 0;
+        _labelFps->setText("0fps");
 
 #ifdef Q_WS_X11
         if( !_noVideo ) {

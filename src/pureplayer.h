@@ -283,7 +283,8 @@ private:
     int             _reconnectControlTime;
 
     QTimer          _timerFps;
-    int             _fpsCount;
+    quint16         _fpsCount;
+    unsigned int    _oldFrame;
 
     PlayList        _playList;
 
