@@ -16,12 +16,15 @@
 #ifndef __COMMONLIB_H
 #define __COMMONLIB_H
 
+#include <QRect>
+
 namespace CommonLib
 {
 
 double round(double value, int precision);
 void   msleep(unsigned long msec);
 
+QRect   scaleRectOnRect(const QSize& baseRect, const QSize& placeRect);
 QString retTheFileNameNotExists(const QString& requestFileName);
 QString getOpenFileNameDialog(QWidget* parent=0, const QString& caption=QString());
 

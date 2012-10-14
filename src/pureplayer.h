@@ -104,15 +104,18 @@ public slots:
     void setGamma(int value);
     void setDeinterlace(DEINTERLACE_MODE);
     void screenshot();
-    void resize320x240()    { resizeFromVideoScreen(QSize(320,240)); }
-    void resize1280x720()   { resizeFromVideoScreen(QSize(1280,720)); }
-    void resize25Percent()  { resizeFromVideoScreen(QSize(_videoSize.width()/4,_videoSize.height()/4)); }
-    void resize50Percent()  { resizeFromVideoScreen(QSize(_videoSize.width()/2,_videoSize.height()/2)); }
-    void resize75Percent()  { resizeFromVideoScreen(QSize(_videoSize.width()*3/4,_videoSize.height()*3/4)); }
-    void resize100Percent() { resizeFromVideoScreen(_videoSize); }
-    void resize125Percent() { resizeFromVideoScreen(QSize(_videoSize.width()*5/4,_videoSize.height()*5/4)); }
-    void resize150Percent() { resizeFromVideoScreen(QSize(_videoSize.width()*3/2,_videoSize.height()*3/2)); }
-    bool resizeFromVideoScreen(QSize size);
+    void resizeReduce()     { resizePercentageFromCurrent(-10); }
+    void resizeIncrease()   { resizePercentageFromCurrent(+10); }
+    void resize320x240()    { resizeFromVideoClient(QSize(320,240)); }
+    void resize1280x720()   { resizeFromVideoClient(QSize(1280,720)); }
+    void resize25Percent()  { resizeFromVideoClient(calcPercentageVideoSize(25)); }
+    void resize50Percent()  { resizeFromVideoClient(calcPercentageVideoSize(50)); }
+    void resize75Percent()  { resizeFromVideoClient(calcPercentageVideoSize(75)); }
+    void resize100Percent() { resizeFromVideoClient(calcPercentageVideoSize(100)); }
+    void resize125Percent() { resizeFromVideoClient(calcPercentageVideoSize(125)); }
+    void resize150Percent() { resizeFromVideoClient(calcPercentageVideoSize(150)); }
+    bool resizeFromVideoClient(QSize size);
+    void resizePercentageFromCurrent(const int percentage);
     void fullScreenOrWindow();
     void setAlwaysShowStatusBar(bool);
     void showVideoAdjustDialog();
@@ -164,6 +167,10 @@ protected:
     void playCommonProcess();
     void saveInteractiveSettings();
     void loadInteractiveSettings();
+
+    QSize videoSize100Percent();
+    QSize calcPercentageVideoSize(const QSize videoSize, const int percentage);
+    QSize calcPercentageVideoSize(const int percentage);
 
     PlayListDialog* playListDialog();
 
@@ -238,9 +245,13 @@ private:
     int             _repeatStartTime;
     int             _repeatEndTime;
 
-    VideoSettings   _videoSettings;
-
     qint8           _volume;
+
+    QTimer          _timerFps;
+    quint16         _fpsCount;
+    unsigned int    _oldFrame;
+
+    VideoSettings   _videoSettings;
 
     AUDIO_OUTPUT_MODE  _audioOutput;
     VOLUME_FACTOR_MODE _volumeFactor;
@@ -281,10 +292,6 @@ private:
     quint16         _receivedErrorCount;
     qint8           _reconnectCount;
     int             _reconnectControlTime;
-
-    QTimer          _timerFps;
-    quint16         _fpsCount;
-    unsigned int    _oldFrame;
 
     PlayList        _playList;
 
