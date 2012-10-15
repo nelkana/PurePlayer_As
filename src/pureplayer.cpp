@@ -519,6 +519,8 @@ void PurePlayer::createActionContextMenu()
     actDeinterlaceNo->setChecked(true);
     QAction* actDeinterlaceYadif = new QAction(tr("Yadif"), _actGroupDeinterlace);
     actDeinterlaceYadif->setCheckable(true);
+    QAction* actDeinterlaceYadif2 = new QAction(tr("Yadif(2x)"), _actGroupDeinterlace);
+    actDeinterlaceYadif2->setCheckable(true);
     QAction* actDeinterlaceLB = new QAction(tr("リニアブレンド"), _actGroupDeinterlace);
     actDeinterlaceLB->setCheckable(true);
     QMenu* menuDeinterlace = new QMenu(tr("インターレース解除"), this);
@@ -1410,8 +1412,16 @@ void PurePlayer::closeEvent(QCloseEvent* e)
 
 void PurePlayer::resizeEvent(QResizeEvent* )
 {
-    LogDialog::debug(QString().sprintf("PurePlayer::resizeEvent(): client size %dx%d",
-                                     width(), height()));
+#ifndef QT_NO_DEBUG_OUTPUT
+    QSize videoClientSize;
+    if( isAlwaysShowStatusBar() ) videoClientSize = centralWidget()->size();
+    else                          videoClientSize = size();
+
+    LogDialog::debug(
+            QString("PurePlayer::resizeEvent(): clientSize %1x%2, videoClientSize %3x%4")
+                .arg(width()).arg(height())
+                .arg(videoClientSize.width()).arg(videoClientSize.height()));
+#endif
 
     updateVideoScreenGeometry();
 
@@ -1461,6 +1471,7 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
 //  case Qt::Key_O: mpCmd("osd");           break;
     case Qt::Key_X:
         {
+//      LogDialog::debug(QString(""));
 
         break;
         }
@@ -2033,8 +2044,12 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
         setStatus(STOP);
     else
     if( rxScreenshot.indexIn(line) != -1 ) {
+        const char* day[7] = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
+        QDateTime dateTime = QDateTime::currentDateTime();
         QString baseName = QString("%1_%2").arg(_chName)
-                    .arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss"));
+                                           .arg(dateTime.toString("yyyyMMdd_")
+                                                + day[dateTime.date().dayOfWeek()-1]
+                                                + dateTime.toString("_hhmmss"));
 
         new RenameTimerTask(rxScreenshot.cap(1), baseName, this);
 
@@ -2333,6 +2348,9 @@ void PurePlayer::playCommonProcess()
     if( _deinterlace == DI_YADIF )
         args << "-vf-add" << "yadif";
     else
+    if( _deinterlace == DI_YADIF_DOUBLE )
+        args << "-vf-add" << "yadif=1";
+    else
     if( _deinterlace == DI_LINEAR_BLEND )
         args << "-vf-add" << "pp=lb";
 
@@ -2517,8 +2535,8 @@ QSize PurePlayer::calcPercentageVideoSize(const QSize videoSize, const int perce
     if( h * videoSize.width() % videoSize.height() )
         w++;
 
-    LogDialog::debug(QString("PurePlayer::calcPercentageVideoSize(): %1 %2 %3%")
-                                                     .arg(w).arg(h).arg(percentage));
+//  LogDialog::debug(QString("PurePlayer::calcPercentageVideoSize(): %1 %2 %3%")
+//                                                   .arg(w).arg(h).arg(percentage));
 
     // 最大最小サイズを超える場合は、有効なサイズへ修正する
     // (比を維持しない設定の場合は、超えたサイズでリサイズすると比崩れが起きる為必須)
@@ -2552,9 +2570,9 @@ QSize PurePlayer::calcPercentageVideoSize(const QSize videoSize, const int perce
         }
     }
 
-    LogDialog::debug(
-        QString("PurePlayer::calcPercentageVideoSize(): %1 %2 maxWH:%3 %4 minW: %5")
-        .arg(w).arg(h).arg(maxW).arg(maxH).arg(minW));
+//  LogDialog::debug(
+//      QString("PurePlayer::calcPercentageVideoSize(): %1 %2 maxWH:%3 %4 minW: %5")
+//      .arg(w).arg(h).arg(maxW).arg(maxH).arg(minW));
 
     return QSize(w, h);
 }
