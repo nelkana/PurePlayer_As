@@ -19,7 +19,7 @@
 #include "ui_aboutdialog.h"
 #include "logdialog.h"
 
-#define PUREPLAYER_VERSION "0.5.1"
+#define PUREPLAYER_VERSION "0.6.0"
 
 class AboutDialog : public QDialog, Ui::AboutDialog
 {
@@ -43,7 +43,7 @@ inline AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent)
         "バックエンドにMPlayer"
             "(<a href=\"http://www.mplayerhq.hu/\">MPlayer</a>または"
             "<a href=\"http://www.mplayer2.org/\">MPlayer2</a>)を使用しています。<br>"
-        "<a href=\"http://qt.nokia.com/title-jp/\">Qtフレームワーク</a>で開発されています。<br>"
+        "<a href=\"http://qt-project.org/\">Qtフレームワーク</a>で開発されています。<br>"
         "<br>"
         "Qtバージョン(コンパイル): %2<br>"
         "Qtバージョン(使用中): %3<br>"

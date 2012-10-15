@@ -1,0 +1,9 @@
+Makefile
+pureplayer
+*~
+*.swp
+*.o
+ui_*.h
+moc_*.cpp
+qrc_*.cpp
+

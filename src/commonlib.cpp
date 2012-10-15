@@ -39,6 +39,38 @@ void CommonLib::msleep(unsigned long msec)
     MyThread::msleep(msec);
 }
 
+// 矩形上で、比を維持してスケーリングを行った矩形を返す
+QRect CommonLib::scaleRectOnRect(const QSize& baseRect, const QSize& placeRect)
+{
+    int h, w, x, y;
+    int aspectWidth, aspectHeight;
+
+    aspectWidth  = placeRect.width();
+    aspectHeight = placeRect.height();
+
+    double tempw = baseRect.height() * aspectWidth / (double)aspectHeight;
+    if( tempw <= baseRect.width() ) {
+        // 乗っている矩形の比に対して下の矩形の比が横長
+        h = baseRect.height();
+        w = baseRect.height() * aspectWidth / (double)aspectHeight + 0.5;
+        //w = baseRect.height() * aspectRatio + 0.1;
+
+        x = (baseRect.width() - w) / 2;
+        y = 0;
+    }
+    else {
+        // 乗っている矩形の比に対して下の矩形の比が縦長
+        h = baseRect.width() * aspectHeight / (double)aspectWidth + 0.5;
+        //h = baseRect.width() / aspectRatio + 0.1;
+        w = baseRect.width();
+
+        x = 0;
+        y = (baseRect.height() - h) / 2;
+    }
+
+    return QRect(x,y, w,h);
+}
+
 // 要求したファイル名に基づいて、現在のディレクトリにおける重複しないファイル名を返す。
 // ファイルが既に有る場合、ファイル名に連番が付加される。
 QString CommonLib::retTheFileNameNotExists(const QString& requestFileName)

@@ -52,7 +52,7 @@ class PurePlayer : public QMainWindow
 
 public:
     enum ASPECT_RATIO { RATIO_VIDEO, RATIO_4_3, RATIO_16_9, RATIO_16_10, NO_KEEP };
-    enum DEINTERLACE_MODE { DI_NO_DEINTERLACE, DI_YADIF, DI_LINEAR_BLEND };
+    enum DEINTERLACE_MODE { DI_NO_DEINTERLACE, DI_YADIF, DI_YADIF_DOUBLE, DI_LINEAR_BLEND };
     enum AUDIO_OUTPUT_MODE { AO_STEREO, AO_MONAURAL, AO_LEFT, AO_RIGHT };
     enum VOLUME_FACTOR_MODE { VF_NORMAL, VF_DOUBLE, VF_TRIPLE };
 
@@ -104,15 +104,18 @@ public slots:
     void setGamma(int value);
     void setDeinterlace(DEINTERLACE_MODE);
     void screenshot();
-    void resize320x240()    { resizeFromVideoScreen(QSize(320,240)); }
-    void resize1280x720()   { resizeFromVideoScreen(QSize(1280,720)); }
-    void resize25Percent()  { resizeFromVideoScreen(QSize(_videoSize.width()/4,_videoSize.height()/4)); }
-    void resize50Percent()  { resizeFromVideoScreen(QSize(_videoSize.width()/2,_videoSize.height()/2)); }
-    void resize75Percent()  { resizeFromVideoScreen(QSize(_videoSize.width()*3/4,_videoSize.height()*3/4)); }
-    void resize100Percent() { resizeFromVideoScreen(_videoSize); }
-    void resize125Percent() { resizeFromVideoScreen(QSize(_videoSize.width()*5/4,_videoSize.height()*5/4)); }
-    void resize150Percent() { resizeFromVideoScreen(QSize(_videoSize.width()*3/2,_videoSize.height()*3/2)); }
-    bool resizeFromVideoScreen(QSize size);
+    void resizeReduce()     { resizePercentageFromCurrent(-10); }
+    void resizeIncrease()   { resizePercentageFromCurrent(+10); }
+    void resize320x240()    { resizeFromVideoClient(QSize(320,240)); }
+    void resize1280x720()   { resizeFromVideoClient(QSize(1280,720)); }
+    void resize25Percent()  { resizeFromVideoClient(calcPercentageVideoSize(25)); }
+    void resize50Percent()  { resizeFromVideoClient(calcPercentageVideoSize(50)); }
+    void resize75Percent()  { resizeFromVideoClient(calcPercentageVideoSize(75)); }
+    void resize100Percent() { resizeFromVideoClient(calcPercentageVideoSize(100)); }
+    void resize125Percent() { resizeFromVideoClient(calcPercentageVideoSize(125)); }
+    void resize150Percent() { resizeFromVideoClient(calcPercentageVideoSize(150)); }
+    bool resizeFromVideoClient(QSize size);
+    void resizePercentageFromCurrent(const int percentage);
     void fullScreenOrWindow();
     void setAlwaysShowStatusBar(bool);
     void showVideoAdjustDialog();
@@ -165,6 +168,10 @@ protected:
     void saveInteractiveSettings();
     void loadInteractiveSettings();
 
+    QSize videoSize100Percent();
+    QSize calcPercentageVideoSize(const QSize videoSize, const int percentage);
+    QSize calcPercentageVideoSize(const int percentage);
+
     PlayListDialog* playListDialog();
 
 private slots:
@@ -180,6 +187,7 @@ private slots:
     void actGroupAspectChanged(QAction*);
     void actGroupDeinterlaceChanged(QAction*);
     void timerReconnectTimeout();
+    void timerFpsTimeout();
     void appliedFromConfigDialog(bool restartMplayer);
 
 private:
@@ -204,10 +212,10 @@ private:
     TimeSlider*     _timeslider;
     SpeedSpinBox*   _speedSpinBox;
     TimeLabel*      _timeLabel;
-    QLabel*         _labelTime;
+    QLabel*         _labelFrame;
+    QLabel*         _labelFps;
     QLabel*         _labelVolume;
     InfoLabel*      _infoLabel;
-    QLabel*         _labelFrame;
     QWidget*        _statusbarSpaceL;
     QWidget*        _statusbarSpaceR;
 
@@ -237,9 +245,13 @@ private:
     int             _repeatStartTime;
     int             _repeatEndTime;
 
-    VideoSettings   _videoSettings;
-
     qint8           _volume;
+
+    QTimer          _timerFps;
+    quint16         _fpsCount;
+    unsigned int    _oldFrame;
+
+    VideoSettings   _videoSettings;
 
     AUDIO_OUTPUT_MODE  _audioOutput;
     VOLUME_FACTOR_MODE _volumeFactor;
@@ -291,7 +303,6 @@ private:
 
     bool _debugFlg;
     int  _debugCount;
-    int  _debugFrame;
 };
 
 #endif // PUREPLAYER_H

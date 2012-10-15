@@ -27,14 +27,6 @@ HEADERS += \
     playlistdialog.h \
     aboutdialog.h
 
-FORMS += \
-    logdialog.ui \
-    configdialog.ui \
-    opendialog.ui \
-    videoadjustdialog.ui \
-    playlistdialog.ui \
-    aboutdialog.ui
-
 SOURCES += \
     main.cpp \
     pureplayer.cpp \
@@ -49,7 +41,16 @@ SOURCES += \
     task.cpp \
     \
     logdialog.cpp \
+    configdialog.cpp \
     playlistdialog.cpp
+
+FORMS += \
+    logdialog.ui \
+    configdialog.ui \
+    opendialog.ui \
+    videoadjustdialog.ui \
+    playlistdialog.ui \
+    aboutdialog.ui
 
 RESOURCES += resource.qrc
 

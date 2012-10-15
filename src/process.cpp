@@ -16,6 +16,10 @@
 #include "process.h"
 #include "logdialog.h"
 
+#ifdef Q_OS_WIN32
+#include <QTextCodec>
+#endif
+
 CommonProcess::CommonProcess(QObject* parent) : QProcess(parent)
 {
     setProcessChannelMode(QProcess::MergedChannels);
