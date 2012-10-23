@@ -42,8 +42,9 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 {
     const QIcon appIcon(":/icons/heart.png");
 
-    LogDialog::initDialog();
     LogDialog::dialog()->setWindowIcon(appIcon);
+    connect(LogDialog::dialog(), SIGNAL(windowActivate()),
+            this,                SLOT(lower()));
     connect(LogDialog::dialog(), SIGNAL(requestCommand(const QString&)),
             this,                SLOT(mpCmd(const QString&)));
 
@@ -707,6 +708,7 @@ void PurePlayer::openCommonProcess(const QString& path)
     _openedNewPath = true;
 
     setWindowTitle(_chName);
+    LogDialog::dialog()->setWindowTitle(_chName + " - PureLog");
 
     _searchingConnection = false;
 
@@ -1312,6 +1314,7 @@ void PurePlayer::showLogDialog()
     LogDialog::moveDialog(_menuContext->x()
                              + (_menuContext->width()-LogDialog::dialog()->width())/2,
                           _menuContext->y());
+
     LogDialog::showDialog();
 }
 
@@ -1320,7 +1323,7 @@ void PurePlayer::showConfigDialog()
     if( _configDialog == NULL ) {
         _configDialog = new ConfigDialog(this);
         connect(_configDialog, SIGNAL(applied(bool)),
-                this,       SLOT(appliedFromConfigDialog(bool)));
+                this,          SLOT(appliedFromConfigDialog(bool)));
     }
 
     _configDialog->setData(ConfigData::data());
@@ -1369,11 +1372,13 @@ void PurePlayer::openContactUrl()
         QDesktopServices::openUrl(_contactUrl);
 }
 
-/*
 bool PurePlayer::event(QEvent* e)
 {
 //  LogDialog::debug(tr("%1").arg(e->type()));
+    if( e->type() == QEvent::WindowActivate )
+        LogDialog::dialog()->lower();
 
+/*
     if( e->type() == QEvent::WindowStateChange ) {
         QWindowStateChangeEvent* event = static_cast<QWindowStateChangeEvent*>(e);
         if( windowState() == Qt::WindowMaximized ) {
@@ -1393,10 +1398,10 @@ bool PurePlayer::event(QEvent* e)
 
 //  if( e->type() == QEvent::StatusTip )
 //      return true;
-
+*/
     return QMainWindow::event(e);
 }
-*/
+
 void PurePlayer::closeEvent(QCloseEvent* e)
 {
     LogDialog::debug("PurePlayer::closeEvent(): start-");
@@ -2197,6 +2202,8 @@ FAILED:
 
         if( _debugCount ) setWindowTitle(_chName + QString(" %1").arg(_debugCount));
         else              setWindowTitle(_chName);
+
+        LogDialog::dialog()->setWindowTitle(_chName + " - PureLog");
     }
 
     LogDialog::debug(QString("PurePlayer::replyFinished(): end. request url %1")

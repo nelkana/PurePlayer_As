@@ -45,6 +45,7 @@ class ConfigDialog;
 class PlayListDialog;
 class AboutDialog;
 class LogDialog;
+#include "logdialog.h"
 
 class PurePlayer : public QMainWindow
 {
@@ -146,7 +147,7 @@ protected:
         FLG_SEEKED_REPEAT        = 0x00000002, // ABリピートでseek()したか
     };
 
-//  bool event(QEvent*);
+    bool event(QEvent*);
     void closeEvent(QCloseEvent*);
     void resizeEvent(QResizeEvent*);
     void keyPressEvent(QKeyEvent*);
