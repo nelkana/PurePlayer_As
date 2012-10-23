@@ -42,9 +42,10 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 {
     const QIcon appIcon(":/icons/heart.png");
 
-    LogDialog::dialog()->setWindowIcon(appIcon);
+    LogDialog::initDialog(this);
+//  LogDialog::dialog()->setWindowIcon(appIcon);
     connect(LogDialog::dialog(), SIGNAL(windowActivate()),
-            this,                SLOT(lower()));
+            this,                SLOT(raise()));
     connect(LogDialog::dialog(), SIGNAL(requestCommand(const QString&)),
             this,                SLOT(mpCmd(const QString&)));
 
@@ -1372,11 +1373,9 @@ void PurePlayer::openContactUrl()
         QDesktopServices::openUrl(_contactUrl);
 }
 
-bool PurePlayer::event(QEvent* e)
-{
+//bool PurePlayer::event(QEvent* e)
+//{
 //  LogDialog::debug(tr("%1").arg(e->type()));
-    if( e->type() == QEvent::WindowActivate )
-        LogDialog::dialog()->lower();
 
 /*
     if( e->type() == QEvent::WindowStateChange ) {
@@ -1399,8 +1398,8 @@ bool PurePlayer::event(QEvent* e)
 //  if( e->type() == QEvent::StatusTip )
 //      return true;
 */
-    return QMainWindow::event(e);
-}
+//  return QMainWindow::event(e);
+//}
 
 void PurePlayer::closeEvent(QCloseEvent* e)
 {

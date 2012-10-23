@@ -33,6 +33,7 @@ public:
     QColor TextColor() { return _textEdit->textColor(); }
     void   setTextColor(const QColor& c) { _textEdit->setTextColor(c); }
 
+    static void initDialog(QWidget* parent=0);
     static LogDialog* dialog();
 
 public slots:
@@ -65,6 +66,12 @@ private:
 
     bool _outputTerminal;
 };
+
+inline void LogDialog::initDialog(QWidget* parent)
+{
+    delete s_logDialog;
+    s_logDialog = new LogDialog(parent);
+}
 
 inline LogDialog* LogDialog::dialog()
 {
