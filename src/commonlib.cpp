@@ -39,6 +39,16 @@ void CommonLib::msleep(unsigned long msec)
     MyThread::msleep(msec);
 }
 
+// 受け取った曜日の値(0 ~ 6)に対応する曜日の文字列を返す
+QString CommonLib::dayOfWeek(int day)
+{
+    if( day < 0 || day > 6 ) return QString();
+
+    const char* d[7] = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
+
+    return QString(d[day]);
+}
+
 // 矩形上で、比を維持してスケーリングを行った矩形を返す
 QRect CommonLib::scaleRectOnRect(const QSize& baseRect, const QSize& placeRect)
 {

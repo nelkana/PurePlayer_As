@@ -886,8 +886,11 @@ void PurePlayer::reconnectPeercast()
 void PurePlayer::recordingStartStop()
 {
     if( _recordingProcess->state() == QProcess::NotRunning ) {
+        QDateTime dateTime = QDateTime::currentDateTime();
         QString saveName = QString("%1_%2.avi").arg(_chName)
-                    .arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss"));
+                                .arg(dateTime.toString("yyyyMMdd_")
+                                    + CommonLib::dayOfWeek(dateTime.date().dayOfWeek()-1)
+                                    + dateTime.toString("_hhmmss"));
 
         QStringList args;
         args
@@ -1023,10 +1026,20 @@ void PurePlayer::setAspectRatio(ASPECT_RATIO ratio)
     }
 }
 
-void PurePlayer::setContrast(int value)
+void PurePlayer::setContrast(int value, bool alwaysSet)
 {
     if( value < -100 ) value = -100; else
     if( value > 100 )  value = 100;
+
+    if( _videoAdjustDialog != NULL ) {
+        disconnect(_videoAdjustDialog, SIGNAL(changedContrast(int)), this, SLOT(setContrast(int)));
+        _videoAdjustDialog->setContrast(value);
+        connect(_videoAdjustDialog, SIGNAL(changedContrast(int)), this, SLOT(setContrast(int)));
+    }
+
+    if( _videoSettings.contrast==value && !alwaysSet )
+        return;
+
     _videoSettings.contrast = value;
 
     if( _state == PLAY ) {
@@ -1043,10 +1056,20 @@ void PurePlayer::setContrast(int value)
         mpCmd(QString("pausing_keep_force contrast %1 1").arg(_videoSettings.contrast));
 }
 
-void PurePlayer::setBrightness(int value)
+void PurePlayer::setBrightness(int value, bool alwaysSet)
 {
     if( value < -100 ) value = -100; else
     if( value > 100 )  value = 100;
+
+    if( _videoAdjustDialog != NULL ) {
+        disconnect(_videoAdjustDialog, SIGNAL(changedBrightness(int)), this, SLOT(setBrightness(int)));
+        _videoAdjustDialog->setBrightness(value);
+        connect(_videoAdjustDialog, SIGNAL(changedBrightness(int)), this, SLOT(setBrightness(int)));
+    }
+
+    if( _videoSettings.brightness==value && !alwaysSet )
+        return;
+
     _videoSettings.brightness = value;
 
     if( _state == PLAY ) {
@@ -1063,30 +1086,20 @@ void PurePlayer::setBrightness(int value)
         mpCmd(QString("pausing_keep_force brightness %1 1").arg(_videoSettings.brightness));
 }
 
-void PurePlayer::setHue(int value)
+void PurePlayer::setSaturation(int value, bool alwaysSet)
 {
     if( value < -100 ) value = -100; else
     if( value > 100 )  value = 100;
-    _videoSettings.hue = value;
 
-    if( _state == PLAY ) {
-        if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
-            mpCmd(QString("hue %1 1").arg(_videoSettings.hue));
-        else {
-            mpCmd("osd 1");
-            mpCmd(QString("hue %1 1").arg(_videoSettings.hue));
-            mpCmd("osd 0");
-        }
+    if( _videoAdjustDialog != NULL ) {
+        disconnect(_videoAdjustDialog, SIGNAL(changedSaturation(int)), this, SLOT(setSaturation(int)));
+        _videoAdjustDialog->setSaturation(value);
+        connect(_videoAdjustDialog, SIGNAL(changedSaturation(int)), this, SLOT(setSaturation(int)));
     }
-    else
-    if( _state == PAUSE )
-        mpCmd(QString("pausing_keep_force hue %1 1").arg(_videoSettings.hue));
-}
 
-void PurePlayer::setSaturation(int value)
-{
-    if( value < -100 ) value = -100; else
-    if( value > 100 )  value = 100;
+    if( _videoSettings.saturation==value && !alwaysSet )
+        return;
+
     _videoSettings.saturation = value;
 
     if( _state == PLAY ) {
@@ -1103,10 +1116,50 @@ void PurePlayer::setSaturation(int value)
         mpCmd(QString("pausing_keep_force saturation %1 1").arg(_videoSettings.saturation));
 }
 
-void PurePlayer::setGamma(int value)
+void PurePlayer::setHue(int value, bool alwaysSet)
 {
     if( value < -100 ) value = -100; else
     if( value > 100 )  value = 100;
+
+    if( _videoAdjustDialog != NULL ) {
+        disconnect(_videoAdjustDialog, SIGNAL(changedHue(int)), this, SLOT(setHue(int)));
+        _videoAdjustDialog->setHue(value);
+        connect(_videoAdjustDialog, SIGNAL(changedHue(int)), this, SLOT(setHue(int)));
+    }
+
+    if( _videoSettings.hue==value && !alwaysSet )
+        return;
+
+    _videoSettings.hue = value;
+
+    if( _state == PLAY ) {
+        if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
+            mpCmd(QString("hue %1 1").arg(_videoSettings.hue));
+        else {
+            mpCmd("osd 1");
+            mpCmd(QString("hue %1 1").arg(_videoSettings.hue));
+            mpCmd("osd 0");
+        }
+    }
+    else
+    if( _state == PAUSE )
+        mpCmd(QString("pausing_keep_force hue %1 1").arg(_videoSettings.hue));
+}
+
+void PurePlayer::setGamma(int value, bool alwaysSet)
+{
+    if( value < -100 ) value = -100; else
+    if( value > 100 )  value = 100;
+
+    if( _videoAdjustDialog != NULL ) {
+        disconnect(_videoAdjustDialog, SIGNAL(changedGamma(int)), this, SLOT(setGamma(int)));
+        _videoAdjustDialog->setGamma(value);
+        connect(_videoAdjustDialog, SIGNAL(changedGamma(int)), this, SLOT(setGamma(int)));
+    }
+
+    if( _videoSettings.gamma==value && !alwaysSet )
+        return;
+
     _videoSettings.gamma = value;
 
     if( _state == PLAY ) {
@@ -1286,22 +1339,17 @@ void PurePlayer::showVideoAdjustDialog()
 {
     if( _videoAdjustDialog == NULL ) {
         _videoAdjustDialog = new VideoAdjustDialog(this);
-        connect(_videoAdjustDialog, SIGNAL(clickedSaveButton()), this, SLOT(saveVideoSettings()));
+        connect(_videoAdjustDialog, SIGNAL(requestSave()), this, SLOT(saveVideoSettings()));
+        connect(_videoAdjustDialog, SIGNAL(requestLoad()), this, SLOT(loadVideoSettings()));
         connect(_videoAdjustDialog, SIGNAL(changedContrast(int)), this, SLOT(setContrast(int)));
         connect(_videoAdjustDialog, SIGNAL(changedBrightness(int)), this, SLOT(setBrightness(int)));
         connect(_videoAdjustDialog, SIGNAL(changedSaturation(int)), this, SLOT(setSaturation(int)));
         connect(_videoAdjustDialog, SIGNAL(changedHue(int)), this, SLOT(setHue(int)));
         connect(_videoAdjustDialog, SIGNAL(changedGamma(int)), this, SLOT(setGamma(int)));
 
-        _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE;  //mpCmd("osd 0");
-        _videoAdjustDialog->setValue(_videoSettings);
-        _controlFlags &= ~FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 1");
-        _videoAdjustDialog->updateSaveValue();
-    }
-    else {
-        _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE;  //mpCmd("osd 0");
-        _videoAdjustDialog->setValue(_videoSettings);
-        _controlFlags &= ~FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 1");
+//      _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE;  //mpCmd("osd 0");
+        _videoAdjustDialog->setSettings(_videoSettings);
+//      _controlFlags &= ~FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 1");
     }
 
     _videoAdjustDialog->move(_menuContext->x()
@@ -1952,11 +2000,11 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
         _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 0");
 
         setVolume(_volume);
-        setContrast(_videoSettings.contrast);
-        setBrightness(_videoSettings.brightness);
-        setHue(_videoSettings.hue);
-        setSaturation(_videoSettings.saturation);
-        setGamma(_videoSettings.gamma);
+        setContrast(_videoSettings.contrast, true);
+        setBrightness(_videoSettings.brightness, true);
+        setSaturation(_videoSettings.saturation, true);
+        setHue(_videoSettings.hue, true);
+        setGamma(_videoSettings.gamma, true);
         setLoop(_doLoop);
 
         _controlFlags &= ~FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 1");
@@ -2048,12 +2096,11 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
         setStatus(STOP);
     else
     if( rxScreenshot.indexIn(line) != -1 ) {
-        const char* day[7] = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
         QDateTime dateTime = QDateTime::currentDateTime();
         QString baseName = QString("%1_%2").arg(_chName)
-                                           .arg(dateTime.toString("yyyyMMdd_")
-                                                + day[dateTime.date().dayOfWeek()-1]
-                                                + dateTime.toString("_hhmmss"));
+                                .arg(dateTime.toString("yyyyMMdd_")
+                                    + CommonLib::dayOfWeek(dateTime.date().dayOfWeek()-1)
+                                    + dateTime.toString("_hhmmss"));
 
         new RenameTimerTask(rxScreenshot.cap(1), baseName, this);
 
@@ -2148,6 +2195,11 @@ void PurePlayer::replyFinished(QNetworkReply* reply)
             goto FAILED;
 
         _chName = rx.cap(1);
+        _chName.replace("&lt;","<").replace("&gt;",">")
+               .replace("&amp;","&").replace("&quot;","\"");
+//      QTextDocument txt;
+//      txt.setHtml(_chName);
+//      _chName = txt.toPlainText();
         LogDialog::debug("PurePlayer::replyFinished(): chName " + _chName);
         if( _chName.isEmpty() )
             _chName = "PurePlayer*";
@@ -2440,8 +2492,8 @@ void PurePlayer::saveVideoSettings()
 
     s.setValue("contrast",   _videoSettings.contrast);
     s.setValue("brightness", _videoSettings.brightness);
-    s.setValue("hue",        _videoSettings.hue);
     s.setValue("saturation", _videoSettings.saturation);
+    s.setValue("hue",        _videoSettings.hue);
     s.setValue("gamma",      _videoSettings.gamma);
 
     LogDialog::debug("PurePlayer::saveVideoSettings(): end");
@@ -2451,11 +2503,20 @@ void PurePlayer::loadVideoSettings()
 {
     QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
 
-    _videoSettings.contrast   = s.value("contrast",   0).toInt();
-    _videoSettings.brightness = s.value("brightness", 0).toInt();
-    _videoSettings.hue        = s.value("hue",        0).toInt();
-    _videoSettings.saturation = s.value("saturation", 0).toInt();
-    _videoSettings.gamma      = s.value("gamma",      0).toInt();
+    VideoSettings v;
+    v.contrast   = s.value("contrast",   0).toInt();
+    v.brightness = s.value("brightness", 0).toInt();
+    v.saturation = s.value("saturation", 0).toInt();
+    v.hue        = s.value("hue",        0).toInt();
+    v.gamma      = s.value("gamma",      0).toInt();
+
+    _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE;  //mpCmd("osd 0");
+    setContrast(v.contrast);
+    setBrightness(v.brightness);
+    setSaturation(v.saturation);
+    setHue(v.hue);
+    setGamma(v.gamma);
+    _controlFlags &= ~FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 1");
 
     LogDialog::debug("PurePlayer::loadVideoSettings(): end");
 }

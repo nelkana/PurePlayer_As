@@ -97,11 +97,11 @@ public slots:
     void setAudioOutput(AUDIO_OUTPUT_MODE);
     void setLoop(bool);
     void setAspectRatio(ASPECT_RATIO);
-    void setContrast(int value);
-    void setBrightness(int value);
-    void setHue(int value);
-    void setSaturation(int value);
-    void setGamma(int value);
+    void setContrast(int value, bool alwaysSet=false);
+    void setBrightness(int value, bool alwaysSet=false);
+    void setSaturation(int value, bool alwaysSet=false);
+    void setHue(int value, bool alwaysSet=false);
+    void setGamma(int value, bool alwaysSet=false);
     void setDeinterlace(DEINTERLACE_MODE);
     void screenshot();
     void resizeReduce()     { resizePercentageFromCurrent(-10); }
