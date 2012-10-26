@@ -16,6 +16,7 @@
 #ifndef VIDEOADJUSTDIALOG_H
 #define VIDEOADJUSTDIALOG_H
 
+#include <QMessageBox>
 #include "ui_videoadjustdialog.h"
 #include "pureplayer.h"
 
@@ -25,56 +26,42 @@ class VideoAdjustDialog : public QDialog, Ui::VideoAdjustDialog
 
 public:
     VideoAdjustDialog(QWidget* parent);
-    ~VideoAdjustDialog() {}
-    void setValue(const PurePlayer::VideoSettings&);
-
-public slots:
-    void updateSaveValue();
-    void load();
+    void setSettings(const PurePlayer::VideoSettings&);
+    void setContrast(const int value)   { _spinBox->setValue(value);   }
+    void setBrightness(const int value) { _spinBox_2->setValue(value); }
+    void setSaturation(const int value) { _spinBox_3->setValue(value); }
+    void setHue(const int value)        { _spinBox_4->setValue(value); }
+    void setGamma(const int value)      { _spinBox_5->setValue(value); }
 
 signals:
-    void clickedSaveButton();
+    void requestSave();
+    void requestLoad();
     void changedContrast(int value);
     void changedBrightness(int value);
     void changedSaturation(int value);
     void changedHue(int value);
     void changedGamma(int value);
 
+protected slots:
+    void buttonSaveClicked();
+
 protected:
     void showEvent(QShowEvent*);
-
-private slots:
-    void updateSaveButton();
-
-private:
-    int  _saveContrast;
-    int  _saveBrightness;
-    int  _saveSaturation;
-    int  _saveHue;
-    int  _saveGamma;
 };
 
 inline VideoAdjustDialog::VideoAdjustDialog(QWidget* parent) : QDialog(parent)
 {
     setupUi(this);
-    connect(_buttonSave, SIGNAL(clicked()),         this, SIGNAL(clickedSaveButton()));
-    connect(_buttonSave, SIGNAL(clicked()),         this, SLOT(updateSaveValue()));
-    connect(_buttonLoad, SIGNAL(clicked()),         this, SLOT(load()));
+    connect(_buttonSave, SIGNAL(clicked()),         this, SLOT(buttonSaveClicked()));
+    connect(_buttonLoad, SIGNAL(clicked()),         this, SIGNAL(requestLoad()));
     connect(_spinBox,    SIGNAL(valueChanged(int)), this, SIGNAL(changedContrast(int)));
-    connect(_spinBox,    SIGNAL(valueChanged(int)), this, SLOT(updateSaveButton()));
     connect(_spinBox_2,  SIGNAL(valueChanged(int)), this, SIGNAL(changedBrightness(int)));
-    connect(_spinBox_2,  SIGNAL(valueChanged(int)), this, SLOT(updateSaveButton()));
     connect(_spinBox_3,  SIGNAL(valueChanged(int)), this, SIGNAL(changedSaturation(int)));
-    connect(_spinBox_3,  SIGNAL(valueChanged(int)), this, SLOT(updateSaveButton()));
     connect(_spinBox_4,  SIGNAL(valueChanged(int)), this, SIGNAL(changedHue(int)));
-    connect(_spinBox_4,  SIGNAL(valueChanged(int)), this, SLOT(updateSaveButton()));
     connect(_spinBox_5,  SIGNAL(valueChanged(int)), this, SIGNAL(changedGamma(int)));
-    connect(_spinBox_5,  SIGNAL(valueChanged(int)), this, SLOT(updateSaveButton()));
-
-    updateSaveValue();
 }
 
-inline void VideoAdjustDialog::setValue(const PurePlayer::VideoSettings& v)
+inline void VideoAdjustDialog::setSettings(const PurePlayer::VideoSettings& v)
 {
     _spinBox->setValue(v.contrast);
     _spinBox_2->setValue(v.brightness);
@@ -83,46 +70,23 @@ inline void VideoAdjustDialog::setValue(const PurePlayer::VideoSettings& v)
     _spinBox_5->setValue(v.gamma);
 }
 
-inline void VideoAdjustDialog::updateSaveValue()
+inline void VideoAdjustDialog::buttonSaveClicked()
 {
-    _saveContrast   = _spinBox->value();
-    _saveBrightness = _spinBox_2->value();
-    _saveSaturation = _spinBox_3->value();
-    _saveHue        = _spinBox_4->value();
-    _saveGamma      = _spinBox_5->value();
+    QMessageBox::StandardButton ret =
+        QMessageBox::question(
+            this,
+            tr("設定を保存しますか？"),
+            tr("設定を保存してもよろしいですか？"),
+            QMessageBox::Yes|QMessageBox::No,
+            QMessageBox::No);
 
-    _buttonSave->setEnabled(false);
-}
-
-inline void VideoAdjustDialog::load()
-{
-    PurePlayer::VideoSettings v;
-    v.contrast   = _saveContrast;
-    v.brightness = _saveBrightness;
-    v.saturation = _saveSaturation;
-    v.hue        = _saveHue;
-    v.gamma      = _saveGamma;
-
-    setValue(v);
+    if( ret == QMessageBox::Yes )
+        emit requestSave();
 }
 
 inline void VideoAdjustDialog::showEvent(QShowEvent*)
 {
     setFixedSize(size());
-}
-
-inline void VideoAdjustDialog::updateSaveButton()
-{
-    if(_saveContrast   != _spinBox->value()   ||
-       _saveBrightness != _spinBox_2->value() ||
-       _saveSaturation != _spinBox_3->value() ||
-       _saveHue        != _spinBox_4->value() ||
-       _saveGamma      != _spinBox_5->value() )
-    {
-        _buttonSave->setEnabled(true);
-    }
-    else
-        _buttonSave->setEnabled(false);
 }
 
 #endif // VIDEOADJUSTDIALOG_H

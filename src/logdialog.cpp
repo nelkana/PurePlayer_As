@@ -18,10 +18,10 @@
 
 LogDialog* LogDialog::s_logDialog;
 
-LogDialog::LogDialog() : QDialog(0)
+LogDialog::LogDialog(QWidget* parent) : QDialog(parent)
 {
     setupUi(this);
-    setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
+//  setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
     connect(_buttonClear, SIGNAL(clicked()), this, SLOT(clear()));
 
     _textEdit->setTextColor(QColor(212,210,207));
@@ -35,7 +35,7 @@ LogDialog::LogDialog() : QDialog(0)
 
 LogDialog::~LogDialog()
 {
-    qDebug("LogDialog::~LogDialog():");
+//  qDebug("LogDialog::~LogDialog():");
 }
 
 void LogDialog::printOut(const QString& text, const QColor& color)
@@ -50,9 +50,17 @@ void LogDialog::printOut(const QString& text, const QColor& color)
         qDebug(text.toAscii().constData());
 }
 
+bool LogDialog::event(QEvent* e)
+{
+    if( e->type() == QEvent::WindowActivate )
+        emit windowActivate();
+
+    return QDialog::event(e);
+}
+
 void LogDialog::keyPressEvent(QKeyEvent* e)
 {
-    if( e->key()==Qt::Key_Return ) {
+    if( e->key() == Qt::Key_Return ) {
         if( _lineEditCommand->hasFocus() )
             emit requestCommand(_lineEditCommand->text());
     }

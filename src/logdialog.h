@@ -25,7 +25,7 @@ class LogDialog : public QDialog, Ui::LogDialog
     Q_OBJECT
 
 public:
-    LogDialog();
+    LogDialog(QWidget* parent=0);
     ~LogDialog();
 
     void   setOutputTerminal(bool b) { _outputTerminal = b; }
@@ -33,8 +33,8 @@ public:
     QColor TextColor() { return _textEdit->textColor(); }
     void   setTextColor(const QColor& c) { _textEdit->setTextColor(c); }
 
-    static void initDialog() { delete s_logDialog; s_logDialog = new LogDialog(); }
-    static LogDialog* dialog() { return s_logDialog; }
+    static void initDialog(QWidget* parent=0);
+    static LogDialog* dialog();
 
 public slots:
     void printOut(const QString& text);
@@ -54,9 +54,11 @@ public slots:
                                            { s_logDialog->printOut(text, color); }
 
 signals:
+    void windowActivate();
     void requestCommand(const QString& command);
 
 protected:
+    bool event(QEvent*);
     void keyPressEvent(QKeyEvent*);
 
 private:
@@ -64,6 +66,20 @@ private:
 
     bool _outputTerminal;
 };
+
+inline void LogDialog::initDialog(QWidget* parent)
+{
+    delete s_logDialog;
+    s_logDialog = new LogDialog(parent);
+}
+
+inline LogDialog* LogDialog::dialog()
+{
+    if( s_logDialog==NULL )
+        s_logDialog = new LogDialog();
+
+    return s_logDialog;
+}
 
 inline void LogDialog::printOut(const QString& text)
 {
@@ -122,7 +138,7 @@ inline void LogDialog::showDialog()
 {
     if( s_logDialog != NULL ) {
         s_logDialog->show();
-        s_logDialog->activateWindow();
+        s_logDialog->activateWindow(); // フルスクリーンされてる場合でも表示
     }
 }
 

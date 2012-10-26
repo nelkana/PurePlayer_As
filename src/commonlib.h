@@ -24,6 +24,7 @@ namespace CommonLib
 double round(double value, int precision);
 void   msleep(unsigned long msec);
 
+QString dayOfWeek(int day);
 QRect   scaleRectOnRect(const QSize& baseRect, const QSize& placeRect);
 QString retTheFileNameNotExists(const QString& requestFileName);
 QString getOpenFileNameDialog(QWidget* parent=0, const QString& caption=QString());
