@@ -75,8 +75,8 @@ inline void VideoAdjustDialog::buttonSaveClicked()
     QMessageBox::StandardButton ret =
         QMessageBox::question(
             this,
-            "設定を保存しますか？",
-            "設定を保存してもよろしいですか？",
+            tr("設定を保存しますか？"),
+            tr("設定を保存してもよろしいですか？"),
             QMessageBox::Yes|QMessageBox::No,
             QMessageBox::No);
 

@@ -362,21 +362,6 @@ void PurePlayer::createActionContextMenu()
     connect(_actMute, SIGNAL(triggered(bool)), this, SLOT(mute(bool)));
     addAction(_actMute); // ショートカットキーを登録する為、アクションを追加
 
-    QAction* actVideoAdjust = new QAction(tr("ビデオ調整"), this);
-    connect(actVideoAdjust, SIGNAL(triggered()), this, SLOT(showVideoAdjustDialog()));
-
-    QAction* actOpen = new QAction(tr("開く"), this);
-    connect(actOpen, SIGNAL(triggered()), this, SLOT(openFromDialog()));
-
-    QAction* actConfig = new QAction(tr("設定"), this);
-    connect(actConfig, SIGNAL(triggered()), this, SLOT(showConfigDialog()));
-
-    QAction* actLog = new QAction(tr("ログ"), this);
-    connect(actLog, SIGNAL(triggered()), this, SLOT(showLogDialog()));
-
-    QAction* actAbout = new QAction(tr("PurePlayer*について"), this);
-    connect(actAbout, SIGNAL(triggered()), this, SLOT(showAboutDialog()));
-
     _actScreenshot = new QAction(tr("スクリーンショット"), this);
     _actScreenshot->setShortcut(tr("c"));
     _actScreenshot->setAutoRepeat(false);
@@ -410,6 +395,21 @@ void PurePlayer::createActionContextMenu()
     _actStatusBar->setChecked(false);
     connect(_actStatusBar, SIGNAL(triggered(bool)), this, SLOT(setAlwaysShowStatusBar(bool)));
 
+    QAction* actVideoAdjust = new QAction(tr("ビデオ調整"), this);
+    connect(actVideoAdjust, SIGNAL(triggered()), this, SLOT(showVideoAdjustDialog()));
+
+    QAction* actOpen = new QAction(tr("開く"), this);
+    connect(actOpen, SIGNAL(triggered()), this, SLOT(openFromDialog()));
+
+    QAction* actConfig = new QAction(tr("設定"), this);
+    connect(actConfig, SIGNAL(triggered()), this, SLOT(showConfigDialog()));
+
+    QAction* actLog = new QAction(tr("ログ"), this);
+    connect(actLog, SIGNAL(triggered()), this, SLOT(showLogDialog()));
+
+    QAction* actAbout = new QAction(tr("PurePlayer*について"), this);
+    connect(actAbout, SIGNAL(triggered()), this, SLOT(showAboutDialog()));
+
     // 音声出力メニュー
     _actGroupAudioOutput = new QActionGroup(this);
     connect(_actGroupAudioOutput, SIGNAL(triggered(QAction*)),
@@ -441,14 +441,22 @@ void PurePlayer::createActionContextMenu()
     menuAudioOutput->addActions(_actGroupVolumeFactor->actions());
 
     // サイズ変更メニュー
-    QAction* actReduceSize = new QAction(tr("少し小さくする"), this);
+    QAction* actReduceSize = new QAction(tr("小さくする"), this);
     actReduceSize->setShortcut(tr("-"));
     connect(actReduceSize, SIGNAL(triggered()), this, SLOT(resizeReduce()));
     addAction(actReduceSize);
-    QAction* actIncreaseSize = new QAction(tr("少し大きくする"), this);
+    QAction* actIncreaseSize = new QAction(tr("大きくする"), this);
     actIncreaseSize->setShortcut(tr("="));
     connect(actIncreaseSize, SIGNAL(triggered()), this, SLOT(resizeIncrease()));
     addAction(actIncreaseSize);
+    QAction* actSlightlyReduceSize = new QAction(tr("少し小さくする"), this);
+    actSlightlyReduceSize->setShortcut(tr("["));
+    connect(actSlightlyReduceSize, SIGNAL(triggered()), this, SLOT(resizeSlightlyReduce()));
+    addAction(actSlightlyReduceSize);
+    QAction* actSlightlyIncreaseSize = new QAction(tr("少し大きくする"), this);
+    actSlightlyIncreaseSize->setShortcut(tr("]"));
+    connect(actSlightlyIncreaseSize, SIGNAL(triggered()), this, SLOT(resizeSlightlyIncrease()));
+    addAction(actSlightlyIncreaseSize);
     QAction* act320x240 = new QAction(tr("320x240"), this);
     act320x240->setShortcut(tr("0"));
     connect(act320x240, SIGNAL(triggered()), this, SLOT(resize320x240()));
@@ -483,6 +491,8 @@ void PurePlayer::createActionContextMenu()
     QMenu* menuSize = new QMenu(tr("サイズ変更"), this);
     menuSize->addAction(actReduceSize);
     menuSize->addAction(actIncreaseSize);
+    menuSize->addAction(actSlightlyReduceSize);
+    menuSize->addAction(actSlightlyIncreaseSize);
     menuSize->addSeparator();
     menuSize->addAction(act320x240);
     menuSize->addAction(act1280x720);
@@ -1232,17 +1242,18 @@ void PurePlayer::resizePercentageFromCurrent(const int percentage)
     QSize videoSize;
     videoSize = videoSize100Percent();
 
-    int threshold = abs(percentage);
-
     // 現在のビデオサイズの割合を求める
 //  int currentPercentage = _videoScreen->width()*100 / videoSize.width();
     int currentPercentage = _videoScreen->height()*100 / videoSize.height();
 
     // 現在のウィンドウサイズの割合がしきい値の何束目に相当するか求める
+    int threshold = abs(percentage);
     int temp = (double)currentPercentage/threshold + 0.5;
 
     // リサイズする割合を求める
     int resizePercentage = (temp + (percentage>0 ? 1:-1)) * threshold;
+//  int resizePercentage = currentPercentage + percentage; // 単純に加算する場合
+
     if( resizePercentage <= 0 )
         return;
 

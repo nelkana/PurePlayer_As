@@ -57,11 +57,11 @@ public:
     enum VOLUME_FACTOR_MODE { VF_NORMAL, VF_DOUBLE, VF_TRIPLE };
 
     struct VideoSettings {
-        int contrast;
-        int brightness;
-        int hue;
-        int saturation;
-        int gamma;
+        qint8 contrast;
+        qint8 brightness;
+        qint8 hue;
+        qint8 saturation;
+        qint8 gamma;
     };
 
     PurePlayer(QWidget* parent = 0);
@@ -104,8 +104,10 @@ public slots:
     void setGamma(int value, bool alwaysSet=false);
     void setDeinterlace(DEINTERLACE_MODE);
     void screenshot();
-    void resizeReduce()     { resizePercentageFromCurrent(-10); }
-    void resizeIncrease()   { resizePercentageFromCurrent(+10); }
+    void resizeSlightlyReduce()   { resizePercentageFromCurrent(-10); }
+    void resizeSlightlyIncrease() { resizePercentageFromCurrent(+10); }
+    void resizeReduce()           { resizePercentageFromCurrent(-25); }
+    void resizeIncrease()         { resizePercentageFromCurrent(+25); }
     void resize320x240()    { resizeFromVideoClient(QSize(320,240)); }
     void resize1280x720()   { resizeFromVideoClient(QSize(1280,720)); }
     void resize25Percent()  { resizeFromVideoClient(calcPercentageVideoSize(25)); }

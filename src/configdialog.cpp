@@ -231,11 +231,11 @@ void ConfigDialog::checkBoxSoftVideoEqClicked(bool checked)
         QMessageBox::StandardButton ret =
             QMessageBox::warning(
                 this,
-                "警告 設定を変更し、無効にしますか？",
-                "この設定を無効にするとビデオ調整(明るさ等)の設定がグローバルに変更され、"
+                tr("警告 設定を変更し、無効にしますか？"),
+                tr("この設定を無効にするとビデオ調整(明るさ等)の設定がグローバルに変更され、"
                 "他のメディアプレイヤーの画面表示に影響を与えます。\n"
                 "特に問題が無い限り、有効のままにして頂く事をお勧めします。\n\n"
-                "設定を変更し、無効にしますか？",
+                "設定を変更し、無効にしますか？"),
                 QMessageBox::Yes|QMessageBox::No,
                 QMessageBox::No);
 
