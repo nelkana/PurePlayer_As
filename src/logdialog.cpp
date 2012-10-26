@@ -35,7 +35,7 @@ LogDialog::LogDialog(QWidget* parent) : QDialog(parent)
 
 LogDialog::~LogDialog()
 {
-    qDebug("LogDialog::~LogDialog():");
+//  qDebug("LogDialog::~LogDialog():");
 }
 
 void LogDialog::printOut(const QString& text, const QColor& color)
