@@ -13,35 +13,20 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-#ifndef CONFIGDATA_H
-#define CONFIGDATA_H
+#ifndef INPUTDIALOGs_H
+#define INPUTDIALOGs_H
 
-#include <QString>
+#include "ui_inputdialog.h"
 
-class ConfigData
+class InputDialog : public QDialog, Ui::InputDialog
 {
+    Q_OBJECT
+
 public:
-    struct Data {
-        QString voName;
-        QString aoName;
-        bool    openIn320x240Size;
-        bool    useSoftWareVideoEq;
-        bool    screenshot; // debug
-        int     volumeMax;
-        int     cacheStreamSize;
-        bool    useScreenshotPath;
-        QString screenshotPath;
-        bool    useMplayerPath;
-        QString mplayerPath;
-    };
+    InputDialog(QWidget* parent);
 
-    static Data* data() { return &s_data; }
-    static void saveData();
-    static void loadData();
-
-private:
-    static Data s_data;
+    static QString input(QWidget* parent, const QString& title, const QString& text, const QString& initText=QString());
 };
 
-#endif // CONFIGDATA_H
+#endif // INPUTDIALOGs_H
 

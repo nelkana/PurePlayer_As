@@ -4,8 +4,8 @@ DESTDIR = ..
 DEPENDPATH += .
 INCLUDEPATH += .
 QT += network
-CONFIG += release
-#CONFIG += debug
+#CONFIG += release
+CONFIG += debug
 
 HEADERS += \
     pureplayer.h \
@@ -25,6 +25,7 @@ HEADERS += \
     opendialog.h \
     videoadjustdialog.h \
     playlistdialog.h \
+    inputdialog.h \
     aboutdialog.h
 
 SOURCES += \
@@ -42,7 +43,9 @@ SOURCES += \
     \
     logdialog.cpp \
     configdialog.cpp \
-    playlistdialog.cpp
+    videoadjustdialog.cpp \
+    playlistdialog.cpp \
+    inputdialog.cpp
 
 FORMS += \
     logdialog.ui \
@@ -50,6 +53,7 @@ FORMS += \
     opendialog.ui \
     videoadjustdialog.ui \
     playlistdialog.ui \
+    inputdialog.ui \
     aboutdialog.ui
 
 RESOURCES += resource.qrc

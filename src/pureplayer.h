@@ -56,7 +56,8 @@ public:
     enum AUDIO_OUTPUT_MODE { AO_STEREO, AO_MONAURAL, AO_LEFT, AO_RIGHT };
     enum VOLUME_FACTOR_MODE { VF_NORMAL, VF_DOUBLE, VF_TRIPLE };
 
-    struct VideoSettings {
+    struct VideoProfile {
+        QString name;
         qint8 contrast;
         qint8 brightness;
         qint8 hue;
@@ -106,8 +107,8 @@ public slots:
     void screenshot();
     void resizeSlightlyReduce()   { resizePercentageFromCurrent(-10); }
     void resizeSlightlyIncrease() { resizePercentageFromCurrent(+10); }
-    void resizeReduce()           { resizePercentageFromCurrent(-25); }
-    void resizeIncrease()         { resizePercentageFromCurrent(+25); }
+    void resizeReduce()           { resizePercentageFromCurrent(-20); }
+    void resizeIncrease()         { resizePercentageFromCurrent(+20); }
     void resize320x240()    { resizeFromVideoClient(QSize(320,240)); }
     void resize1280x720()   { resizeFromVideoClient(QSize(1280,720)); }
     void resize25Percent()  { resizeFromVideoClient(calcPercentageVideoSize(25)); }
@@ -121,8 +122,19 @@ public slots:
     void fullScreenOrWindow();
     void setAlwaysShowStatusBar(bool);
     void showVideoAdjustDialog();
-    void saveVideoSettings();
-    void loadVideoSettings();
+    // protected
+    void loadVideoProfiles();
+    void reloadVideoProfiles();
+    void reloadCheckVideoSettingsFile();
+    void saveVideoProfilesOrder();
+    // public
+    void saveCurrentVideoProfileToDefault();
+    void setCurrentVideoProfile(const QString& profileName, bool onlyProfileName=false);
+    void createVideoProfileFromCurrent(QString profileName);
+    void saveCurrentVideoProfile();
+    void restoreCurrentVideoProfile();
+    void deleteCurrentVideoProfile();
+
     void showLogDialog();
     void showAboutDialog();
     void showConfigDialog();
@@ -253,7 +265,9 @@ private:
     quint16         _fpsCount;
     unsigned int    _oldFrame;
 
-    VideoSettings   _videoSettings;
+    QList<VideoProfile> _videoProfiles;
+    VideoProfile        _currentVideoProfile;
+    QString             _timeVideoSettingsModified;
 
     AUDIO_OUTPUT_MODE  _audioOutput;
     VOLUME_FACTOR_MODE _volumeFactor;

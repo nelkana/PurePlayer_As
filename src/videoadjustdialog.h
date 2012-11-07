@@ -26,16 +26,29 @@ class VideoAdjustDialog : public QDialog, Ui::VideoAdjustDialog
 
 public:
     VideoAdjustDialog(QWidget* parent);
-    void setSettings(const PurePlayer::VideoSettings&);
     void setContrast(const int value)   { _spinBox->setValue(value);   }
     void setBrightness(const int value) { _spinBox_2->setValue(value); }
     void setSaturation(const int value) { _spinBox_3->setValue(value); }
     void setHue(const int value)        { _spinBox_4->setValue(value); }
     void setGamma(const int value)      { _spinBox_5->setValue(value); }
 
+    void setProfiles(const QStringList& names);
+    void appendProfile(const QString& name) { _comboBoxProfile->addItem(name); }
+    void removeProfile(const QString& name);
+    void setCurrentProfile(const QString& name);
+    void setCurrentProfile(const PurePlayer::VideoProfile& profile);
+    void setDefaultProfile(const QString& name);
+
+    void showDialogWarning(const QString& title, const QString& text);
+
 signals:
+    void windowActivate();
     void requestSave();
     void requestLoad();
+    void requestCreate(const QString& name);
+    void requestRemove();
+    void requestDefault();
+    void changedProfile(const QString& name);
     void changedContrast(int value);
     void changedBrightness(int value);
     void changedSaturation(int value);
@@ -43,50 +56,23 @@ signals:
     void changedGamma(int value);
 
 protected slots:
+    void comboBoxProfileCurrentIndexChanged(const QString& name);
     void buttonSaveClicked();
+    void buttonCreateClicked();
+    void buttonRemoveClicked();
 
 protected:
+    bool event(QEvent*);
     void showEvent(QShowEvent*);
+    void updateButtonDefaultEnableDisable(); // 本データ側がデフォルトプロファイルを
+                                             // 持たないのでボタンdisable化保留。
+private:
+    QString _defaultProfile;
 };
 
-inline VideoAdjustDialog::VideoAdjustDialog(QWidget* parent) : QDialog(parent)
+inline void VideoAdjustDialog::showDialogWarning(const QString& title, const QString& text)
 {
-    setupUi(this);
-    connect(_buttonSave, SIGNAL(clicked()),         this, SLOT(buttonSaveClicked()));
-    connect(_buttonLoad, SIGNAL(clicked()),         this, SIGNAL(requestLoad()));
-    connect(_spinBox,    SIGNAL(valueChanged(int)), this, SIGNAL(changedContrast(int)));
-    connect(_spinBox_2,  SIGNAL(valueChanged(int)), this, SIGNAL(changedBrightness(int)));
-    connect(_spinBox_3,  SIGNAL(valueChanged(int)), this, SIGNAL(changedSaturation(int)));
-    connect(_spinBox_4,  SIGNAL(valueChanged(int)), this, SIGNAL(changedHue(int)));
-    connect(_spinBox_5,  SIGNAL(valueChanged(int)), this, SIGNAL(changedGamma(int)));
-}
-
-inline void VideoAdjustDialog::setSettings(const PurePlayer::VideoSettings& v)
-{
-    _spinBox->setValue(v.contrast);
-    _spinBox_2->setValue(v.brightness);
-    _spinBox_3->setValue(v.saturation);
-    _spinBox_4->setValue(v.hue);
-    _spinBox_5->setValue(v.gamma);
-}
-
-inline void VideoAdjustDialog::buttonSaveClicked()
-{
-    QMessageBox::StandardButton ret =
-        QMessageBox::question(
-            this,
-            tr("設定を保存しますか？"),
-            tr("設定を保存してもよろしいですか？"),
-            QMessageBox::Yes|QMessageBox::No,
-            QMessageBox::No);
-
-    if( ret == QMessageBox::Yes )
-        emit requestSave();
-}
-
-inline void VideoAdjustDialog::showEvent(QShowEvent*)
-{
-    setFixedSize(size());
+    QMessageBox::warning(this, title, text);
 }
 
 #endif // VIDEOADJUSTDIALOG_H
