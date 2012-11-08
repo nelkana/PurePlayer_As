@@ -16,6 +16,7 @@ HEADERS += \
     infolabel.h \
     timelabel.h \
     configdata.h \
+    videosettings.h \
     playlist.h \
     commonlib.h \
     task.h \
@@ -37,6 +38,7 @@ SOURCES += \
     infolabel.cpp \
     timelabel.cpp \
     configdata.cpp \
+    videosettings.cpp \
     playlist.cpp \
     commonlib.cpp \
     task.cpp \

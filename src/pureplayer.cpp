@@ -1342,11 +1342,7 @@ void PurePlayer::showVideoAdjustDialog()
         connect(_videoAdjustDialog, SIGNAL(changedHue(int)), this, SLOT(setHue(int)));
         connect(_videoAdjustDialog, SIGNAL(changedGamma(int)), this, SLOT(setGamma(int)));
 
-        QStringList profileNames;
-        for(int i=0; i < _videoProfiles.size(); i++)
-            profileNames << _videoProfiles[i].name;
-
-        _videoAdjustDialog->setProfiles(profileNames);
+        _videoAdjustDialog->setProfiles(VideoSettings::profileNames());
 //      _videoAdjustDialog->setDefaultProfile(...);
         _videoAdjustDialog->setCurrentProfile(_currentVideoProfile);
 
@@ -2491,189 +2487,44 @@ void PurePlayer::playCommonProcess()
 
 void PurePlayer::loadVideoProfiles()
 {
-    // version 0.6.1以前のビデオ調整データがあった場合、新しい形式で保存
-    {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
+    VideoSettings::loadProfiles();
 
-    if( s.contains("contrast")
-     || s.contains("brightness")
-     || s.contains("saturation")
-     || s.contains("hue")
-     || s.contains("gamma") )
-    {
-                                // 仮に同じ名前のプロファイルがあった場合、上書きされる
-        _currentVideoProfile.name = tr("profile1");
-        _currentVideoProfile.contrast   = s.value("contrast",   0).toInt();
-        _currentVideoProfile.brightness = s.value("brightness", 0).toInt();
-        _currentVideoProfile.saturation = s.value("saturation", 0).toInt();
-        _currentVideoProfile.hue        = s.value("hue",        0).toInt();
-        _currentVideoProfile.gamma      = s.value("gamma",      0).toInt();
-        s.remove("contrast");
-        s.remove("brightness");
-        s.remove("saturation");
-        s.remove("hue");
-        s.remove("gamma");
-
-        saveCurrentVideoProfile();
-        saveCurrentVideoProfileToDefault();
-
-        LogDialog::debug("PurePlayer::loadVideoProfiles(): converted the old data.");
-    }
-
-    }
-
-    QString defaultProfile;
-    QStringList profilesOrder;
-
-    // 全プロファイルデータの読み込み
-    {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
-
-    _videoProfiles.clear();
-
-    _timeVideoSettingsModified = s.value("modifiedTime", QString()).toString();
-    defaultProfile = s.value("defaultProfile", "").toString();
-    profilesOrder  = s.value("profilesOrder", QStringList()).toStringList();
-        // メモ: profilesOrderに無いProfilesのデータは、設定ファイルの
-        //       profilesOrder行を削除しない限り、Profilesに無駄なデータが残り続ける。
-
-    s.beginGroup("Profiles");
-
-    if( profilesOrder.size() <= 0 )
-        profilesOrder = s.childGroups();
-
-    // 保留: プロファイル同期ずれ修正処理
-
-    for(int i=0; i < profilesOrder.size(); i++) {
-        s.beginGroup(profilesOrder[i]);
-
-        VideoProfile v;
-        v.name = profilesOrder[i];
-        v.contrast   = s.value("contrast",   0).toInt();
-        v.brightness = s.value("brightness", 0).toInt();
-        v.saturation = s.value("saturation", 0).toInt();
-        v.hue        = s.value("hue",        0).toInt();
-        v.gamma      = s.value("gamma",      0).toInt();
-        _videoProfiles.append(v);
-
-        s.endGroup();
-    }
-
-    s.endGroup();
-
-    }
-
-    // プロファイルが1つもない場合は作成する
-    if( _videoProfiles.size() <= 0 ) {
-        _currentVideoProfile.contrast = 0;
-        _currentVideoProfile.brightness = 0;
-        _currentVideoProfile.saturation = 0;
-        _currentVideoProfile.hue = 0;
-        _currentVideoProfile.gamma = 0;
-        createVideoProfileFromCurrent("profile1");
-
-        profilesOrder << _currentVideoProfile.name;
-        defaultProfile = _currentVideoProfile.name;
-    }
-
-    // 全てのプロファイル名をguiへ設定
+    // プロファイル名をguiへ設定
     if( _videoAdjustDialog != NULL ) {
-        _videoAdjustDialog->setProfiles(profilesOrder);
+        _videoAdjustDialog->setProfiles(VideoSettings::profileNames());
 //      _videoAdjustDialog->setDefaultProfile(defaultProfile);
     }
 
     // カレントプロファイルの設定
-    setCurrentVideoProfile(defaultProfile);
+    setCurrentVideoProfile(VideoSettings::defaultProfile());
 
     LogDialog::debug("PurePlayer::loadVideoProfiles(): end");
 }
 
 void PurePlayer::reloadVideoProfiles()
 {
-    QString defaultProfile;
-    QStringList profilesOrder;
+    VideoSettings::loadProfiles();
 
-    // 全プロファイルデータの読み込み
-    {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
-
-    _videoProfiles.clear();
-
-    _timeVideoSettingsModified = s.value("modifiedTime", QString()).toString();
-    defaultProfile = s.value("defaultProfile", "").toString();
-    profilesOrder  = s.value("profilesOrder", QStringList()).toStringList();
-        // メモ: profilesOrderに無いProfilesのデータは、設定ファイルの
-        //       profilesOrder行を削除しない限り、Profilesに無駄なデータが残り続ける。
-
-    s.beginGroup("Profiles");
-
-    if( profilesOrder.size() <= 0 )
-        profilesOrder = s.childGroups();
-
-    // 保留: プロファイル同期ずれ修正処理
-
-    for(int i=0; i < profilesOrder.size(); i++) {
-        s.beginGroup(profilesOrder[i]);
-
-        VideoProfile v;
-        v.name = profilesOrder[i];
-        v.contrast   = s.value("contrast",   0).toInt();
-        v.brightness = s.value("brightness", 0).toInt();
-        v.saturation = s.value("saturation", 0).toInt();
-        v.hue        = s.value("hue",        0).toInt();
-        v.gamma      = s.value("gamma",      0).toInt();
-        _videoProfiles.append(v);
-
-        s.endGroup();
-    }
-
-    s.endGroup();
-
-    }
-
-    // プロファイルが1つもない場合は作成する
-    if( _videoProfiles.size() <= 0 ) {
-        VideoProfile temp = _currentVideoProfile; // カレントプロファイルを退避
-
-        _currentVideoProfile.contrast = 0;
-        _currentVideoProfile.brightness = 0;
-        _currentVideoProfile.saturation = 0;
-        _currentVideoProfile.hue = 0;
-        _currentVideoProfile.gamma = 0;
-        createVideoProfileFromCurrent("profile1");
-
-        profilesOrder << _currentVideoProfile.name;
-        defaultProfile = _currentVideoProfile.name;
-
-        _currentVideoProfile = temp;              // カレントプロファイルを戻す
-    }
-
-    // 全てのプロファイル名をguiへ設定
+    // プロファイル名をguiへ設定
     if( _videoAdjustDialog != NULL ) {
-        _videoAdjustDialog->setProfiles(profilesOrder);
+        _videoAdjustDialog->setProfiles(VideoSettings::profileNames());
 //      _videoAdjustDialog->setDefaultProfile(defaultProfile);
     }
 
     // カレントプロファイルの設定
-
-    // 読み込んだプロファイルにカレントプロファイルが含まれているか探す
-    int i;
-    for(i=0; i < _videoProfiles.size(); i++) {
-        if( _videoProfiles[i].name == _currentVideoProfile.name )
-            break;
-    }
-
-    if( i < _videoProfiles.size() ) // 含まれている
+    if( VideoSettings::profile(_currentVideoProfile.name).isValid() )
+        // プロファイルにカレントプロファイルが含まれている
         setCurrentVideoProfile(_currentVideoProfile.name, true);
-    else {                          // 含まれていない
-        QString oldProfile = _currentVideoProfile.name;
+    else {
+        // プロファイルにカレントプロファイルが含まれていない
+        QString removedProfile = _currentVideoProfile.name;
 
-        setCurrentVideoProfile(defaultProfile, true);
+        setCurrentVideoProfile(VideoSettings::defaultProfile(), true);
 
         if( _videoAdjustDialog != NULL )
             _videoAdjustDialog->showDialogWarning("プロファイルは削除されました",
                 QString("現在選択していたプロファイル「%1」は外部から削除されました。\n"
-                        "デフォルトのプロファイルを選択します。").arg(oldProfile));
+                        "デフォルトのプロファイルを選択します。").arg(removedProfile));
 
     }
 
@@ -2682,39 +2533,13 @@ void PurePlayer::reloadVideoProfiles()
 
 void PurePlayer::reloadCheckVideoSettingsFile()
 {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
-
-    QString time = s.value("modifiedTime", QString()).toString();
-    if( time != _timeVideoSettingsModified )
+    if( VideoSettings::checkReload() )
         reloadVideoProfiles();
-}
-
-void PurePlayer::saveVideoProfilesOrder()
-{
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
-
-    QStringList order;
-    for(int i=0; i < _videoProfiles.size(); i++)
-        order << _videoProfiles[i].name;
-
-    s.setValue("profilesOrder", order);
-
-    // 修正時間の保存
-    QString time = QDateTime::currentDateTime().toString("yyyyMMddhhmmsszzz");
-    _timeVideoSettingsModified = time;
-    s.setValue("modifiedTime", time);
 }
 
 void PurePlayer::saveCurrentVideoProfileToDefault()
 {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
-
-    s.setValue("defaultProfile", _currentVideoProfile.name);
-
-    // 修正時間の保存
-    QString time = QDateTime::currentDateTime().toString("yyyyMMddhhmmsszzz");
-    _timeVideoSettingsModified = time;
-    s.setValue("modifiedTime", time);
+    VideoSettings::saveDefaultProfile(_currentVideoProfile.name);
 
 //  if( _videoAdjustDialog != NULL )
 //      _videoAdjustDialog->setDefaultProfile(_currentVideoProfile.name);
@@ -2724,42 +2549,39 @@ void PurePlayer::saveCurrentVideoProfileToDefault()
 
 void PurePlayer::setCurrentVideoProfile(const QString& profileName, bool onlyProfileName)
 {
-    int i;
-    for(i=0; i < _videoProfiles.size(); i++) {
-        if( _videoProfiles[i].name == profileName ) {
-            _currentVideoProfile.name = profileName;
+    VideoSettings::VideoProfile profile = VideoSettings::profile(profileName);
 
-            if( !onlyProfileName ) {
-                _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE;  //mpCmd("osd 0");
-                setContrast(_videoProfiles[i].contrast);
-                setBrightness(_videoProfiles[i].brightness);
-                setSaturation(_videoProfiles[i].saturation);
-                setHue(_videoProfiles[i].hue);
-                setGamma(_videoProfiles[i].gamma);
-                _controlFlags &= ~FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 1");
-            }
+    if( profile.isValid() ) {
+        _currentVideoProfile.name = profile.name;
 
-            if( _videoAdjustDialog != NULL )
-                _videoAdjustDialog->setCurrentProfile(profileName);
-
-            break;
+        if( !onlyProfileName ) {
+            _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE;  //mpCmd("osd 0");
+            setContrast(profile.contrast);
+            setBrightness(profile.brightness);
+            setSaturation(profile.saturation);
+            setHue(profile.hue);
+            setGamma(profile.gamma);
+            _controlFlags &= ~FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 1");
         }
-    }
 
+        if( _videoAdjustDialog != NULL )
+            _videoAdjustDialog->setCurrentProfile(_currentVideoProfile.name);
+    }
+/*
     // 指定したプロファイルが存在しない場合、0番のプロファイルを設定
     if( i >= _videoProfiles.size()
      && _videoProfiles.size() > 0 ) // 無限ループ防止(_videoProfilesは0にはならない仕様)
     {
         setCurrentVideoProfile(_videoProfiles[0].name, onlyProfileName);
     }
-
+*/
     LogDialog::debug("PurePlayer::setCurrentVideoProfile(): end");
 }
 
 void PurePlayer::createVideoProfileFromCurrent(QString profileName)
 {
     // プロファイルが作成限界数に達してる場合
-    if( _videoProfiles.size() >= 30 )
+    if( VideoSettings::profilesCount() >= 30 )
         return;
 
     // 前方、後方の空白文字を取り除く
@@ -2771,15 +2593,11 @@ void PurePlayer::createVideoProfileFromCurrent(QString profileName)
         return;
 
     // 既に同じプロファイル名が存在する場合
-    for(int i=0; i < _videoProfiles.size(); i++) {
-        if( profileName == _videoProfiles[i].name )
-            return;
-    }
+    if( VideoSettings::profile(profileName).isValid() )
+        return;
 
     _currentVideoProfile.name = profileName;
-    _videoProfiles.append(_currentVideoProfile);
-    saveCurrentVideoProfile();
-    saveVideoProfilesOrder();
+    VideoSettings::saveProfile(_currentVideoProfile);
 
     if( _videoAdjustDialog != NULL ) {
         _videoAdjustDialog->appendProfile(profileName);
@@ -2791,34 +2609,7 @@ void PurePlayer::createVideoProfileFromCurrent(QString profileName)
 
 void PurePlayer::saveCurrentVideoProfile()
 {
-    // ファイルへ保存
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
-
-    s.beginGroup("Profiles");
-    s.beginGroup(_currentVideoProfile.name);
-    s.setValue("contrast",   _currentVideoProfile.contrast);
-    s.setValue("brightness", _currentVideoProfile.brightness);
-    s.setValue("saturation", _currentVideoProfile.saturation);
-    s.setValue("hue",        _currentVideoProfile.hue);
-    s.setValue("gamma",      _currentVideoProfile.gamma);
-    s.endGroup();
-    s.endGroup();
-
-    // メモリの該当プロファイルの内容を更新
-    for(int i=0; i < _videoProfiles.size(); i++) {
-        if( _videoProfiles[i].name == _currentVideoProfile.name ) {
-            _videoProfiles[i] = _currentVideoProfile;
-            break;
-        }
-    }
-
-//  if( i >= _videoProfiles.size() )
-//      _videoProfiles.append(_currentVideoProfile); // 必要ない？
-
-    // 修正時間の保存
-    QString time = QDateTime::currentDateTime().toString("yyyyMMddhhmmsszzz");
-    _timeVideoSettingsModified = time;
-    s.setValue("modifiedTime", time);
+    VideoSettings::saveProfile(_currentVideoProfile);
 
     LogDialog::debug("PurePlayer::saveCurrentVideoProfile(): end");
 }
@@ -2832,42 +2623,26 @@ void PurePlayer::restoreCurrentVideoProfile()
 
 void PurePlayer::deleteCurrentVideoProfile()
 {
-    // ファイルからプロファイルを削除
-    {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
-
-    s.beginGroup("Profiles");
-    s.remove(_currentVideoProfile.name);
-    s.endGroup();
-    }
-
-    // メモリからプロファイルを削除
-    int i;
-    for(i=0; i < _videoProfiles.size(); i++) {
-        if( _videoProfiles[i].name == _currentVideoProfile.name ) {
-            _videoProfiles.removeAt(i);
-            break;
-        }
-    }
+    VideoSettings::removeProfile(_currentVideoProfile.name);
 
     if( _videoAdjustDialog != NULL )
         _videoAdjustDialog->removeProfile(_currentVideoProfile.name);
 
     // カレントプロファイルを新たに設定
-    if( _videoProfiles.size() <= 0 ) {
-        _currentVideoProfile.contrast = 0;
-        _currentVideoProfile.brightness = 0;
-        _currentVideoProfile.saturation = 0;
-        _currentVideoProfile.hue = 0;
-        _currentVideoProfile.gamma = 0;
+    if( VideoSettings::profilesCount() <= 0 ) {
+        VideoSettings::VideoProfile p;
+        p.name = "profile1";
+        p.contrast = 0;
+        p.brightness = 0;
+        p.saturation = 0;
+        p.hue = 0;
+        p.gamma = 0;
 
-        createVideoProfileFromCurrent(QString("profile1"));
+        VideoSettings::saveProfile(p);
+        setCurrentVideoProfile(p.name);
     }
     else
-        setCurrentVideoProfile(_videoProfiles[0].name);
-
-    // ファイルへプロファイルの順番を保存
-    saveVideoProfilesOrder();
+        setCurrentVideoProfile(VideoSettings::profile(0).name);
 
     LogDialog::debug("PurePlayer::deleteCurrentVideoProfile(): end");
 }

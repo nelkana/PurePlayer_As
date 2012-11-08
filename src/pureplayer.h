@@ -23,6 +23,7 @@
 #include <QTimer>
 #include <QLabel>
 #include "playlist.h"
+#include "videosettings.h"
 
 class QWidget;
 class QActionGroup;
@@ -55,15 +56,6 @@ public:
     enum DEINTERLACE_MODE { DI_NO_DEINTERLACE, DI_YADIF, DI_YADIF_DOUBLE, DI_LINEAR_BLEND };
     enum AUDIO_OUTPUT_MODE { AO_STEREO, AO_MONAURAL, AO_LEFT, AO_RIGHT };
     enum VOLUME_FACTOR_MODE { VF_NORMAL, VF_DOUBLE, VF_TRIPLE };
-
-    struct VideoProfile {
-        QString name;
-        qint8 contrast;
-        qint8 brightness;
-        qint8 hue;
-        qint8 saturation;
-        qint8 gamma;
-    };
 
     PurePlayer(QWidget* parent = 0);
     virtual ~PurePlayer();
@@ -126,7 +118,6 @@ public slots:
     void loadVideoProfiles();
     void reloadVideoProfiles();
     void reloadCheckVideoSettingsFile();
-    void saveVideoProfilesOrder();
     // public
     void saveCurrentVideoProfileToDefault();
     void setCurrentVideoProfile(const QString& profileName, bool onlyProfileName=false);
@@ -265,9 +256,8 @@ private:
     quint16         _fpsCount;
     unsigned int    _oldFrame;
 
-    QList<VideoProfile> _videoProfiles;
-    VideoProfile        _currentVideoProfile;
-    QString             _timeVideoSettingsModified;
+    VideoSettings::VideoProfile _currentVideoProfile;
+//  QString             _timeVideoSettingsModified;
 
     AUDIO_OUTPUT_MODE  _audioOutput;
     VOLUME_FACTOR_MODE _volumeFactor;

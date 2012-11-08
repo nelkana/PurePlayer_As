@@ -83,7 +83,7 @@ void VideoAdjustDialog::setCurrentProfile(const QString& name)
     }
 }
 
-void VideoAdjustDialog::setCurrentProfile(const PurePlayer::VideoProfile& profile)
+void VideoAdjustDialog::setCurrentProfile(const VideoSettings::VideoProfile& profile)
 {
     setCurrentProfile(profile.name);
     setContrast(profile.contrast);
