@@ -18,14 +18,19 @@
 #include "videosettings.h"
 #include "logdialog.h"
 
+VideoSettings* VideoSettings::s_object;
+unsigned int VideoSettings::s_modifiedId = 1; // idは0にはならない
+
 QList<VideoSettings::VideoProfile> VideoSettings::s_profiles;
-QString      VideoSettings::s_modifiedTime;
+QString      VideoSettings::s_modifiedIdFile;
 QString      VideoSettings::s_defaultProfile;
 
 #define INIT_PROFILE_NAME QObject::tr("profile1") // プロファイル名初期値
 
 void VideoSettings::loadProfiles()
 {
+    if( !checkReload() ) return;
+
     convertPrevSettingsVer0_6_1ToSettingsVer0_7_0();
 
     QStringList profilesOrder;
@@ -36,19 +41,25 @@ void VideoSettings::loadProfiles()
     {
     QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
 
-    s_modifiedTime   = s.value("modifiedTime", QString()).toString();
-    s_defaultProfile = s.value("defaultProfile", "").toString();
+    s_modifiedIdFile = s.value("modifiedId", QString()).toString();
+
+    if( s_modifiedIdFile.isEmpty() )
+        saveModifiedIdFile(s);
+
+    s_defaultProfile = s.value("defaultProfile", QString()).toString();
     profilesOrder    = s.value("profilesOrder", QStringList()).toStringList();
-        // メモ: profilesOrderに無いProfilesのデータは、設定ファイルの
-        //       profilesOrder行を削除しない限り、Profilesに無駄なデータが残り続ける。
 
     s.beginGroup("Profiles");
 
-    // 保留: プロファイル同期ずれを考慮してプロファイル削除、オーダー決定
+//  // profilesOrderには無いプロファイルは削除する
+//  QStringList removeProfile = s.childGroups();
+//  foreach(QString profile, profilesOrder)
+//      removeProfile.removeOne(profile);
 
-    if( profilesOrder.size() <= 0 )
-        profilesOrder = s.childGroups();
+//  foreach(QString profile, removeProfile)
+//      s.remove(profile);
 
+    // プロファイルの読み込み
     for(int i=0; i < profilesOrder.size(); i++) {
         s.beginGroup(profilesOrder[i]);
 
@@ -77,7 +88,7 @@ void VideoSettings::loadProfiles()
         p.saturation = 0;
         p.hue = 0;
         p.gamma = 0;
-        saveProfile(p);
+        appendProfile(p);
 
         s_defaultProfile = p.name;
     }
@@ -93,49 +104,94 @@ void VideoSettings::loadProfiles()
             s_defaultProfile = s_profiles[0].name;
     }
 
+    advanceModifiedId();
+
     LogDialog::debug("VideoSettings::loadProfiles(): end");
 }
 
 bool VideoSettings::checkReload()
 {
+    if( s_modifiedIdFile.isNull() )
+        return true;
+
     QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
 
-    QString time = s.value("modifiedTime", QString()).toString();
-    return time != s_modifiedTime;
+    QString id = s.value("modifiedId", QString()).toString();
+
+    return id != s_modifiedIdFile;
 }
 
-void VideoSettings::saveProfile(const VideoProfile& profile)
+void VideoSettings::updateProfile(const VideoProfile& profile)
 {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
-
-    s.beginGroup("Profiles");
-    s.beginGroup(profile.name);
-    s.setValue("contrast",   profile.contrast);
-    s.setValue("brightness", profile.brightness);
-    s.setValue("saturation", profile.saturation);
-    s.setValue("hue",        profile.hue);
-    s.setValue("gamma",      profile.gamma);
-    s.endGroup();
-    s.endGroup();
-
-    // メモリの該当プロファイルの内容を更新
-    int i;
-    for(i=0; i < s_profiles.size(); i++) {
+    for(int i=0; i < s_profiles.size(); i++) {
         if( s_profiles[i].name == profile.name ) {
+            // メモリの該当プロファイルの内容を更新
             s_profiles[i] = profile;
-            break;
+
+            // ファイル保存
+            QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
+
+            s.beginGroup("Profiles");
+            s.beginGroup(profile.name);
+            s.setValue("contrast",   profile.contrast);
+            s.setValue("brightness", profile.brightness);
+            s.setValue("saturation", profile.saturation);
+            s.setValue("hue",        profile.hue);
+            s.setValue("gamma",      profile.gamma);
+            s.endGroup();
+            s.endGroup();
+
+            saveModifiedIdFile(s);
+
+            advanceModifiedId();
+            LogDialog::debug("VideoSettings::saveProfile(): end");
+            return;
         }
     }
 
-    if( i >= s_profiles.size() ) {
-        // 該当プロファイルが無い場合、追加する
-        s_profiles.append(profile);
-        saveProfilesOrder(s); // saveModifiedTime(s)
-    }
-    else
-        saveModifiedTime(s);
+    LogDialog::debug("VideoSettings::saveProfile(): no updated");
+}
 
-    LogDialog::debug("VideoSettings::saveProfile(): end");
+bool VideoSettings::appendProfile(const VideoProfile& profile)
+{
+    // プロファイルが作成限界数に達してる場合
+    if( s_profiles.size() >= 30 )
+        return false;
+
+    // プロファイル名が空、又は文字数が規定値を超える場合
+    if( profile.name.isEmpty() || profile.name.size()>15 )
+        return false;
+
+    // 前方、後方に空白文字がある場合
+    if( profile.name[0].isSpace() || profile.name[profile.name.size()-1].isSpace() )
+        return false;
+
+    // 同じプロファイル名が存在しない場合
+    if( !VideoSettings::profile(profile.name).isValid() ) {
+        QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
+
+        s.beginGroup("Profiles");
+        s.beginGroup(profile.name);
+        s.setValue("contrast",   profile.contrast);
+        s.setValue("brightness", profile.brightness);
+        s.setValue("saturation", profile.saturation);
+        s.setValue("hue",        profile.hue);
+        s.setValue("gamma",      profile.gamma);
+        s.endGroup();
+        s.endGroup();
+
+        s_profiles.append(profile);
+        saveProfilesOrder(s); // saveModifiedIdFile(s)
+
+        advanceModifiedId();
+//      object()->emit requestRefresh();
+        LogDialog::debug("VideoSettings::appendProfile(): end");
+        return true;
+    }
+    else {
+        LogDialog::debug("VideoSettings::appendProfile(): no created");
+        return false;
+    }
 }
 
 void VideoSettings::saveDefaultProfile(const QString& name)
@@ -146,8 +202,10 @@ void VideoSettings::saveDefaultProfile(const QString& name)
 
             s.setValue("defaultProfile", name);
 
-            saveModifiedTime(s);
+            s_defaultProfile = name;
+            saveModifiedIdFile(s);
 
+            advanceModifiedId();
             LogDialog::debug("VideoSettings::saveDefaultProfile(): end");
             return;
         }
@@ -158,19 +216,48 @@ void VideoSettings::saveDefaultProfile(const QString& name)
 
 void VideoSettings::removeProfile(const QString& name)
 {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
+    QSettings* s = new QSettings(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
 
-    s.beginGroup("Profiles");
-    s.remove(name);
-    s.endGroup();
+    s->beginGroup("Profiles");
+    s->remove(name);
+    s->endGroup();
 
-    for(int i=0; i < s_profiles.size(); i++) {
-        if( s_profiles[i].name == name ) {
-            s_profiles.removeAt(i);
-            saveProfilesOrder(s);
+    int i;
+    for(i=0; i < s_profiles.size(); i++) {
+        if( s_profiles[i].name == name )
             break;
-        }
     }
+
+    if( i < s_profiles.size() ) {
+        s_profiles.removeAt(i);
+
+        if( s_profiles.size() > 0 )
+            saveProfilesOrder(*s);
+
+        delete s;
+
+        // プロファイルが空なら初期値のプロファイルを作る
+        if( s_profiles.size() <= 0 ) {
+            VideoProfile p;
+            p.name = INIT_PROFILE_NAME;
+            p.contrast = 0;
+            p.brightness = 0;
+            p.saturation = 0;
+            p.hue = 0;
+            p.gamma = 0;
+
+            appendProfile(p);
+        }
+
+        // 削除したプロファイルがデフォルトプロファイルなら0番をデフォルトにする
+        if( name == s_defaultProfile )
+            saveDefaultProfile(s_profiles[0].name);
+
+        advanceModifiedId();
+//      object()->emit requestRefresh();
+    }
+    else
+        delete s;
 
     LogDialog::debug("VideoSettings::removeProfile(): end");
 }
@@ -205,6 +292,10 @@ QStringList VideoSettings::profileNames()
 // 設定ファイルにversion 0.6.1以前のビデオ調整データがあった場合、新しい形式で保存
 void VideoSettings::convertPrevSettingsVer0_6_1ToSettingsVer0_7_0()
 {
+    VideoProfile p;
+
+    // PurePlayer.iniから旧データ読み込み、削除
+    {
     QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
 
     if( s.contains("contrast")
@@ -213,8 +304,6 @@ void VideoSettings::convertPrevSettingsVer0_6_1ToSettingsVer0_7_0()
      || s.contains("hue")
      || s.contains("gamma") )
     {
-        VideoProfile p;
-
         p.name = INIT_PROFILE_NAME; // 同じ名前のプロファイルがあった場合、上書きされる
         p.contrast   = s.value("contrast",   0).toInt();
         p.brightness = s.value("brightness", 0).toInt();
@@ -227,31 +316,75 @@ void VideoSettings::convertPrevSettingsVer0_6_1ToSettingsVer0_7_0()
         s.remove("hue");
         s.remove("gamma");
 
-        saveProfile(p);
+    }
 
-        LogDialog::debug("VideoSettings::convertPrevSettingsVer0_6_1ToSettingsVer0_7_0(): converted the old data.");
+    }
+
+    // VideoSettings.iniへ新しい形式で保存
+    if( p.isValid() ) {
+        QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
+
+        QStringList profilesOrder;
+        profilesOrder = s.value("profilesOrder", QStringList()).toStringList();
+
+        // 重複プロファイルがあるか探す
+        int i;
+        for(i=0; i < profilesOrder.size(); i++) {
+            if( profilesOrder[i] == p.name )
+                break;
+        }
+
+                                  // プロファイルが最大数なら新規のプロファイル変換は諦める
+        if( i < profilesOrder.size()
+         || (i >= profilesOrder.size() && profilesOrder.size() < 30) )
+        {
+            // ビデオ値保存
+            s.beginGroup("Profiles");
+            s.beginGroup(p.name);
+            s.setValue("contrast",   p.contrast);
+            s.setValue("brightness", p.brightness);
+            s.setValue("saturation", p.saturation);
+            s.setValue("hue",        p.hue);
+            s.setValue("gamma",      p.gamma);
+            s.endGroup();
+            s.endGroup();
+
+            if( i >= profilesOrder.size() && profilesOrder.size() < 30 ) {
+                // オーダー保存
+                profilesOrder << p.name;
+                s.setValue("profilesOrder", profilesOrder);
+            }
+
+            saveModifiedIdFile(s);
+            LogDialog::debug("VideoSettings::convertPrevSettingsVer0_6_1ToSettingsVer0_7_0(): converted the old data.");
+        }
     }
 }
 
-void VideoSettings::saveModifiedTime(QSettings& s)
+void VideoSettings::saveModifiedIdFile(QSettings& s)
 {
-//  QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
-
-    QString time = QDateTime::currentDateTime().toString("yyyyMMddhhmmsszzz");
-    s_modifiedTime = time;
-    s.setValue("modifiedTime", time);
+    QString id = QDateTime::currentDateTime().toString("yyyyMMddhhmmsszzz");
+    s_modifiedIdFile = id;
+    s.setValue("modifiedId", id);
 }
 
 void VideoSettings::saveProfilesOrder(QSettings& s)
 {
-//  QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
-
     QStringList order;
     for(int i=0; i < s_profiles.size(); i++)
         order << s_profiles[i].name;
 
     s.setValue("profilesOrder", order);
 
-    saveModifiedTime(s);
+    saveModifiedIdFile(s);
+}
+
+void VideoSettings::advanceModifiedId()
+{
+    s_modifiedId++;
+    if( s_modifiedId == 0 )
+        s_modifiedId = 1;
+
+//  LogDialog::debug(QString("VideoSettings::advanceModifiedId(): %1").arg(s_modifiedId));
 }
 

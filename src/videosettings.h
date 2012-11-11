@@ -16,12 +16,13 @@
 #ifndef VIDEOSETTINGS_H
 #define VIDEOSETTINGS_H
 
-#include <QtGlobal>
-#include <QString>
+#include <QApplication>
 #include <QSettings>
 
-class VideoSettings
+class VideoSettings : public QObject
 {
+    Q_OBJECT
+
 public:
     class VideoProfile
     {
@@ -36,29 +37,49 @@ public:
         bool isValid() { return !name.isNull(); }
     };
 
+    VideoSettings(QObject* parent) : QObject(parent) {}
+    static VideoSettings* object();
+    static unsigned int modifiedId() { return s_modifiedId; }
+
     static void loadProfiles();
     static bool checkReload();
-    static void saveProfile(const VideoProfile&);
+    static void updateProfile(const VideoProfile&);
+    static bool appendProfile(const VideoProfile&);
     static void saveDefaultProfile(const QString& name);
     static void removeProfile(const QString& name);
 
     static VideoProfile profile(const QString& name);
     static VideoProfile profile(int index);
-    static int profilesCount() { return s_profiles.size(); }
+    static int profilesCount()          { return s_profiles.size(); }
     static QStringList profileNames();
-    static QString defaultProfile() { return s_defaultProfile; }
+    static QString defaultProfileName() { return s_defaultProfile; }
 //  static QList<VideoProfile>& profiles() { return s_profiles; }
+
+//signals:
+//  void requestRefresh();
 
 protected:
     static void convertPrevSettingsVer0_6_1ToSettingsVer0_7_0();
-    static void saveModifiedTime(QSettings&);
+    static void saveModifiedIdFile(QSettings&);
     static void saveProfilesOrder(QSettings&);
+    static void advanceModifiedId();
 
 private:
+    static VideoSettings* s_object;
+    static unsigned int s_modifiedId;
+
     static QList<VideoProfile> s_profiles;
-    static QString s_modifiedTime;
+    static QString s_modifiedIdFile;
     static QString s_defaultProfile;
 };
+
+inline VideoSettings* VideoSettings::object()
+{
+    if( s_object == NULL )
+        s_object = new VideoSettings(qApp);
+
+    return s_object;
+}
 
 #endif // VIDEOSETTINGS_H
 

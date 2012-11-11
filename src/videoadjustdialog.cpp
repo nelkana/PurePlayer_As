@@ -68,7 +68,7 @@ void VideoAdjustDialog::removeProfile(const QString& name)
     updateButtonDefaultEnableDisable();
 }
 
-void VideoAdjustDialog::setCurrentProfile(const QString& name)
+void VideoAdjustDialog::setProfile(const QString& name)
 {
     int i = _comboBoxProfile->findText(name);
     if( i != -1 ) {
@@ -83,9 +83,9 @@ void VideoAdjustDialog::setCurrentProfile(const QString& name)
     }
 }
 
-void VideoAdjustDialog::setCurrentProfile(const VideoSettings::VideoProfile& profile)
+void VideoAdjustDialog::setProfile(const VideoSettings::VideoProfile& profile)
 {
-    setCurrentProfile(profile.name);
+    setProfile(profile.name);
     setContrast(profile.contrast);
     setBrightness(profile.brightness);
     setSaturation(profile.saturation);
@@ -112,7 +112,7 @@ void VideoAdjustDialog::buttonSaveClicked()
         QMessageBox::question(
             this,
             tr("このプロファイルを更新しますか？"),
-            tr("このプロファイルを更新してもよろしいですか？"),
+            tr("このプロファイルを現在の内容で更新します。\nよろしいですか？"),
             QMessageBox::Yes|QMessageBox::No,
             QMessageBox::No);
 
@@ -204,9 +204,9 @@ void VideoAdjustDialog::showEvent(QShowEvent*)
 
 void VideoAdjustDialog::updateButtonDefaultEnableDisable()
 {
-//  if( _comboBoxProfile->currentText() == _defaultProfile )
-//      _buttonDefault->setEnabled(false);
-//  else
-//      _buttonDefault->setEnabled(true);
+    if( _comboBoxProfile->currentText() == _defaultProfile )
+        _buttonDefault->setEnabled(false);
+    else
+        _buttonDefault->setEnabled(true);
 }
 

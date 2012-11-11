@@ -16,7 +16,6 @@
 #ifndef VIDEOADJUSTDIALOG_H
 #define VIDEOADJUSTDIALOG_H
 
-#include <QMessageBox>
 #include "ui_videoadjustdialog.h"
 #include "videosettings.h"
 #include "pureplayer.h"
@@ -36,11 +35,9 @@ public:
     void setProfiles(const QStringList& names);
     void appendProfile(const QString& name) { _comboBoxProfile->addItem(name); }
     void removeProfile(const QString& name);
-    void setCurrentProfile(const QString& name);
-    void setCurrentProfile(const VideoSettings::VideoProfile& profile);
+    void setProfile(const QString& name);
+    void setProfile(const VideoSettings::VideoProfile& profile);
     void setDefaultProfile(const QString& name);
-
-    void showDialogWarning(const QString& title, const QString& text);
 
 signals:
     void windowActivate();
@@ -70,11 +67,6 @@ protected:
 private:
     QString _defaultProfile;
 };
-
-inline void VideoAdjustDialog::showDialogWarning(const QString& title, const QString& text)
-{
-    QMessageBox::warning(this, title, text);
-}
 
 #endif // VIDEOADJUSTDIALOG_H
 

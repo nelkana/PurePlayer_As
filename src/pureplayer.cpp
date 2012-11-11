@@ -134,7 +134,8 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     ConfigData::loadData();
 //  _actScreenshot->setVisible(ConfigData::data()->screenshot);
 //  _screenshotButton->setVisible(ConfigData::data()->screenshot);
-    loadVideoProfiles();
+    _videoSettingsModifiedId = 0;
+    refreshVideoProfile();
     _state = STOP;
     loadInteractiveSettings();
 
@@ -1041,21 +1042,21 @@ void PurePlayer::setContrast(int value, bool alwaysSet)
     if( value < -100 ) value = -100; else
     if( value > 100 )  value = 100;
 
-    if( _currentVideoProfile.contrast!=value || alwaysSet ) {
-        _currentVideoProfile.contrast = value;
+    if( _videoProfile.contrast!=value || alwaysSet ) {
+        _videoProfile.contrast = value;
 
         if( _state == PLAY ) {
             if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
-                mpCmd(QString("contrast %1 1").arg(_currentVideoProfile.contrast));
+                mpCmd(QString("contrast %1 1").arg(_videoProfile.contrast));
             else {
                 mpCmd("osd 1");
-                mpCmd(QString("contrast %1 1").arg(_currentVideoProfile.contrast));
+                mpCmd(QString("contrast %1 1").arg(_videoProfile.contrast));
                 mpCmd("osd 0");
             }
         }
         else
         if( _state == PAUSE )
-            mpCmd(QString("pausing_keep_force contrast %1 1").arg(_currentVideoProfile.contrast));
+            mpCmd(QString("pausing_keep_force contrast %1 1").arg(_videoProfile.contrast));
     }
 
     if( _videoAdjustDialog != NULL )
@@ -1067,21 +1068,21 @@ void PurePlayer::setBrightness(int value, bool alwaysSet)
     if( value < -100 ) value = -100; else
     if( value > 100 )  value = 100;
 
-    if( _currentVideoProfile.brightness!=value || alwaysSet ) {
-        _currentVideoProfile.brightness = value;
+    if( _videoProfile.brightness!=value || alwaysSet ) {
+        _videoProfile.brightness = value;
 
         if( _state == PLAY ) {
             if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
-                mpCmd(QString("brightness %1 1").arg(_currentVideoProfile.brightness));
+                mpCmd(QString("brightness %1 1").arg(_videoProfile.brightness));
             else {
                 mpCmd("osd 1");
-                mpCmd(QString("brightness %1 1").arg(_currentVideoProfile.brightness));
+                mpCmd(QString("brightness %1 1").arg(_videoProfile.brightness));
                 mpCmd("osd 0");
             }
         }
         else
         if( _state == PAUSE )
-            mpCmd(QString("pausing_keep_force brightness %1 1").arg(_currentVideoProfile.brightness));
+            mpCmd(QString("pausing_keep_force brightness %1 1").arg(_videoProfile.brightness));
     }
 
     if( _videoAdjustDialog != NULL )
@@ -1093,21 +1094,21 @@ void PurePlayer::setSaturation(int value, bool alwaysSet)
     if( value < -100 ) value = -100; else
     if( value > 100 )  value = 100;
 
-    if( _currentVideoProfile.saturation!=value || alwaysSet ) {
-        _currentVideoProfile.saturation = value;
+    if( _videoProfile.saturation!=value || alwaysSet ) {
+        _videoProfile.saturation = value;
 
         if( _state == PLAY ) {
             if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
-                mpCmd(QString("saturation %1 1").arg(_currentVideoProfile.saturation));
+                mpCmd(QString("saturation %1 1").arg(_videoProfile.saturation));
             else {
                 mpCmd("osd 1");
-                mpCmd(QString("saturation %1 1").arg(_currentVideoProfile.saturation));
+                mpCmd(QString("saturation %1 1").arg(_videoProfile.saturation));
                 mpCmd("osd 0");
             }
         }
         else
         if( _state == PAUSE )
-            mpCmd(QString("pausing_keep_force saturation %1 1").arg(_currentVideoProfile.saturation));
+            mpCmd(QString("pausing_keep_force saturation %1 1").arg(_videoProfile.saturation));
     }
 
     if( _videoAdjustDialog != NULL )
@@ -1119,21 +1120,21 @@ void PurePlayer::setHue(int value, bool alwaysSet)
     if( value < -100 ) value = -100; else
     if( value > 100 )  value = 100;
 
-    if( _currentVideoProfile.hue!=value || alwaysSet ) {
-        _currentVideoProfile.hue = value;
+    if( _videoProfile.hue!=value || alwaysSet ) {
+        _videoProfile.hue = value;
 
         if( _state == PLAY ) {
             if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
-                mpCmd(QString("hue %1 1").arg(_currentVideoProfile.hue));
+                mpCmd(QString("hue %1 1").arg(_videoProfile.hue));
             else {
                 mpCmd("osd 1");
-                mpCmd(QString("hue %1 1").arg(_currentVideoProfile.hue));
+                mpCmd(QString("hue %1 1").arg(_videoProfile.hue));
                 mpCmd("osd 0");
             }
         }
         else
         if( _state == PAUSE )
-            mpCmd(QString("pausing_keep_force hue %1 1").arg(_currentVideoProfile.hue));
+            mpCmd(QString("pausing_keep_force hue %1 1").arg(_videoProfile.hue));
     }
 
     if( _videoAdjustDialog != NULL )
@@ -1145,21 +1146,21 @@ void PurePlayer::setGamma(int value, bool alwaysSet)
     if( value < -100 ) value = -100; else
     if( value > 100 )  value = 100;
 
-    if( _currentVideoProfile.gamma!=value || alwaysSet ) {
-        _currentVideoProfile.gamma = value;
+    if( _videoProfile.gamma!=value || alwaysSet ) {
+        _videoProfile.gamma = value;
 
         if( _state == PLAY ) {
             if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
-                mpCmd(QString("gamma %1 1").arg(_currentVideoProfile.gamma));
+                mpCmd(QString("gamma %1 1").arg(_videoProfile.gamma));
             else {
                 mpCmd("osd 1");
-                mpCmd(QString("gamma %1 1").arg(_currentVideoProfile.gamma));
+                mpCmd(QString("gamma %1 1").arg(_videoProfile.gamma));
                 mpCmd("osd 0");
             }
         }
         else
         if( _state == PAUSE )
-            mpCmd(QString("pausing_keep_force gamma %1 1").arg(_currentVideoProfile.gamma));
+            mpCmd(QString("pausing_keep_force gamma %1 1").arg(_videoProfile.gamma));
     }
 
     if( _videoAdjustDialog != NULL )
@@ -1330,12 +1331,12 @@ void PurePlayer::showVideoAdjustDialog()
 {
     if( _videoAdjustDialog == NULL ) {
         _videoAdjustDialog = new VideoAdjustDialog(this);
-        connect(_videoAdjustDialog, SIGNAL(windowActivate()), this, SLOT(reloadCheckVideoSettingsFile()));
-        connect(_videoAdjustDialog, SIGNAL(requestSave()), this, SLOT(saveCurrentVideoProfile()));
-        connect(_videoAdjustDialog, SIGNAL(requestLoad()), this, SLOT(restoreCurrentVideoProfile()));
+        connect(_videoAdjustDialog, SIGNAL(windowActivate()), this, SLOT(videoAdjustDialogWindowActivate()));
+        connect(_videoAdjustDialog, SIGNAL(requestSave()), this, SLOT(updateVideoProfile()));
+        connect(_videoAdjustDialog, SIGNAL(requestLoad()), this, SLOT(restoreVideoProfile()));
         connect(_videoAdjustDialog, SIGNAL(requestCreate(const QString&)), this, SLOT(createVideoProfileFromCurrent(const QString&)));
-        connect(_videoAdjustDialog, SIGNAL(requestRemove()), this, SLOT(deleteCurrentVideoProfile()));
-        connect(_videoAdjustDialog, SIGNAL(requestDefault()), this, SLOT(saveCurrentVideoProfileToDefault()));
+        connect(_videoAdjustDialog, SIGNAL(requestRemove()), this, SLOT(removeVideoProfile()));
+        connect(_videoAdjustDialog, SIGNAL(requestDefault()), this, SLOT(saveVideoProfileToDefault()));
         connect(_videoAdjustDialog, SIGNAL(changedContrast(int)), this, SLOT(setContrast(int)));
         connect(_videoAdjustDialog, SIGNAL(changedBrightness(int)), this, SLOT(setBrightness(int)));
         connect(_videoAdjustDialog, SIGNAL(changedSaturation(int)), this, SLOT(setSaturation(int)));
@@ -1343,10 +1344,10 @@ void PurePlayer::showVideoAdjustDialog()
         connect(_videoAdjustDialog, SIGNAL(changedGamma(int)), this, SLOT(setGamma(int)));
 
         _videoAdjustDialog->setProfiles(VideoSettings::profileNames());
-//      _videoAdjustDialog->setDefaultProfile(...);
-        _videoAdjustDialog->setCurrentProfile(_currentVideoProfile);
+        _videoAdjustDialog->setDefaultProfile(VideoSettings::defaultProfileName());
+        _videoAdjustDialog->setProfile(_videoProfile);
 
-        connect(_videoAdjustDialog, SIGNAL(changedProfile(const QString&)), this, SLOT(setCurrentVideoProfile(const QString&)));
+        connect(_videoAdjustDialog, SIGNAL(changedProfile(const QString&)), this, SLOT(setVideoProfile(const QString&)));
     }
 
     _videoAdjustDialog->move(_menuContext->x()
@@ -1999,11 +2000,11 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
         _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 0");
 
         setVolume(_volume);
-        setContrast(_currentVideoProfile.contrast, true);
-        setBrightness(_currentVideoProfile.brightness, true);
-        setSaturation(_currentVideoProfile.saturation, true);
-        setHue(_currentVideoProfile.hue, true);
-        setGamma(_currentVideoProfile.gamma, true);
+        setContrast(_videoProfile.contrast, true);
+        setBrightness(_videoProfile.brightness, true);
+        setSaturation(_videoProfile.saturation, true);
+        setHue(_videoProfile.hue, true);
+        setGamma(_videoProfile.gamma, true);
         setLoop(_doLoop);
 
         _controlFlags &= ~FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 1");
@@ -2485,76 +2486,25 @@ void PurePlayer::playCommonProcess()
     _mpProcess->waitForStarted();
 }
 
-void PurePlayer::loadVideoProfiles()
+void PurePlayer::saveVideoProfileToDefault()
 {
-    VideoSettings::loadProfiles();
+    VideoSettings::saveDefaultProfile(_videoProfile.name);
 
-    // プロファイル名をguiへ設定
-    if( _videoAdjustDialog != NULL ) {
-        _videoAdjustDialog->setProfiles(VideoSettings::profileNames());
-//      _videoAdjustDialog->setDefaultProfile(defaultProfile);
-    }
-
-    // カレントプロファイルの設定
-    setCurrentVideoProfile(VideoSettings::defaultProfile());
-
-    LogDialog::debug("PurePlayer::loadVideoProfiles(): end");
-}
-
-void PurePlayer::reloadVideoProfiles()
-{
-    VideoSettings::loadProfiles();
-
-    // プロファイル名をguiへ設定
-    if( _videoAdjustDialog != NULL ) {
-        _videoAdjustDialog->setProfiles(VideoSettings::profileNames());
-//      _videoAdjustDialog->setDefaultProfile(defaultProfile);
-    }
-
-    // カレントプロファイルの設定
-    if( VideoSettings::profile(_currentVideoProfile.name).isValid() )
-        // プロファイルにカレントプロファイルが含まれている
-        setCurrentVideoProfile(_currentVideoProfile.name, true);
-    else {
-        // プロファイルにカレントプロファイルが含まれていない
-        QString removedProfile = _currentVideoProfile.name;
-
-        setCurrentVideoProfile(VideoSettings::defaultProfile(), true);
-
-        if( _videoAdjustDialog != NULL )
-            _videoAdjustDialog->showDialogWarning("プロファイルは削除されました",
-                QString("現在選択していたプロファイル「%1」は外部から削除されました。\n"
-                        "デフォルトのプロファイルを選択します。").arg(removedProfile));
-
-    }
-
-    LogDialog::debug("PurePlayer::reLoadVideoProfiles(): end");
-}
-
-void PurePlayer::reloadCheckVideoSettingsFile()
-{
-    if( VideoSettings::checkReload() )
-        reloadVideoProfiles();
-}
-
-void PurePlayer::saveCurrentVideoProfileToDefault()
-{
-    VideoSettings::saveDefaultProfile(_currentVideoProfile.name);
-
-//  if( _videoAdjustDialog != NULL )
-//      _videoAdjustDialog->setDefaultProfile(_currentVideoProfile.name);
+    if( _videoAdjustDialog != NULL )
+        _videoAdjustDialog->setDefaultProfile(_videoProfile.name);
 
     LogDialog::debug("PurePlayer::saveDefaultVideoProfile(): end");
 }
 
-void PurePlayer::setCurrentVideoProfile(const QString& profileName, bool onlyProfileName)
+void PurePlayer::setVideoProfile(const QString& profileName, bool setVideoValue)
 {
+    LogDialog::debug(tr("PurePlayer::setVideoProfile(): %1").arg(profileName));
     VideoSettings::VideoProfile profile = VideoSettings::profile(profileName);
 
     if( profile.isValid() ) {
-        _currentVideoProfile.name = profile.name;
+        _videoProfile.name = profile.name;
 
-        if( !onlyProfileName ) {
+        if( setVideoValue ) {
             _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE;  //mpCmd("osd 0");
             setContrast(profile.contrast);
             setBrightness(profile.brightness);
@@ -2565,86 +2515,98 @@ void PurePlayer::setCurrentVideoProfile(const QString& profileName, bool onlyPro
         }
 
         if( _videoAdjustDialog != NULL )
-            _videoAdjustDialog->setCurrentProfile(_currentVideoProfile.name);
+            _videoAdjustDialog->setProfile(_videoProfile.name);
+
+        LogDialog::debug("PurePlayer::setVideoProfile(): end");
+        return;
     }
-/*
-    // 指定したプロファイルが存在しない場合、0番のプロファイルを設定
-    if( i >= _videoProfiles.size()
-     && _videoProfiles.size() > 0 ) // 無限ループ防止(_videoProfilesは0にはならない仕様)
-    {
-        setCurrentVideoProfile(_videoProfiles[0].name, onlyProfileName);
-    }
-*/
-    LogDialog::debug("PurePlayer::setCurrentVideoProfile(): end");
+
+    LogDialog::debug("PurePlayer::setVideoProfile(): failure");
 }
 
 void PurePlayer::createVideoProfileFromCurrent(QString profileName)
 {
-    // プロファイルが作成限界数に達してる場合
-    if( VideoSettings::profilesCount() >= 30 )
-        return;
+    VideoSettings::VideoProfile profile = _videoProfile;
 
     // 前方、後方の空白文字を取り除く
     profileName.remove(QRegExp("^\\s*"));
     profileName.remove(QRegExp("\\s*$"));
 
-    // プロファイル名が空、又は文字数が規定値を超える場合
-    if( profileName.isEmpty() || profileName.size()>15 )
-        return;
+    profile.name = profileName;
 
-    // 既に同じプロファイル名が存在する場合
-    if( VideoSettings::profile(profileName).isValid() )
-        return;
-
-    _currentVideoProfile.name = profileName;
-    VideoSettings::saveProfile(_currentVideoProfile);
-
-    if( _videoAdjustDialog != NULL ) {
-        _videoAdjustDialog->appendProfile(profileName);
-        _videoAdjustDialog->setCurrentProfile(profileName);
+    if( VideoSettings::appendProfile(profile) ) {
+        refreshVideoProfile(false);
+        setVideoProfile(profile.name, false);
     }
 
     LogDialog::debug("PurePlayer::createProfile(): end");
 }
 
-void PurePlayer::saveCurrentVideoProfile()
+void PurePlayer::updateVideoProfile()
 {
-    VideoSettings::saveProfile(_currentVideoProfile);
+    VideoSettings::updateProfile(_videoProfile);
 
-    LogDialog::debug("PurePlayer::saveCurrentVideoProfile(): end");
+    LogDialog::debug("PurePlayer::updateVideoProfile(): end");
 }
 
-void PurePlayer::restoreCurrentVideoProfile()
+void PurePlayer::restoreVideoProfile()
 {
-    setCurrentVideoProfile(_currentVideoProfile.name);
+    setVideoProfile(_videoProfile.name);
 
-    LogDialog::debug("PurePlayer::restoreCurrentVideoProfile(): end");
+    LogDialog::debug("PurePlayer::restoreVideoProfile(): end");
 }
 
-void PurePlayer::deleteCurrentVideoProfile()
+void PurePlayer::removeVideoProfile()
 {
-    VideoSettings::removeProfile(_currentVideoProfile.name);
+    VideoSettings::removeProfile(_videoProfile.name);
+    refreshVideoProfile();
 
-    if( _videoAdjustDialog != NULL )
-        _videoAdjustDialog->removeProfile(_currentVideoProfile.name);
+    LogDialog::debug("PurePlayer::removeVideoProfile(): end");
+}
 
-    // カレントプロファイルを新たに設定
-    if( VideoSettings::profilesCount() <= 0 ) {
-        VideoSettings::VideoProfile p;
-        p.name = "profile1";
-        p.contrast = 0;
-        p.brightness = 0;
-        p.saturation = 0;
-        p.hue = 0;
-        p.gamma = 0;
+void PurePlayer::refreshVideoProfile(bool restoreVideoValue, bool warning)
+{
+    if( !warning )
+    {
+        VideoSettings::loadProfiles();
 
-        VideoSettings::saveProfile(p);
-        setCurrentVideoProfile(p.name);
+        if( _videoSettingsModifiedId != VideoSettings::modifiedId() )
+        {
+            if( _videoAdjustDialog != NULL ) {
+                _videoAdjustDialog->setProfiles(VideoSettings::profileNames());
+                _videoAdjustDialog->setDefaultProfile(VideoSettings::defaultProfileName());
+
+                if( !VideoSettings::profile(_videoProfile.name).isValid() )
+                    setVideoProfile(VideoSettings::defaultProfileName(), restoreVideoValue);
+                else
+                    setVideoProfile(_videoProfile.name, false);
+            }
+            else
+            if( !VideoSettings::profile(_videoProfile.name).isValid() )
+                setVideoProfile(VideoSettings::defaultProfileName(), restoreVideoValue);
+
+            _videoSettingsModifiedId = VideoSettings::modifiedId();
+//          LogDialog::debug("PurePlayer::refreshVideoProfile(): refresh");
+        }
     }
     else
-        setCurrentVideoProfile(VideoSettings::profile(0).name);
+    {
+        QString profileName = _videoProfile.name;
 
-    LogDialog::debug("PurePlayer::deleteCurrentVideoProfile(): end");
+        refreshVideoProfile(restoreVideoValue, false);
+
+        if( !VideoSettings::profile(profileName).isValid() ) {
+            QWidget* parent = _videoAdjustDialog;
+            if( parent == NULL )
+                parent = this;
+
+            QMessageBox::warning(parent, "プロファイルは削除されました",
+                QString("現在選択していたプロファイル「%1」は外部から削除されました。\n"
+                        "デフォルトのプロファイルを選択します。").arg(profileName));
+        }
+    }
+
+//  LogDialog::debug("PurePlayer::refreshVideoProfile(): end");
 }
 
 void PurePlayer::saveInteractiveSettings()

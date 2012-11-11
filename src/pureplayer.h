@@ -113,19 +113,15 @@ public slots:
     void resizePercentageFromCurrent(const int percentage);
     void fullScreenOrWindow();
     void setAlwaysShowStatusBar(bool);
-    void showVideoAdjustDialog();
-    // protected
-    void loadVideoProfiles();
-    void reloadVideoProfiles();
-    void reloadCheckVideoSettingsFile();
-    // public
-    void saveCurrentVideoProfileToDefault();
-    void setCurrentVideoProfile(const QString& profileName, bool onlyProfileName=false);
-    void createVideoProfileFromCurrent(QString profileName);
-    void saveCurrentVideoProfile();
-    void restoreCurrentVideoProfile();
-    void deleteCurrentVideoProfile();
 
+    void saveVideoProfileToDefault();
+    void setVideoProfile(const QString& profileName, bool setVideoValue=true);
+    void createVideoProfileFromCurrent(QString profileName);
+    void updateVideoProfile();
+    void restoreVideoProfile();
+    void removeVideoProfile();
+
+    void showVideoAdjustDialog();
     void showLogDialog();
     void showAboutDialog();
     void showConfigDialog();
@@ -142,6 +138,8 @@ protected slots:
     void buttonPlayPauseClicked();
     void exitFullScreen() { if( isFullScreen() ) fullScreenOrWindow(); }
     void restartPlay(bool keepSeekPos=false) { if(keepSeekPos && _isSeekable) _seekWhenStartMplayer=true; stop(); play(); }
+
+    void refreshVideoProfile(bool restoreVideoValue=true, bool warning=false);
 
 protected:
     enum STATE { STOP, PAUSE, READY, PLAY };
@@ -194,6 +192,7 @@ private slots:
     void timerReconnectTimeout();
     void timerFpsTimeout();
     void appliedFromConfigDialog(bool restartMplayer);
+    void videoAdjustDialogWindowActivate() { refreshVideoProfile(false, true); }
 
 private:
     void createStatusBar();
@@ -256,8 +255,8 @@ private:
     quint16         _fpsCount;
     unsigned int    _oldFrame;
 
-    VideoSettings::VideoProfile _currentVideoProfile;
-//  QString             _timeVideoSettingsModified;
+    VideoSettings::VideoProfile _videoProfile;
+    unsigned int    _videoSettingsModifiedId;
 
     AUDIO_OUTPUT_MODE  _audioOutput;
     VOLUME_FACTOR_MODE _volumeFactor;

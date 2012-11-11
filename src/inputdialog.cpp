@@ -46,3 +46,8 @@ QString InputDialog::input(QWidget* parent, const QString& title, const QString&
     return ret;
 }
 
+void InputDialog::showEvent(QShowEvent*)
+{
+    setFixedHeight(height());
+}
+
