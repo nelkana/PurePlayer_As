@@ -141,6 +141,7 @@ protected slots:
 
     void refreshVideoProfile(bool restoreVideoValue=true, bool warning=false);
 
+
 protected:
     enum STATE { STOP, PAUSE, READY, PLAY };
     enum CONTROL_FLAG {
@@ -150,6 +151,7 @@ protected:
     };
 
 //  bool event(QEvent*);
+//  bool eventFilter(QObject*, QEvent*);
     void closeEvent(QCloseEvent*);
     void resizeEvent(QResizeEvent*);
     void keyPressEvent(QKeyEvent*);
@@ -203,6 +205,11 @@ private:
     void updateVisibleInterface();
     void setStatus(const STATE);
 
+#ifdef Q_OS_WIN32
+    void initColorKey();
+    QRgb genColorKey(int step, QRgb baseColorKey=0x000000);
+#endif
+
 private:
     STATE           _state;
     QWidget*        _videoScreen;
@@ -226,6 +233,9 @@ private:
     QNetworkAccessManager* _nam;
     MplayerProcess* _mpProcess;
     RecordingProcess* _recordingProcess;
+#ifdef Q_OS_WIN32
+    QRgb _colorKey;
+#endif
 
     QString         _path;
 

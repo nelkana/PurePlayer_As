@@ -19,6 +19,12 @@
 #include <QFileDialog>  // getOpenFileNameDialog()
 #include "commonlib.h"
 
+#ifdef Q_OS_WIN32
+const char* const CommonLib::QSETTINGS_ORGNAME = "Settings";
+#else
+const char* const CommonLib::QSETTINGS_ORGNAME = "PurePlayer";
+#endif // Q_OS_WIN32
+
 class MyThread : public QThread
 {
     Q_OBJECT;

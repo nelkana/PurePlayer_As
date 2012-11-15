@@ -34,10 +34,6 @@
 #include "speedspinbox.h"
 #include "aboutdialog.h"
 
-#ifdef Q_OS_WIN32
-#define COLORKEY 0x040504
-#endif
-
 PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 {
     const QIcon appIcon(":/icons/heart.png");
@@ -59,13 +55,17 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     setPalette(p);
 
     setCentralWidget(new QWidget(this));
+    centralWidget()->setAcceptDrops(true);
     _videoScreen = new QWidget(centralWidget());
+    _videoScreen->setAcceptDrops(true);
     _videoScreen->lower();
 #ifdef Q_OS_WIN32
     _videoScreen->setAutoFillBackground(true);
     p = _videoScreen->palette();
-    p.setColor(_videoScreen->backgroundRole(), QColor(COLORKEY));
+    p.setColor(_videoScreen->backgroundRole(), QColor(Qt::black));
     _videoScreen->setPalette(p);
+
+    initColorKey();
 #endif
 
 //  _oldTime = -1;
@@ -1446,7 +1446,18 @@ void PurePlayer::openContactUrl()
 */
 //  return QMainWindow::event(e);
 //}
+/*
+bool PurePlayer::eventFilter(QObject* o, QEvent* e)
+{
+    if( o == centralWidget() ) {
+        if( e->type() == QEvent::DragEnter ) {
+            QDragEnterEvent* ev = static_cast<QDragEnterEvent*>(e);
+        }
+    }
 
+    return QMainWindow::eventFilter(o, e);
+}
+*/
 void PurePlayer::closeEvent(QCloseEvent* e)
 {
     LogDialog::debug("PurePlayer::closeEvent(): start-");
@@ -1486,8 +1497,6 @@ void PurePlayer::resizeEvent(QResizeEvent* )
 
 void PurePlayer::keyPressEvent(QKeyEvent* e)
 {
-    static QTime time;
-
     switch( e->key() ) {
     case Qt::Key_Up:
         if( e->modifiers() & Qt::ShiftModifier )
@@ -1519,27 +1528,22 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
 #ifndef QT_NO_DEBUG_OUTPUT
 //  case Qt::Key_D: showLogDialog();        break;
 //  case Qt::Key_O: mpCmd("osd");           break;
-    case Qt::Key_X:
-        {
-//      LogDialog::debug(QString(""));
-
-//      setContrast(30);
-        break;
-        }
-    case Qt::Key_Z:
-        {
-//      setContrast(-30);
-
-        break;
-        }
     case Qt::Key_B:
-        {
+    {
         repeatAB();
-
         break;
-        }
+    }
+    case Qt::Key_Z:
+    {
+//      LogDialog::debug(QString(""));
+        break;
+    }
+    case Qt::Key_X:
+    {
+        break;
+    }
     case Qt::Key_N:
-        {
+    {
 //      recordingStartStop();
 /*
         // ボリュームテキストの色を変える
@@ -1549,7 +1553,7 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
         LogDialog::debug(QString("%1 %2").arg(width()).arg(height()));
 */
         break;
-        }
+    }
     case Qt::Key_V:
 //      LogDialog::debug("mplayer pid: " + QString("%1").arg(_mpProcess->pid()));
 //      LogDialog::debug("mplayer cpid: " + QString("%1").arg(_mplayerCPid));
@@ -2447,7 +2451,7 @@ void PurePlayer::playCommonProcess()
     << "-identify"
     << "-af-add" << "scaletempo"
     << "-osdlevel" << "0"
-    << "-idx"
+    << "-ass"   // windowsでは'-vf-add eq2,hue'単体では多重再生不可。このオプションで改善
     << "-double"
     << "-nodr"          // -drの場合、OSD表示がちらつく
     << "-framedrop"
@@ -2467,10 +2471,15 @@ void PurePlayer::playCommonProcess()
 
 #ifdef Q_OS_WIN32
     << "-colorkey" << QString().sprintf("%#08x",
-                        qRgba(qBlue(COLORKEY), qGreen(COLORKEY), qRed(COLORKEY), 0))
+                        qRgba(qBlue(_colorKey), qGreen(_colorKey), qRed(_colorKey), 0))
 #endif
 
-    << _path;
+    << "-idx";
+
+    if( isPeercastStream() )
+        args << QString(_path).replace("/pls/", "/stream/");
+    else
+        args << _path;
 
     QString mplayerPath;
     if( ConfigData::data()->useMplayerPath )
@@ -2611,7 +2620,7 @@ void PurePlayer::refreshVideoProfile(bool restoreVideoValue, bool warning)
 
 void PurePlayer::saveInteractiveSettings()
 {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
+    QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
 
     int volume;
     if( _volume > ConfigData::data()->volumeMax )
@@ -2629,7 +2638,7 @@ void PurePlayer::saveInteractiveSettings()
 
 void PurePlayer::loadInteractiveSettings()
 {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
+    QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
 
     mute(s.value("mute", false).toBool());
     setVolume(s.value("volume", 30).toInt());
@@ -2743,6 +2752,38 @@ QSize PurePlayer::calcPercentageVideoSize(const int percentage)
 
     return size;
 }
+
+#ifdef Q_OS_WIN32
+void PurePlayer::initColorKey()
+{
+    QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
+
+    int step = s.value("WinColorKeyStep", 0).toInt();
+
+    s.setValue("WinColorKeyStep", (step+1) % 50);
+
+    _colorKey = genColorKey(step, 0x040506);
+
+    LogDialog::debug(QString("PurePlayer::initColorKey(): %1 %2 %3 %4")
+                    .arg(qRed(_colorKey)).arg(qGreen(_colorKey)).arg(qBlue(_colorKey))
+                    .arg(step));
+}
+
+QRgb PurePlayer::genColorKey(int step, QRgb baseColorKey)
+{
+    step = step % 100;
+
+    int r = qRed(baseColorKey);
+    int g = qGreen(baseColorKey);
+    int b = qBlue(baseColorKey);
+
+    r = (r + step/3 + (step%3 + 2)/3) % 256;
+    g = (g + step/3 + (step%3 + 1)/3) % 256;
+    b = (b + step/3) % 256;
+
+    return (r << 16) + (g << 8) + b;
+}
+#endif // Q_OS_WIN32
 
 void PurePlayer::updateVideoScreenGeometry()
 {
@@ -2893,6 +2934,7 @@ void PurePlayer::setStatus(const STATE s)
         _actReconnectPct->setEnabled(true);
         _actPlayPause->setEnabled(false);
         _actStop->setEnabled(true);
+
 #ifdef Q_WS_X11
         if( !_noVideo ) {
             _videoScreen->setAttribute(Qt::WA_NoSystemBackground, false);

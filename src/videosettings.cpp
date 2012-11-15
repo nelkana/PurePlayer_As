@@ -16,6 +16,7 @@
 #include <QSettings>
 #include <QDateTime>
 #include "videosettings.h"
+#include "commonlib.h"
 #include "logdialog.h"
 
 VideoSettings* VideoSettings::s_object;
@@ -39,7 +40,7 @@ void VideoSettings::loadProfiles()
 
     // 全プロファイルデータの読み込み
     {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
+    QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "VideoSettings");
 
     s_modifiedIdFile = s.value("modifiedId", QString()).toString();
 
@@ -114,7 +115,7 @@ bool VideoSettings::checkReload()
     if( s_modifiedIdFile.isNull() )
         return true;
 
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
+    QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "VideoSettings");
 
     QString id = s.value("modifiedId", QString()).toString();
 
@@ -129,7 +130,7 @@ void VideoSettings::updateProfile(const VideoProfile& profile)
             s_profiles[i] = profile;
 
             // ファイル保存
-            QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
+            QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "VideoSettings");
 
             s.beginGroup("Profiles");
             s.beginGroup(profile.name);
@@ -168,7 +169,7 @@ bool VideoSettings::appendProfile(const VideoProfile& profile)
 
     // 同じプロファイル名が存在しない場合
     if( !VideoSettings::profile(profile.name).isValid() ) {
-        QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
+        QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "VideoSettings");
 
         s.beginGroup("Profiles");
         s.beginGroup(profile.name);
@@ -198,7 +199,7 @@ void VideoSettings::saveDefaultProfile(const QString& name)
 {
     for(int i=0; i < s_profiles.size(); i++) {
         if( name == s_profiles[i].name ) {
-            QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
+            QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "VideoSettings");
 
             s.setValue("defaultProfile", name);
 
@@ -216,7 +217,7 @@ void VideoSettings::saveDefaultProfile(const QString& name)
 
 void VideoSettings::removeProfile(const QString& name)
 {
-    QSettings* s = new QSettings(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
+    QSettings* s = new QSettings(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "VideoSettings");
 
     s->beginGroup("Profiles");
     s->remove(name);
@@ -296,7 +297,7 @@ void VideoSettings::convertPrevSettingsVer0_6_1ToSettingsVer0_7_0()
 
     // PurePlayer.iniから旧データ読み込み、削除
     {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
+    QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
 
     if( s.contains("contrast")
      || s.contains("brightness")
@@ -322,7 +323,7 @@ void VideoSettings::convertPrevSettingsVer0_6_1ToSettingsVer0_7_0()
 
     // VideoSettings.iniへ新しい形式で保存
     if( p.isValid() ) {
-        QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "VideoSettings");
+        QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "VideoSettings");
 
         QStringList profilesOrder;
         profilesOrder = s.value("profilesOrder", QStringList()).toStringList();
@@ -377,6 +378,7 @@ void VideoSettings::saveProfilesOrder(QSettings& s)
     s.setValue("profilesOrder", order);
 
     saveModifiedIdFile(s);
+
 }
 
 void VideoSettings::advanceModifiedId()

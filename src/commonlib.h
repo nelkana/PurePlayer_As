@@ -20,6 +20,7 @@
 
 namespace CommonLib
 {
+extern const char* const QSETTINGS_ORGNAME;
 
 double round(double value, int precision);
 void   msleep(unsigned long msec);

@@ -16,13 +16,14 @@
 #include <QSettings>
 #include <QDir>
 #include "configdata.h"
+#include "commonlib.h"
 #include "logdialog.h"
 
 ConfigData::Data ConfigData::s_data;
 
 void ConfigData::saveData()
 {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
+    QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
 
     s.setValue("voName",    s_data.voName);
     s.setValue("aoName",    s_data.aoName);
@@ -39,7 +40,7 @@ void ConfigData::saveData()
 
 void ConfigData::loadData()
 {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
+    QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
 
     s_data.voName = s.value("voName", "0").toString();
 

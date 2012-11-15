@@ -24,7 +24,7 @@
 int main(int argc, char** argv)
 {
     if( argc >= 3 ) {
-        printf("Usage: %s [File Path or URL]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [File Path or URL]\n", argv[0]);
         exit(1);
     }
 
@@ -36,6 +36,10 @@ int main(int argc, char** argv)
     transQt.load("qt_" + QLocale::system().name(),
                  QLibraryInfo::location(QLibraryInfo::TranslationsPath));
     app.installTranslator(&transQt);
+
+#ifdef Q_OS_WIN32
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, QApplication::applicationDirPath());
+#endif
 
     PurePlayer main;
     main.show();

@@ -19,7 +19,7 @@
 #include "ui_aboutdialog.h"
 #include "logdialog.h"
 
-#define PUREPLAYER_VERSION "0.7.2"
+#define PUREPLAYER_VERSION "0.7.3"
 
 class AboutDialog : public QDialog, Ui::AboutDialog
 {
