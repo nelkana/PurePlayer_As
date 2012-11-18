@@ -55,7 +55,7 @@ public:
     enum ASPECT_RATIO { RATIO_VIDEO, RATIO_4_3, RATIO_16_9, RATIO_16_10, NO_KEEP };
     enum DEINTERLACE_MODE { DI_NO_DEINTERLACE, DI_YADIF, DI_YADIF_DOUBLE, DI_LINEAR_BLEND };
     enum AUDIO_OUTPUT_MODE { AO_STEREO, AO_MONAURAL, AO_LEFT, AO_RIGHT };
-    enum VOLUME_FACTOR_MODE { VF_NORMAL, VF_DOUBLE, VF_TRIPLE };
+    enum VOLUME_FACTOR_MODE { VF_ONE_THIRD, VF_NORMAL, VF_DOUBLE, VF_TRIPLE };
 
     PurePlayer(QWidget* parent = 0);
     virtual ~PurePlayer();
@@ -110,7 +110,8 @@ public slots:
     void resize125Percent() { resizeFromVideoClient(calcPercentageVideoSize(125)); }
     void resize150Percent() { resizeFromVideoClient(calcPercentageVideoSize(150)); }
     bool resizeFromVideoClient(QSize size);
-    void resizePercentageFromCurrent(const int percentage);
+    void resizePercentageFromCurrent(int percentage);
+    void resizeFromCurrent(int amount);
     void fullScreenOrWindow();
     void setAlwaysShowStatusBar(bool);
 
@@ -141,17 +142,18 @@ protected slots:
 
     void refreshVideoProfile(bool restoreVideoValue=true, bool warning=false);
 
-
 protected:
     enum STATE { STOP, PAUSE, READY, PLAY };
     enum CONTROL_FLAG {
         FLG_NONE                 = 0x00000000,
         FLG_HIDE_DISPLAY_MESSAGE = 0x00000001, // ディスプレイメッセージを非表示
-        FLG_SEEKED_REPEAT        = 0x00000002, // ABリピートでseek()したか
+        FLG_SEEKED_REPEAT        = 0x00000002, // ABリピートでseek()した
+        FLG_WHEEL_RESIZED        = 0x00000004, // ホイールリサイズした
+        FLG_MUTE_WHEN_MOUSE_RELEASE = 0x00000008, // マウスリリースした時にミュートする
     };
 
 //  bool event(QEvent*);
-//  bool eventFilter(QObject*, QEvent*);
+    bool eventFilter(QObject*, QEvent*);
     void closeEvent(QCloseEvent*);
     void resizeEvent(QResizeEvent*);
     void keyPressEvent(QKeyEvent*);
@@ -174,7 +176,8 @@ protected:
     void loadInteractiveSettings();
 
     QSize videoSize100Percent();
-    QSize calcPercentageVideoSize(const QSize videoSize, const int percentage);
+    QSize correctToValidVideoSize(QSize toSize, const QSize& videoSize);
+    QSize calcPercentageVideoSize(const QSize& videoSize, const int percentage);
     QSize calcPercentageVideoSize(const int percentage);
 
     PlayListDialog* playListDialog();
@@ -220,7 +223,7 @@ private:
     ControlButton*  _repeatABButton;
     ControlButton*  _loopButton;
     ControlButton*  _screenshotButton;
-    TimeSlider*     _timeslider;
+    TimeSlider*     _timeSlider;
     SpeedSpinBox*   _speedSpinBox;
     TimeLabel*      _timeLabel;
     QLabel*         _labelFrame;
@@ -278,7 +281,6 @@ private:
     bool            _seekWhenStartMplayer;
     bool            _reconnectWasCalled;
     bool            _isMaximizedBeforeFullScreen;
-    bool            _muteWhenMouseRelease;
     bool            _cursorInWindow;
     bool            _disableWindowMoveFromMouse;
     bool            _alwaysShowStatusBar;

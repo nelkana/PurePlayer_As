@@ -79,7 +79,6 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _seekWhenStartMplayer = false;
     _reconnectWasCalled = false;
     _isMaximizedBeforeFullScreen = false;
-    _muteWhenMouseRelease = false;
     _videoSize = QSize(320, 240);
     _noVideo = false;
     _isSeekable = false;
@@ -302,17 +301,20 @@ void PurePlayer::createToolBar()
     _screenshotButton->setToolTip("スクリーンショット");
     connect(_screenshotButton, SIGNAL(clicked(bool)), this, SLOT(screenshot()));
 
-    _timeslider = new TimeSlider(this);
-    _timeslider->setFocusPolicy(Qt::NoFocus);
-    connect(_timeslider, SIGNAL(requestSeek(double, bool)), this, SLOT(seek(double, bool)));
+    _timeSlider = new TimeSlider(this);
+    _timeSlider->installEventFilter(this);
+    _timeSlider->setFocusPolicy(Qt::NoFocus);
+    connect(_timeSlider, SIGNAL(requestSeek(double, bool)), this, SLOT(seek(double, bool)));
 
     _speedSpinBox = new SpeedSpinBox(this);
+    _speedSpinBox->installEventFilter(this);
     _speedSpinBox->setFixedWidth(_speedSpinBox->sizeHint().width());
     _speedSpinBox->setFixedHeight(17);
     _speedSpinBox->setToolTip(tr("再生速度"));
     connect(_speedSpinBox, SIGNAL(valueChanged(double)), this, SLOT(setSpeed(double)));
 
     _toolBar = new QToolBar("toolbar", this);
+    _toolBar->installEventFilter(this);
     // QToolBarのレイアウトの操作。
     // 余白指定が全部同じ値だと有効だが、異なる値だと全て0になる。これは不正な操作？
     _toolBar->layout()->setContentsMargins(0,0,0,0); 
@@ -339,10 +341,10 @@ void PurePlayer::createToolBar()
     hl->addWidget(_repeatABButton);
     hl->addWidget(_loopButton);
     hl->addWidget(_screenshotButton);
-    hl->addWidget(_timeslider);
+    hl->addWidget(_timeSlider);
     //hl->addStretch();
     hl->addWidget(_speedSpinBox);
-//  vl->addWidget(_timeslider);
+//  vl->addWidget(_timeSlider);
 //  vl->addLayout(hl);
     QWidget* widget = new QWidget(this);
     widget->setLayout(hl);
@@ -428,6 +430,8 @@ void PurePlayer::createActionContextMenu()
     _actGroupVolumeFactor = new QActionGroup(this);
     connect(_actGroupVolumeFactor, SIGNAL(triggered(QAction*)),
             this,                  SLOT(actGroupVolumeFactorChanged(QAction*)));
+    QAction* actVFactor0 = new QAction(tr("音量を1/3にする"), _actGroupVolumeFactor);
+    actVFactor0->setCheckable(true);
     QAction* actVFactor1 = new QAction(tr("音量を標準にする"), _actGroupVolumeFactor);
     actVFactor1->setCheckable(true);
     actVFactor1->setChecked(true);
@@ -1215,13 +1219,12 @@ bool PurePlayer::resizeFromVideoClient(QSize size)
     }
 }
 
-void PurePlayer::resizePercentageFromCurrent(const int percentage)
+void PurePlayer::resizePercentageFromCurrent(int percentage)
 {
     if( percentage == 0 ) return;
 
     // 等倍サイズとして解釈するビデオサイズを取得
-    QSize videoSize;
-    videoSize = videoSize100Percent();
+    QSize videoSize = videoSize100Percent();
 
     // 現在のビデオサイズの割合を求める
 //  int currentPercentage = _videoScreen->width()*100 / videoSize.width();
@@ -1242,6 +1245,18 @@ void PurePlayer::resizePercentageFromCurrent(const int percentage)
     QSize size = calcPercentageVideoSize(videoSize, resizePercentage);
 
     resizeFromVideoClient(size);
+}
+
+void PurePlayer::resizeFromCurrent(int amount)
+{
+    if( amount == 0 ) return;
+
+    QSize videoSize = videoSize100Percent();
+
+    double c = hypot(videoSize.width(), videoSize.height());
+    int percentage = 100 * amount / c;
+
+    resizePercentageFromCurrent(percentage);
 }
 
 void PurePlayer::fullScreenOrWindow()
@@ -1446,18 +1461,38 @@ void PurePlayer::openContactUrl()
 */
 //  return QMainWindow::event(e);
 //}
-/*
+
 bool PurePlayer::eventFilter(QObject* o, QEvent* e)
 {
-    if( o == centralWidget() ) {
-        if( e->type() == QEvent::DragEnter ) {
-            QDragEnterEvent* ev = static_cast<QDragEnterEvent*>(e);
+//  LogDialog::debug(QString("%1").arg(e->type()));
+    if( o == _toolBar ) {
+        if( e->type() == QEvent::ContextMenu )
+            return true;
+    }
+    else
+    if( o == _timeSlider ) {
+        if( e->type() == QEvent::Wheel ) {
+            QWheelEvent* ev = static_cast<QWheelEvent*>(e);
+            if( ev->buttons() & Qt::RightButton ) {
+                QApplication::sendEvent(_toolBar, ev);
+                return true;
+            }
+        }
+    }
+    else
+    if( o == _speedSpinBox ) {
+        if( e->type() == QEvent::Wheel ) {
+            QWheelEvent* ev = static_cast<QWheelEvent*>(e);
+            if( ev->buttons() & Qt::RightButton ) {
+                QApplication::sendEvent(_toolBar, ev);
+                return true;
+            }
         }
     }
 
     return QMainWindow::eventFilter(o, e);
 }
-*/
+
 void PurePlayer::closeEvent(QCloseEvent* e)
 {
     LogDialog::debug("PurePlayer::closeEvent(): start-");
@@ -1581,14 +1616,11 @@ void PurePlayer::mousePressEvent(QMouseEvent* e)
         _pressLocalPos.setX(e->pos().x() + geometry().x()-frameGeometry().x());
         _pressLocalPos.setY(e->pos().y() + geometry().y()-frameGeometry().y());
         if( (height()*80/100) < e->y() )
-            _muteWhenMouseRelease = true;
+            _controlFlags |= FLG_MUTE_WHEN_MOUSE_RELEASE;
         else
         if( isFullScreen() )
             setCursor(QCursor(Qt::BlankCursor));
     }
-    else
-    if( e->button() == Qt::RightButton )
-        _menuContext->popup(e->globalPos());
     else
     if( e->button() == Qt::MidButton )
         middleClickResize();
@@ -1600,12 +1632,22 @@ void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
     if( e->button() == Qt::LeftButton ) {
         _menuContext->move(x()+width()*0.2, y()+height()*0.2);
 
-        if( _muteWhenMouseRelease ) {
-            _muteWhenMouseRelease = false;
+        if( _controlFlags & FLG_MUTE_WHEN_MOUSE_RELEASE ) {
+            _controlFlags &= ~FLG_MUTE_WHEN_MOUSE_RELEASE;
             mute(!isMute());
         }
 
         _disableWindowMoveFromMouse = false;
+    }
+    else
+    if( e->button() == Qt::RightButton ) {
+        if( !(_controlFlags & FLG_WHEEL_RESIZED)
+         && geometry().contains(e->globalPos()) )
+        {
+            _menuContext->popup(e->globalPos());
+        }
+
+        _controlFlags &= ~FLG_WHEEL_RESIZED;
     }
 }
 
@@ -1614,7 +1656,7 @@ void PurePlayer::mouseDoubleClickEvent(QMouseEvent* e)
 //  LogDialog::debug("mouse doubleclick");
     if( e->buttons() & Qt::LeftButton ) {
         if( (height()*80/100) < e->y() )
-            _muteWhenMouseRelease = true;
+            _controlFlags |= FLG_MUTE_WHEN_MOUSE_RELEASE;
         else
             fullScreenOrWindow();
     }
@@ -1637,23 +1679,31 @@ void PurePlayer::mouseMoveEvent(QMouseEvent* e)
             if( !_disableWindowMoveFromMouse )
                 move(e->globalPos() - _pressLocalPos);
 
-            _muteWhenMouseRelease = false;
+            _controlFlags &= ~FLG_MUTE_WHEN_MOUSE_RELEASE;
         }
     }
 }
 
 void PurePlayer::wheelEvent(QWheelEvent* e)
 {
-//  if( isMute() )
-//      mute(false);
-//  else {
+    if( e->buttons() & Qt::RightButton ) {
+        if( e->delta() < 0 )
+            resizeFromCurrent(-50);
+//          resizeSlightlyReduce();
+        else
+            resizeFromCurrent(+50);
+//          resizeSlightlyIncrease();
+
+        _controlFlags |= FLG_WHEEL_RESIZED;
+    }
+    else {
         int volume;
         QPoint localPoint = statusBar()->mapFromGlobal(e->globalPos());
         QRect  labelRect  = _labelVolume->geometry();
-/*      LogDialog::debug(QString().sprintf("(%d %d %d %d) (%d %d)",
+    /*      LogDialog::debug(QString().sprintf("(%d %d %d %d) (%d %d)",
                         labelRect.x(),labelRect.y(), labelRect.right(),labelRect.bottom(),
                         localPoint.x(), localPoint.y()));
-*/
+    */
         if( labelRect.contains(localPoint) )
             volume = 1;
         else
@@ -1663,7 +1713,7 @@ void PurePlayer::wheelEvent(QWheelEvent* e)
             downVolume(volume);
         else
             upVolume(volume);
-//  }
+    }
 }
 
 void PurePlayer::enterEvent(QEvent*)
@@ -1960,7 +2010,7 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
 
             if( _isSeekable ) {
 //              if( time != _oldTime )
-                _timeslider->setPosition(time);
+                _timeSlider->setPosition(time);
 
 //              _oldTime = time;
             }
@@ -2034,7 +2084,7 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
             _timeLabel->setTotalTime(_videoLength);
             _playList.currentItem()->setTime(_videoLength);
             playListDialog()->updateCurrentItemTime();
-            _timeslider->setLength(_videoLength);
+            _timeSlider->setLength(_videoLength);
             //_speedSpinBox->setRange(0, _videoLength*10);
 
             // テキスト内容によってステータスバーの高さが変わる為、高さを固定にする
@@ -2430,10 +2480,11 @@ void PurePlayer::playCommonProcess()
 
     args << "-softvol-max";
     switch( _volumeFactor ) {
-    case VF_DOUBLE: args << "220"; break;
-    case VF_TRIPLE: args << "330"; break;
-    case VF_NORMAL:
-    default       : args << "110";
+    case VF_ONE_THIRD: args << "36.7"; break;
+    case VF_DOUBLE   : args << "220"; break;
+    case VF_TRIPLE   : args << "330"; break;
+    case VF_NORMAL   :
+    default          : args << "110";
     }
 
     if( _path.left(8).contains("://") )
@@ -2682,25 +2733,11 @@ QSize PurePlayer::videoSize100Percent()
     return videoSize;
 }
 
-// videoSizeに対してスケーリングを計算し、有効なサイズを返す
-QSize PurePlayer::calcPercentageVideoSize(const QSize videoSize, const int percentage)
+// toSizeを有効な値に修正したサイズを返す
+QSize PurePlayer::correctToValidVideoSize(QSize toSize, const QSize& videoSize)
 {
-    if( percentage <= 0 ) return QSize(0, 0); // マイナス分は最後に-1を掛ければ
-                                              // 対応できるが特に対応しない。
-
-    // サイズを求める
-    // サイズの%表示,ビデオ矩形の表示算出処理が高さを元に判定している為、高さ起点で求める
-    int w, h;
-    h = videoSize.height() * percentage / 100;
-    if( videoSize.height() * percentage % 100 )
-        h++;
-
-    w = h * videoSize.width() / videoSize.height();
-    if( h * videoSize.width() % videoSize.height() )
-        w++;
-
-//  LogDialog::debug(QString("PurePlayer::calcPercentageVideoSize(): %1 %2 %3%")
-//                                                   .arg(w).arg(h).arg(percentage));
+    if( videoSize.width() <= 0 || videoSize.height() <= 0 )
+        return QSize(0, 0);
 
     // 最大最小サイズを超える場合は、有効なサイズへ修正する
     // (比を維持しない設定の場合は、超えたサイズでリサイズすると比崩れが起きる為必須)
@@ -2719,26 +2756,48 @@ QSize PurePlayer::calcPercentageVideoSize(const QSize videoSize, const int perce
     int minW = minimumSizeHint().width();
 
     // サイズを修正する
-    if( w > maxW || h > maxH ) {
+    if( toSize.width() > maxW || toSize.height() > maxH ) {
         QRect rc = CommonLib::scaleRectOnRect(QSize(maxW, maxH), videoSize);
-        w = rc.width();
-        h = rc.height();
+        toSize = rc.size();
     }
     else
-    if( w < minW ) { // 注意: 最小値の修正は比を維持しない場合のみ行う
+    if( toSize.width() < minW ) { // 注意: 最小値の修正は比を維持しない場合のみ行う
                      //       (比を維持している場合は小さいサイズでも表示可能な為)
         if( _aspectRatio == NO_KEEP ) {
-            w = minW;
+            toSize.setWidth(minW);
             // セントラルwidgetのサイズがそのままビデオサイズになるので適当に四捨五入
-            h = minW * videoSize.height() / (double)videoSize.width() + 0.5;
+            toSize.setHeight(minW * videoSize.height() / (double)videoSize.width() + 0.5);
         }
     }
 
 //  LogDialog::debug(
-//      QString("PurePlayer::calcPercentageVideoSize(): %1 %2 maxWH:%3 %4 minW: %5")
-//      .arg(w).arg(h).arg(maxW).arg(maxH).arg(minW));
+//      QString("PurePlayer::correctToValidVideoSize(): %1 %2 maxWH:%3 %4 minW: %5")
+//      .arg(toSize.width()).arg(toSize.height()).arg(maxW).arg(maxH).arg(minW));
 
-    return QSize(w, h);
+    return toSize;
+}
+
+// videoSizeに対してスケーリングを計算し、有効なサイズを返す
+QSize PurePlayer::calcPercentageVideoSize(const QSize& videoSize, const int percentage)
+{
+    if( percentage <= 0 ) return QSize(0, 0); // マイナス分は最後に-1を掛ければ
+                                              // 対応できるが特に対応しない。
+
+    // サイズを求める
+    // サイズの%表示,ビデオ矩形の表示算出処理が高さを元に判定している為、高さ起点で求める
+    int w, h;
+    h = videoSize.height() * percentage / 100;
+    if( videoSize.height() * percentage % 100 )
+        h++;
+
+    w = h * videoSize.width() / videoSize.height();
+    if( h * videoSize.width() % videoSize.height() )
+        w++;
+
+//  LogDialog::debug(QString("PurePlayer::calcPercentageVideoSize(): %1 %2 %3%")
+//                                                   .arg(w).arg(h).arg(percentage));
+
+    return correctToValidVideoSize(QSize(w, h), videoSize);
 }
 
 // ビデオに対してスケーリングを計算し、有効なサイズを返す
@@ -2952,8 +3011,8 @@ void PurePlayer::setStatus(const STATE s)
         _stopButton->setEnabled(false);
         _frameAdvanceButton->setEnabled(false);
         _screenshotButton->setEnabled(false);
-        _timeslider->setSliderDown(false);
-        _timeslider->setPosition(0);
+        _timeSlider->setSliderDown(false);
+        _timeSlider->setPosition(0);
         visibleInterface(true);
 
         _actScreenshot->setEnabled(false);
