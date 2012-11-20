@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>187</width>
-    <height>233</height>
+    <width>296</width>
+    <height>268</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -30,12 +30,100 @@
     <number>8</number>
    </property>
    <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,0">
+     <property name="spacing">
+      <number>-1</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QComboBox" name="_comboBoxProfile">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="_buttonCreate">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
+       <property name="toolTip">
+        <string>新しいプロファイルを作成</string>
+       </property>
+       <property name="text">
+        <string>+</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="_buttonRemove">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
+       <property name="toolTip">
+        <string>このプロファイルを削除</string>
+       </property>
+       <property name="text">
+        <string>-</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
     <layout class="QGridLayout" name="_gridLayout">
      <property name="verticalSpacing">
       <number>0</number>
      </property>
      <item row="3" column="0" colspan="3">
       <widget class="QSlider" name="_horizontalSlider">
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
        <property name="minimum">
         <number>-100</number>
        </property>
@@ -59,6 +147,9 @@
      </item>
      <item row="0" column="2">
       <widget class="QSpinBox" name="_spinBox">
+       <property name="focusPolicy">
+        <enum>Qt::WheelFocus</enum>
+       </property>
        <property name="minimum">
         <number>-100</number>
        </property>
@@ -76,6 +167,9 @@
      </item>
      <item row="4" column="2">
       <widget class="QSpinBox" name="_spinBox_2">
+       <property name="focusPolicy">
+        <enum>Qt::WheelFocus</enum>
+       </property>
        <property name="minimum">
         <number>-100</number>
        </property>
@@ -86,6 +180,9 @@
      </item>
      <item row="5" column="0" colspan="3">
       <widget class="QSlider" name="_horizontalSlider_2">
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
        <property name="minimum">
         <number>-100</number>
        </property>
@@ -109,6 +206,9 @@
      </item>
      <item row="6" column="2">
       <widget class="QSpinBox" name="_spinBox_3">
+       <property name="focusPolicy">
+        <enum>Qt::WheelFocus</enum>
+       </property>
        <property name="minimum">
         <number>-100</number>
        </property>
@@ -119,6 +219,9 @@
      </item>
      <item row="7" column="0" colspan="3">
       <widget class="QSlider" name="_horizontalSlider_3">
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
        <property name="minimum">
         <number>-100</number>
        </property>
@@ -155,6 +258,9 @@
      </item>
      <item row="8" column="2">
       <widget class="QSpinBox" name="_spinBox_4">
+       <property name="focusPolicy">
+        <enum>Qt::WheelFocus</enum>
+       </property>
        <property name="minimum">
         <number>-100</number>
        </property>
@@ -165,6 +271,9 @@
      </item>
      <item row="9" column="0" colspan="3">
       <widget class="QSlider" name="_horizontalSlider_4">
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
        <property name="minimum">
         <number>-100</number>
        </property>
@@ -188,6 +297,9 @@
      </item>
      <item row="10" column="2">
       <widget class="QSpinBox" name="_spinBox_5">
+       <property name="focusPolicy">
+        <enum>Qt::WheelFocus</enum>
+       </property>
        <property name="minimum">
         <number>-100</number>
        </property>
@@ -198,6 +310,9 @@
      </item>
      <item row="11" column="0" colspan="3">
       <widget class="QSlider" name="_horizontalSlider_5">
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
        <property name="minimum">
         <number>-100</number>
        </property>
@@ -233,12 +348,28 @@
       <number>10</number>
      </property>
      <item>
-      <widget class="QPushButton" name="_buttonLoad">
+      <widget class="QPushButton" name="_buttonDefault">
        <property name="focusPolicy">
         <enum>Qt::NoFocus</enum>
        </property>
+       <property name="toolTip">
+        <string>このプロファイルをデフォルトに設定</string>
+       </property>
        <property name="text">
-        <string>保存値へ戻す</string>
+        <string>デフォルトに設定</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="_buttonRestore">
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
+       <property name="toolTip">
+        <string>このプロファイルの値を戻す</string>
+       </property>
+       <property name="text">
+        <string>戻す</string>
        </property>
       </widget>
      </item>
@@ -247,8 +378,11 @@
        <property name="focusPolicy">
         <enum>Qt::NoFocus</enum>
        </property>
+       <property name="toolTip">
+        <string>このプロファイルを更新</string>
+       </property>
        <property name="text">
-        <string>保存</string>
+        <string>更新</string>
        </property>
       </widget>
      </item>
@@ -257,16 +391,11 @@
   </layout>
  </widget>
  <tabstops>
+  <tabstop>_spinBox</tabstop>
   <tabstop>_spinBox_2</tabstop>
   <tabstop>_spinBox_3</tabstop>
   <tabstop>_spinBox_4</tabstop>
   <tabstop>_spinBox_5</tabstop>
-  <tabstop>_horizontalSlider</tabstop>
-  <tabstop>_horizontalSlider_2</tabstop>
-  <tabstop>_horizontalSlider_3</tabstop>
-  <tabstop>_horizontalSlider_4</tabstop>
-  <tabstop>_horizontalSlider_5</tabstop>
-  <tabstop>_buttonSave</tabstop>
  </tabstops>
  <resources/>
  <connections>

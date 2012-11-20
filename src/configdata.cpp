@@ -16,53 +16,54 @@
 #include <QSettings>
 #include <QDir>
 #include "configdata.h"
+#include "commonlib.h"
 #include "logdialog.h"
 
-ConfigData::Data ConfigData::_data;
+ConfigData::Data ConfigData::s_data;
 
 void ConfigData::saveData()
 {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
+    QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
 
-    s.setValue("voName",    _data.voName);
-    s.setValue("aoName",    _data.aoName);
-    s.setValue("cacheStreamSize", _data.cacheStreamSize);
-    s.setValue("volumeMax", _data.volumeMax);
-    s.setValue("openIn320x240Size",  _data.openIn320x240Size);
-    s.setValue("useSoftWareVideoEq", _data.useSoftWareVideoEq);
-    s.setValue("screenshot" , _data.screenshot);
-    s.setValue("useScreenshotPath", _data.useScreenshotPath);
-    s.setValue("screenshotPath", _data.screenshotPath);
-    s.setValue("useMplayerPath", _data.useMplayerPath);
-    s.setValue("mplayerPath", _data.mplayerPath);
+    s.setValue("voName",    s_data.voName);
+    s.setValue("aoName",    s_data.aoName);
+    s.setValue("cacheStreamSize", s_data.cacheStreamSize);
+    s.setValue("volumeMax", s_data.volumeMax);
+    s.setValue("openIn320x240Size",  s_data.openIn320x240Size);
+    s.setValue("useSoftWareVideoEq", s_data.useSoftWareVideoEq);
+    s.setValue("screenshot" , s_data.screenshot);
+    s.setValue("useScreenshotPath", s_data.useScreenshotPath);
+    s.setValue("screenshotPath", s_data.screenshotPath);
+    s.setValue("useMplayerPath", s_data.useMplayerPath);
+    s.setValue("mplayerPath", s_data.mplayerPath);
 }
 
 void ConfigData::loadData()
 {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
+    QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
 
-    _data.voName = s.value("voName", "0").toString();
+    s_data.voName = s.value("voName", "0").toString();
 
-    if( _data.voName == "0" ) {
+    if( s_data.voName == "0" ) {
 #if defined(Q_WS_X11)
-        _data.voName = "xv";
-//      _data.voName = "xv:adaptor=0";
+        s_data.voName = "xv";
+//      s_data.voName = "xv:adaptor=0";
 #elif defined(Q_OS_WIN32)
-        _data.voName = "directx";
+        s_data.voName = "directx";
 #else
-        _data.voName = "";
+        s_data.voName = "";
 #endif
     }
 
-    _data.aoName    = s.value("aoName", "").toString();
-    _data.cacheStreamSize = s.value("cacheStreamSize", 1000).toInt();
-    _data.volumeMax = s.value("volumeMax", 100).toInt();
-    _data.openIn320x240Size = s.value("openIn320x240Size", true).toBool();
-    _data.useSoftWareVideoEq = s.value("useSoftWareVideoEq", true).toBool();
-    _data.screenshot = s.value("screenshot", false).toBool();
-    _data.useScreenshotPath = s.value("useScreenshotPath", false).toBool();
-    _data.screenshotPath = s.value("screenshotPath", QDir::homePath()).toString();
-    _data.useMplayerPath = s.value("useMplayerPath", false).toBool();
-    _data.mplayerPath = s.value("mplayerPath", "").toString();
+    s_data.aoName    = s.value("aoName", "").toString();
+    s_data.cacheStreamSize = s.value("cacheStreamSize", 1000).toInt();
+    s_data.volumeMax = s.value("volumeMax", 100).toInt();
+    s_data.openIn320x240Size = s.value("openIn320x240Size", true).toBool();
+    s_data.useSoftWareVideoEq = s.value("useSoftWareVideoEq", true).toBool();
+    s_data.screenshot = s.value("screenshot", false).toBool();
+    s_data.useScreenshotPath = s.value("useScreenshotPath", false).toBool();
+    s_data.screenshotPath = s.value("screenshotPath", QDir::homePath()).toString();
+    s_data.useMplayerPath = s.value("useMplayerPath", false).toBool();
+    s_data.mplayerPath = s.value("mplayerPath", "").toString();
 }
 

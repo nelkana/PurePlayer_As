@@ -23,6 +23,7 @@
 #include <QTimer>
 #include <QLabel>
 #include "playlist.h"
+#include "videosettings.h"
 
 class QWidget;
 class QActionGroup;
@@ -54,15 +55,7 @@ public:
     enum ASPECT_RATIO { RATIO_VIDEO, RATIO_4_3, RATIO_16_9, RATIO_16_10, NO_KEEP };
     enum DEINTERLACE_MODE { DI_NO_DEINTERLACE, DI_YADIF, DI_YADIF_DOUBLE, DI_LINEAR_BLEND };
     enum AUDIO_OUTPUT_MODE { AO_STEREO, AO_MONAURAL, AO_LEFT, AO_RIGHT };
-    enum VOLUME_FACTOR_MODE { VF_NORMAL, VF_DOUBLE, VF_TRIPLE };
-
-    struct VideoSettings {
-        qint8 contrast;
-        qint8 brightness;
-        qint8 hue;
-        qint8 saturation;
-        qint8 gamma;
-    };
+    enum VOLUME_FACTOR_MODE { VF_ONE_THIRD, VF_NORMAL, VF_DOUBLE, VF_TRIPLE };
 
     PurePlayer(QWidget* parent = 0);
     virtual ~PurePlayer();
@@ -106,8 +99,8 @@ public slots:
     void screenshot();
     void resizeSlightlyReduce()   { resizePercentageFromCurrent(-10); }
     void resizeSlightlyIncrease() { resizePercentageFromCurrent(+10); }
-    void resizeReduce()           { resizePercentageFromCurrent(-25); }
-    void resizeIncrease()         { resizePercentageFromCurrent(+25); }
+    void resizeReduce()           { resizePercentageFromCurrent(-20); }
+    void resizeIncrease()         { resizePercentageFromCurrent(+20); }
     void resize320x240()    { resizeFromVideoClient(QSize(320,240)); }
     void resize1280x720()   { resizeFromVideoClient(QSize(1280,720)); }
     void resize25Percent()  { resizeFromVideoClient(calcPercentageVideoSize(25)); }
@@ -117,12 +110,19 @@ public slots:
     void resize125Percent() { resizeFromVideoClient(calcPercentageVideoSize(125)); }
     void resize150Percent() { resizeFromVideoClient(calcPercentageVideoSize(150)); }
     bool resizeFromVideoClient(QSize size);
-    void resizePercentageFromCurrent(const int percentage);
+    void resizePercentageFromCurrent(int percentage);
+    void resizeFromCurrent(int amount);
     void fullScreenOrWindow();
     void setAlwaysShowStatusBar(bool);
+
+    void saveVideoProfileToDefault();
+    void setVideoProfile(const QString& profileName, bool setVideoValue=true);
+    void createVideoProfileFromCurrent(QString profileName);
+    void updateVideoProfile();
+    void restoreVideoProfile();
+    void removeVideoProfile();
+
     void showVideoAdjustDialog();
-    void saveVideoSettings();
-    void loadVideoSettings();
     void showLogDialog();
     void showAboutDialog();
     void showConfigDialog();
@@ -140,15 +140,20 @@ protected slots:
     void exitFullScreen() { if( isFullScreen() ) fullScreenOrWindow(); }
     void restartPlay(bool keepSeekPos=false) { if(keepSeekPos && _isSeekable) _seekWhenStartMplayer=true; stop(); play(); }
 
+    void refreshVideoProfile(bool restoreVideoValue=true, bool warning=false);
+
 protected:
     enum STATE { STOP, PAUSE, READY, PLAY };
     enum CONTROL_FLAG {
         FLG_NONE                 = 0x00000000,
         FLG_HIDE_DISPLAY_MESSAGE = 0x00000001, // ディスプレイメッセージを非表示
-        FLG_SEEKED_REPEAT        = 0x00000002, // ABリピートでseek()したか
+        FLG_SEEKED_REPEAT        = 0x00000002, // ABリピートでseek()した
+        FLG_WHEEL_RESIZED        = 0x00000004, // ホイールリサイズした
+        FLG_MUTE_WHEN_MOUSE_RELEASE = 0x00000008, // マウスリリースした時にミュートする
     };
 
 //  bool event(QEvent*);
+    bool eventFilter(QObject*, QEvent*);
     void closeEvent(QCloseEvent*);
     void resizeEvent(QResizeEvent*);
     void keyPressEvent(QKeyEvent*);
@@ -171,7 +176,8 @@ protected:
     void loadInteractiveSettings();
 
     QSize videoSize100Percent();
-    QSize calcPercentageVideoSize(const QSize videoSize, const int percentage);
+    QSize correctToValidVideoSize(QSize toSize, const QSize& videoSize);
+    QSize calcPercentageVideoSize(const QSize& videoSize, const int percentage);
     QSize calcPercentageVideoSize(const int percentage);
 
     PlayListDialog* playListDialog();
@@ -191,6 +197,7 @@ private slots:
     void timerReconnectTimeout();
     void timerFpsTimeout();
     void appliedFromConfigDialog(bool restartMplayer);
+    void videoAdjustDialogWindowActivate() { refreshVideoProfile(false, true); }
 
 private:
     void createStatusBar();
@@ -200,6 +207,11 @@ private:
     void visibleInterface(bool);
     void updateVisibleInterface();
     void setStatus(const STATE);
+
+#ifdef Q_OS_WIN32
+    void initColorKey();
+    QRgb genColorKey(int step, QRgb baseColorKey=0x000000);
+#endif
 
 private:
     STATE           _state;
@@ -211,7 +223,7 @@ private:
     ControlButton*  _repeatABButton;
     ControlButton*  _loopButton;
     ControlButton*  _screenshotButton;
-    TimeSlider*     _timeslider;
+    TimeSlider*     _timeSlider;
     SpeedSpinBox*   _speedSpinBox;
     TimeLabel*      _timeLabel;
     QLabel*         _labelFrame;
@@ -224,6 +236,9 @@ private:
     QNetworkAccessManager* _nam;
     MplayerProcess* _mpProcess;
     RecordingProcess* _recordingProcess;
+#ifdef Q_OS_WIN32
+    QRgb _colorKey;
+#endif
 
     QString         _path;
 
@@ -253,7 +268,8 @@ private:
     quint16         _fpsCount;
     unsigned int    _oldFrame;
 
-    VideoSettings   _videoSettings;
+    VideoSettings::VideoProfile _videoProfile;
+    unsigned int    _videoSettingsModifiedId;
 
     AUDIO_OUTPUT_MODE  _audioOutput;
     VOLUME_FACTOR_MODE _volumeFactor;
@@ -265,7 +281,6 @@ private:
     bool            _seekWhenStartMplayer;
     bool            _reconnectWasCalled;
     bool            _isMaximizedBeforeFullScreen;
-    bool            _muteWhenMouseRelease;
     bool            _cursorInWindow;
     bool            _disableWindowMoveFromMouse;
     bool            _alwaysShowStatusBar;

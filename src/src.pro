@@ -16,6 +16,7 @@ HEADERS += \
     infolabel.h \
     timelabel.h \
     configdata.h \
+    videosettings.h \
     playlist.h \
     commonlib.h \
     task.h \
@@ -25,6 +26,7 @@ HEADERS += \
     opendialog.h \
     videoadjustdialog.h \
     playlistdialog.h \
+    inputdialog.h \
     aboutdialog.h
 
 SOURCES += \
@@ -36,13 +38,16 @@ SOURCES += \
     infolabel.cpp \
     timelabel.cpp \
     configdata.cpp \
+    videosettings.cpp \
     playlist.cpp \
     commonlib.cpp \
     task.cpp \
     \
     logdialog.cpp \
     configdialog.cpp \
-    playlistdialog.cpp
+    videoadjustdialog.cpp \
+    playlistdialog.cpp \
+    inputdialog.cpp
 
 FORMS += \
     logdialog.ui \
@@ -50,6 +55,7 @@ FORMS += \
     opendialog.ui \
     videoadjustdialog.ui \
     playlistdialog.ui \
+    inputdialog.ui \
     aboutdialog.ui
 
 RESOURCES += resource.qrc

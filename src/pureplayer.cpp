@@ -34,10 +34,6 @@
 #include "speedspinbox.h"
 #include "aboutdialog.h"
 
-#ifdef Q_OS_WIN32
-#define COLORKEY 0x040504
-#endif
-
 PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 {
     const QIcon appIcon(":/icons/heart.png");
@@ -59,13 +55,17 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     setPalette(p);
 
     setCentralWidget(new QWidget(this));
+    centralWidget()->setAcceptDrops(true);
     _videoScreen = new QWidget(centralWidget());
+    _videoScreen->setAcceptDrops(true);
     _videoScreen->lower();
 #ifdef Q_OS_WIN32
     _videoScreen->setAutoFillBackground(true);
     p = _videoScreen->palette();
-    p.setColor(_videoScreen->backgroundRole(), QColor(COLORKEY));
+    p.setColor(_videoScreen->backgroundRole(), QColor(Qt::black));
     _videoScreen->setPalette(p);
+
+    initColorKey();
 #endif
 
 //  _oldTime = -1;
@@ -79,7 +79,6 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _seekWhenStartMplayer = false;
     _reconnectWasCalled = false;
     _isMaximizedBeforeFullScreen = false;
-    _muteWhenMouseRelease = false;
     _videoSize = QSize(320, 240);
     _noVideo = false;
     _isSeekable = false;
@@ -134,7 +133,8 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     ConfigData::loadData();
 //  _actScreenshot->setVisible(ConfigData::data()->screenshot);
 //  _screenshotButton->setVisible(ConfigData::data()->screenshot);
-    loadVideoSettings();
+    _videoSettingsModifiedId = 0;
+    refreshVideoProfile();
     _state = STOP;
     loadInteractiveSettings();
 
@@ -301,17 +301,20 @@ void PurePlayer::createToolBar()
     _screenshotButton->setToolTip("スクリーンショット");
     connect(_screenshotButton, SIGNAL(clicked(bool)), this, SLOT(screenshot()));
 
-    _timeslider = new TimeSlider(this);
-    _timeslider->setFocusPolicy(Qt::NoFocus);
-    connect(_timeslider, SIGNAL(requestSeek(double, bool)), this, SLOT(seek(double, bool)));
+    _timeSlider = new TimeSlider(this);
+    _timeSlider->installEventFilter(this);
+    _timeSlider->setFocusPolicy(Qt::NoFocus);
+    connect(_timeSlider, SIGNAL(requestSeek(double, bool)), this, SLOT(seek(double, bool)));
 
     _speedSpinBox = new SpeedSpinBox(this);
+    _speedSpinBox->installEventFilter(this);
     _speedSpinBox->setFixedWidth(_speedSpinBox->sizeHint().width());
     _speedSpinBox->setFixedHeight(17);
     _speedSpinBox->setToolTip(tr("再生速度"));
     connect(_speedSpinBox, SIGNAL(valueChanged(double)), this, SLOT(setSpeed(double)));
 
     _toolBar = new QToolBar("toolbar", this);
+    _toolBar->installEventFilter(this);
     // QToolBarのレイアウトの操作。
     // 余白指定が全部同じ値だと有効だが、異なる値だと全て0になる。これは不正な操作？
     _toolBar->layout()->setContentsMargins(0,0,0,0); 
@@ -338,10 +341,10 @@ void PurePlayer::createToolBar()
     hl->addWidget(_repeatABButton);
     hl->addWidget(_loopButton);
     hl->addWidget(_screenshotButton);
-    hl->addWidget(_timeslider);
+    hl->addWidget(_timeSlider);
     //hl->addStretch();
     hl->addWidget(_speedSpinBox);
-//  vl->addWidget(_timeslider);
+//  vl->addWidget(_timeSlider);
 //  vl->addLayout(hl);
     QWidget* widget = new QWidget(this);
     widget->setLayout(hl);
@@ -427,6 +430,8 @@ void PurePlayer::createActionContextMenu()
     _actGroupVolumeFactor = new QActionGroup(this);
     connect(_actGroupVolumeFactor, SIGNAL(triggered(QAction*)),
             this,                  SLOT(actGroupVolumeFactorChanged(QAction*)));
+    QAction* actVFactor0 = new QAction(tr("音量を1/3にする"), _actGroupVolumeFactor);
+    actVFactor0->setCheckable(true);
     QAction* actVFactor1 = new QAction(tr("音量を標準にする"), _actGroupVolumeFactor);
     actVFactor1->setCheckable(true);
     actVFactor1->setChecked(true);
@@ -762,8 +767,9 @@ void PurePlayer::openFromDialog()
 
     _openDialog->setPath(_path);
     _openDialog->move(_menuContext->x()
-                        + (_menuContext->width()-_openDialog->width())/2,
+                        + (_menuContext->width()-_openDialog->frameSize().width())/2,
                       _menuContext->y());
+
     _openDialog->show();
 }
 
@@ -1041,29 +1047,25 @@ void PurePlayer::setContrast(int value, bool alwaysSet)
     if( value < -100 ) value = -100; else
     if( value > 100 )  value = 100;
 
-    if( _videoAdjustDialog != NULL ) {
-        disconnect(_videoAdjustDialog, SIGNAL(changedContrast(int)), this, SLOT(setContrast(int)));
-        _videoAdjustDialog->setContrast(value);
-        connect(_videoAdjustDialog, SIGNAL(changedContrast(int)), this, SLOT(setContrast(int)));
-    }
+    if( _videoProfile.contrast!=value || alwaysSet ) {
+        _videoProfile.contrast = value;
 
-    if( _videoSettings.contrast==value && !alwaysSet )
-        return;
-
-    _videoSettings.contrast = value;
-
-    if( _state == PLAY ) {
-        if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
-            mpCmd(QString("contrast %1 1").arg(_videoSettings.contrast));
-        else {
-            mpCmd("osd 1");
-            mpCmd(QString("contrast %1 1").arg(_videoSettings.contrast));
-            mpCmd("osd 0");
+        if( _state == PLAY ) {
+            if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
+                mpCmd(QString("contrast %1 1").arg(_videoProfile.contrast));
+            else {
+                mpCmd("osd 1");
+                mpCmd(QString("contrast %1 1").arg(_videoProfile.contrast));
+                mpCmd("osd 0");
+            }
         }
+        else
+        if( _state == PAUSE )
+            mpCmd(QString("pausing_keep_force contrast %1 1").arg(_videoProfile.contrast));
     }
-    else
-    if( _state == PAUSE )
-        mpCmd(QString("pausing_keep_force contrast %1 1").arg(_videoSettings.contrast));
+
+    if( _videoAdjustDialog != NULL )
+        _videoAdjustDialog->setContrast(value);
 }
 
 void PurePlayer::setBrightness(int value, bool alwaysSet)
@@ -1071,29 +1073,25 @@ void PurePlayer::setBrightness(int value, bool alwaysSet)
     if( value < -100 ) value = -100; else
     if( value > 100 )  value = 100;
 
-    if( _videoAdjustDialog != NULL ) {
-        disconnect(_videoAdjustDialog, SIGNAL(changedBrightness(int)), this, SLOT(setBrightness(int)));
-        _videoAdjustDialog->setBrightness(value);
-        connect(_videoAdjustDialog, SIGNAL(changedBrightness(int)), this, SLOT(setBrightness(int)));
-    }
+    if( _videoProfile.brightness!=value || alwaysSet ) {
+        _videoProfile.brightness = value;
 
-    if( _videoSettings.brightness==value && !alwaysSet )
-        return;
-
-    _videoSettings.brightness = value;
-
-    if( _state == PLAY ) {
-        if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
-            mpCmd(QString("brightness %1 1").arg(_videoSettings.brightness));
-        else {
-            mpCmd("osd 1");
-            mpCmd(QString("brightness %1 1").arg(_videoSettings.brightness));
-            mpCmd("osd 0");
+        if( _state == PLAY ) {
+            if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
+                mpCmd(QString("brightness %1 1").arg(_videoProfile.brightness));
+            else {
+                mpCmd("osd 1");
+                mpCmd(QString("brightness %1 1").arg(_videoProfile.brightness));
+                mpCmd("osd 0");
+            }
         }
+        else
+        if( _state == PAUSE )
+            mpCmd(QString("pausing_keep_force brightness %1 1").arg(_videoProfile.brightness));
     }
-    else
-    if( _state == PAUSE )
-        mpCmd(QString("pausing_keep_force brightness %1 1").arg(_videoSettings.brightness));
+
+    if( _videoAdjustDialog != NULL )
+        _videoAdjustDialog->setBrightness(value);
 }
 
 void PurePlayer::setSaturation(int value, bool alwaysSet)
@@ -1101,29 +1099,25 @@ void PurePlayer::setSaturation(int value, bool alwaysSet)
     if( value < -100 ) value = -100; else
     if( value > 100 )  value = 100;
 
-    if( _videoAdjustDialog != NULL ) {
-        disconnect(_videoAdjustDialog, SIGNAL(changedSaturation(int)), this, SLOT(setSaturation(int)));
-        _videoAdjustDialog->setSaturation(value);
-        connect(_videoAdjustDialog, SIGNAL(changedSaturation(int)), this, SLOT(setSaturation(int)));
-    }
+    if( _videoProfile.saturation!=value || alwaysSet ) {
+        _videoProfile.saturation = value;
 
-    if( _videoSettings.saturation==value && !alwaysSet )
-        return;
-
-    _videoSettings.saturation = value;
-
-    if( _state == PLAY ) {
-        if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
-            mpCmd(QString("saturation %1 1").arg(_videoSettings.saturation));
-        else {
-            mpCmd("osd 1");
-            mpCmd(QString("saturation %1 1").arg(_videoSettings.saturation));
-            mpCmd("osd 0");
+        if( _state == PLAY ) {
+            if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
+                mpCmd(QString("saturation %1 1").arg(_videoProfile.saturation));
+            else {
+                mpCmd("osd 1");
+                mpCmd(QString("saturation %1 1").arg(_videoProfile.saturation));
+                mpCmd("osd 0");
+            }
         }
+        else
+        if( _state == PAUSE )
+            mpCmd(QString("pausing_keep_force saturation %1 1").arg(_videoProfile.saturation));
     }
-    else
-    if( _state == PAUSE )
-        mpCmd(QString("pausing_keep_force saturation %1 1").arg(_videoSettings.saturation));
+
+    if( _videoAdjustDialog != NULL )
+        _videoAdjustDialog->setSaturation(value);
 }
 
 void PurePlayer::setHue(int value, bool alwaysSet)
@@ -1131,29 +1125,25 @@ void PurePlayer::setHue(int value, bool alwaysSet)
     if( value < -100 ) value = -100; else
     if( value > 100 )  value = 100;
 
-    if( _videoAdjustDialog != NULL ) {
-        disconnect(_videoAdjustDialog, SIGNAL(changedHue(int)), this, SLOT(setHue(int)));
-        _videoAdjustDialog->setHue(value);
-        connect(_videoAdjustDialog, SIGNAL(changedHue(int)), this, SLOT(setHue(int)));
-    }
+    if( _videoProfile.hue!=value || alwaysSet ) {
+        _videoProfile.hue = value;
 
-    if( _videoSettings.hue==value && !alwaysSet )
-        return;
-
-    _videoSettings.hue = value;
-
-    if( _state == PLAY ) {
-        if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
-            mpCmd(QString("hue %1 1").arg(_videoSettings.hue));
-        else {
-            mpCmd("osd 1");
-            mpCmd(QString("hue %1 1").arg(_videoSettings.hue));
-            mpCmd("osd 0");
+        if( _state == PLAY ) {
+            if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
+                mpCmd(QString("hue %1 1").arg(_videoProfile.hue));
+            else {
+                mpCmd("osd 1");
+                mpCmd(QString("hue %1 1").arg(_videoProfile.hue));
+                mpCmd("osd 0");
+            }
         }
+        else
+        if( _state == PAUSE )
+            mpCmd(QString("pausing_keep_force hue %1 1").arg(_videoProfile.hue));
     }
-    else
-    if( _state == PAUSE )
-        mpCmd(QString("pausing_keep_force hue %1 1").arg(_videoSettings.hue));
+
+    if( _videoAdjustDialog != NULL )
+        _videoAdjustDialog->setHue(value);
 }
 
 void PurePlayer::setGamma(int value, bool alwaysSet)
@@ -1161,29 +1151,25 @@ void PurePlayer::setGamma(int value, bool alwaysSet)
     if( value < -100 ) value = -100; else
     if( value > 100 )  value = 100;
 
-    if( _videoAdjustDialog != NULL ) {
-        disconnect(_videoAdjustDialog, SIGNAL(changedGamma(int)), this, SLOT(setGamma(int)));
-        _videoAdjustDialog->setGamma(value);
-        connect(_videoAdjustDialog, SIGNAL(changedGamma(int)), this, SLOT(setGamma(int)));
-    }
+    if( _videoProfile.gamma!=value || alwaysSet ) {
+        _videoProfile.gamma = value;
 
-    if( _videoSettings.gamma==value && !alwaysSet )
-        return;
-
-    _videoSettings.gamma = value;
-
-    if( _state == PLAY ) {
-        if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
-            mpCmd(QString("gamma %1 1").arg(_videoSettings.gamma));
-        else {
-            mpCmd("osd 1");
-            mpCmd(QString("gamma %1 1").arg(_videoSettings.gamma));
-            mpCmd("osd 0");
+        if( _state == PLAY ) {
+            if( _controlFlags & FLG_HIDE_DISPLAY_MESSAGE )
+                mpCmd(QString("gamma %1 1").arg(_videoProfile.gamma));
+            else {
+                mpCmd("osd 1");
+                mpCmd(QString("gamma %1 1").arg(_videoProfile.gamma));
+                mpCmd("osd 0");
+            }
         }
+        else
+        if( _state == PAUSE )
+            mpCmd(QString("pausing_keep_force gamma %1 1").arg(_videoProfile.gamma));
     }
-    else
-    if( _state == PAUSE )
-        mpCmd(QString("pausing_keep_force gamma %1 1").arg(_videoSettings.gamma));
+
+    if( _videoAdjustDialog != NULL )
+        _videoAdjustDialog->setGamma(value);
 }
 
 void PurePlayer::setDeinterlace(DEINTERLACE_MODE mode)
@@ -1234,25 +1220,24 @@ bool PurePlayer::resizeFromVideoClient(QSize size)
     }
 }
 
-void PurePlayer::resizePercentageFromCurrent(const int percentage)
+void PurePlayer::resizePercentageFromCurrent(int percentage)
 {
     if( percentage == 0 ) return;
 
     // 等倍サイズとして解釈するビデオサイズを取得
-    QSize videoSize;
-    videoSize = videoSize100Percent();
+    QSize videoSize = videoSize100Percent();
 
     // 現在のビデオサイズの割合を求める
 //  int currentPercentage = _videoScreen->width()*100 / videoSize.width();
     int currentPercentage = _videoScreen->height()*100 / videoSize.height();
-
+/*
     // 現在のウィンドウサイズの割合がしきい値の何束目に相当するか求める
     int threshold = abs(percentage);
     int temp = (double)currentPercentage/threshold + 0.5;
 
     // リサイズする割合を求める
     int resizePercentage = (temp + (percentage>0 ? 1:-1)) * threshold;
-//  int resizePercentage = currentPercentage + percentage; // 単純に加算する場合
+*/  int resizePercentage = currentPercentage + percentage; // 単純に加算する場合
 
     if( resizePercentage <= 0 )
         return;
@@ -1261,6 +1246,18 @@ void PurePlayer::resizePercentageFromCurrent(const int percentage)
     QSize size = calcPercentageVideoSize(videoSize, resizePercentage);
 
     resizeFromVideoClient(size);
+}
+
+void PurePlayer::resizeFromCurrent(int amount)
+{
+    if( amount == 0 ) return;
+
+    QSize videoSize = videoSize100Percent();
+
+    double c = hypot(videoSize.width(), videoSize.height());
+    int percentage = 100 * amount / c;
+
+    resizePercentageFromCurrent(percentage);
 }
 
 void PurePlayer::fullScreenOrWindow()
@@ -1350,29 +1347,36 @@ void PurePlayer::showVideoAdjustDialog()
 {
     if( _videoAdjustDialog == NULL ) {
         _videoAdjustDialog = new VideoAdjustDialog(this);
-        connect(_videoAdjustDialog, SIGNAL(requestSave()), this, SLOT(saveVideoSettings()));
-        connect(_videoAdjustDialog, SIGNAL(requestLoad()), this, SLOT(loadVideoSettings()));
+        connect(_videoAdjustDialog, SIGNAL(windowActivate()), this, SLOT(videoAdjustDialogWindowActivate()));
+        connect(_videoAdjustDialog, SIGNAL(requestSave()), this, SLOT(updateVideoProfile()));
+        connect(_videoAdjustDialog, SIGNAL(requestLoad()), this, SLOT(restoreVideoProfile()));
+        connect(_videoAdjustDialog, SIGNAL(requestCreate(const QString&)), this, SLOT(createVideoProfileFromCurrent(const QString&)));
+        connect(_videoAdjustDialog, SIGNAL(requestRemove()), this, SLOT(removeVideoProfile()));
+        connect(_videoAdjustDialog, SIGNAL(requestDefault()), this, SLOT(saveVideoProfileToDefault()));
         connect(_videoAdjustDialog, SIGNAL(changedContrast(int)), this, SLOT(setContrast(int)));
         connect(_videoAdjustDialog, SIGNAL(changedBrightness(int)), this, SLOT(setBrightness(int)));
         connect(_videoAdjustDialog, SIGNAL(changedSaturation(int)), this, SLOT(setSaturation(int)));
         connect(_videoAdjustDialog, SIGNAL(changedHue(int)), this, SLOT(setHue(int)));
         connect(_videoAdjustDialog, SIGNAL(changedGamma(int)), this, SLOT(setGamma(int)));
 
-//      _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE;  //mpCmd("osd 0");
-        _videoAdjustDialog->setSettings(_videoSettings);
-//      _controlFlags &= ~FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 1");
+        _videoAdjustDialog->setProfiles(VideoSettings::profileNames());
+        _videoAdjustDialog->setDefaultProfile(VideoSettings::defaultProfileName());
+        _videoAdjustDialog->setProfile(_videoProfile);
+
+        connect(_videoAdjustDialog, SIGNAL(changedProfile(const QString&)), this, SLOT(setVideoProfile(const QString&)));
     }
 
     _videoAdjustDialog->move(_menuContext->x()
                                  + (_menuContext->width()-_videoAdjustDialog->width())/2,
                              _menuContext->y());
+
     _videoAdjustDialog->show();
 }
 
 void PurePlayer::showLogDialog()
 {
     LogDialog::moveDialog(_menuContext->x()
-                             + (_menuContext->width()-LogDialog::dialog()->width())/2,
+                             + (_menuContext->width()-LogDialog::dialog()->frameSize().width())/2,
                           _menuContext->y());
 
     LogDialog::showDialog();
@@ -1380,16 +1384,21 @@ void PurePlayer::showLogDialog()
 
 void PurePlayer::showConfigDialog()
 {
+    int addX = 0;
     if( _configDialog == NULL ) {
         _configDialog = new ConfigDialog(this);
         connect(_configDialog, SIGNAL(applied(bool)),
                 this,          SLOT(appliedFromConfigDialog(bool)));
+
+        addX = 170;
     }
 
     _configDialog->setData(ConfigData::data());
     _configDialog->move(_menuContext->x()
-                            + (_menuContext->width()-_configDialog->width())/2,
+                            + (_menuContext->width()-_configDialog->frameSize().width())/2 - addX,
                         _menuContext->y());
+
+//  LogDialog::debug(tr("%1 %2").arg(_configDialog->frameSize().width()).arg(_configDialog->size().width()));
     _configDialog->show();
 }
 
@@ -1397,8 +1406,9 @@ void PurePlayer::showPlayListDialog()
 {
     playListDialog()->reflectDataToGui();
     _playListDialog->move(_menuContext->x()
-                                + (_menuContext->width()-_playListDialog->width())/2,
+                            + (_menuContext->width()-_playListDialog->frameSize().width())/2,
                           _menuContext->y());
+
     playListDialog()->show();
 }
 
@@ -1409,7 +1419,7 @@ void PurePlayer::showAboutDialog()
     }
 
     _aboutDialog->move(_menuContext->x()
-                            + (_menuContext->width()-_aboutDialog->width())/2,
+                            + (_menuContext->width()-_aboutDialog->frameSize().width())/2,
                        _menuContext->y());
 
     _aboutDialog->show();
@@ -1460,6 +1470,37 @@ void PurePlayer::openContactUrl()
 //  return QMainWindow::event(e);
 //}
 
+bool PurePlayer::eventFilter(QObject* o, QEvent* e)
+{
+//  LogDialog::debug(QString("%1").arg(e->type()));
+    if( o == _toolBar ) {
+        if( e->type() == QEvent::ContextMenu )
+            return true;
+    }
+    else
+    if( o == _timeSlider ) {
+        if( e->type() == QEvent::Wheel ) {
+            QWheelEvent* ev = static_cast<QWheelEvent*>(e);
+            if( ev->buttons() & Qt::RightButton ) {
+                QApplication::sendEvent(_toolBar, ev);
+                return true;
+            }
+        }
+    }
+    else
+    if( o == _speedSpinBox ) {
+        if( e->type() == QEvent::Wheel ) {
+            QWheelEvent* ev = static_cast<QWheelEvent*>(e);
+            if( ev->buttons() & Qt::RightButton ) {
+                QApplication::sendEvent(_toolBar, ev);
+                return true;
+            }
+        }
+    }
+
+    return QMainWindow::eventFilter(o, e);
+}
+
 void PurePlayer::closeEvent(QCloseEvent* e)
 {
     LogDialog::debug("PurePlayer::closeEvent(): start-");
@@ -1499,8 +1540,6 @@ void PurePlayer::resizeEvent(QResizeEvent* )
 
 void PurePlayer::keyPressEvent(QKeyEvent* e)
 {
-    static QTime time;
-
     switch( e->key() ) {
     case Qt::Key_Up:
         if( e->modifiers() & Qt::ShiftModifier )
@@ -1532,25 +1571,22 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
 #ifndef QT_NO_DEBUG_OUTPUT
 //  case Qt::Key_D: showLogDialog();        break;
 //  case Qt::Key_O: mpCmd("osd");           break;
-    case Qt::Key_X:
-        {
-//      LogDialog::debug(QString(""));
-
-        break;
-        }
-    case Qt::Key_Z:
-        {
-
-        break;
-        }
     case Qt::Key_B:
-        {
+    {
         repeatAB();
-
         break;
-        }
+    }
+    case Qt::Key_Z:
+    {
+//      LogDialog::debug(QString(""));
+        break;
+    }
+    case Qt::Key_X:
+    {
+        break;
+    }
     case Qt::Key_N:
-        {
+    {
 //      recordingStartStop();
 /*
         // ボリュームテキストの色を変える
@@ -1560,7 +1596,7 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
         LogDialog::debug(QString("%1 %2").arg(width()).arg(height()));
 */
         break;
-        }
+    }
     case Qt::Key_V:
 //      LogDialog::debug("mplayer pid: " + QString("%1").arg(_mpProcess->pid()));
 //      LogDialog::debug("mplayer cpid: " + QString("%1").arg(_mplayerCPid));
@@ -1588,14 +1624,11 @@ void PurePlayer::mousePressEvent(QMouseEvent* e)
         _pressLocalPos.setX(e->pos().x() + geometry().x()-frameGeometry().x());
         _pressLocalPos.setY(e->pos().y() + geometry().y()-frameGeometry().y());
         if( (height()*80/100) < e->y() )
-            _muteWhenMouseRelease = true;
+            _controlFlags |= FLG_MUTE_WHEN_MOUSE_RELEASE;
         else
         if( isFullScreen() )
             setCursor(QCursor(Qt::BlankCursor));
     }
-    else
-    if( e->button() == Qt::RightButton )
-        _menuContext->popup(e->globalPos());
     else
     if( e->button() == Qt::MidButton )
         middleClickResize();
@@ -1607,12 +1640,22 @@ void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
     if( e->button() == Qt::LeftButton ) {
         _menuContext->move(x()+width()*0.2, y()+height()*0.2);
 
-        if( _muteWhenMouseRelease ) {
-            _muteWhenMouseRelease = false;
+        if( _controlFlags & FLG_MUTE_WHEN_MOUSE_RELEASE ) {
+            _controlFlags &= ~FLG_MUTE_WHEN_MOUSE_RELEASE;
             mute(!isMute());
         }
 
         _disableWindowMoveFromMouse = false;
+    }
+    else
+    if( e->button() == Qt::RightButton ) {
+        if( !(_controlFlags & FLG_WHEEL_RESIZED)
+         && geometry().contains(e->globalPos()) )
+        {
+            _menuContext->popup(e->globalPos());
+        }
+
+        _controlFlags &= ~FLG_WHEEL_RESIZED;
     }
 }
 
@@ -1621,7 +1664,7 @@ void PurePlayer::mouseDoubleClickEvent(QMouseEvent* e)
 //  LogDialog::debug("mouse doubleclick");
     if( e->buttons() & Qt::LeftButton ) {
         if( (height()*80/100) < e->y() )
-            _muteWhenMouseRelease = true;
+            _controlFlags |= FLG_MUTE_WHEN_MOUSE_RELEASE;
         else
             fullScreenOrWindow();
     }
@@ -1644,22 +1687,30 @@ void PurePlayer::mouseMoveEvent(QMouseEvent* e)
             if( !_disableWindowMoveFromMouse )
                 move(e->globalPos() - _pressLocalPos);
 
-            _muteWhenMouseRelease = false;
+            _controlFlags &= ~FLG_MUTE_WHEN_MOUSE_RELEASE;
         }
     }
 }
 
 void PurePlayer::wheelEvent(QWheelEvent* e)
 {
-//  if( isMute() )
-//      mute(false);
-//  else {
+    if( e->buttons() & Qt::RightButton ) {
+        if( e->delta() < 0 )
+            resizeFromCurrent(-50);
+//          resizeSlightlyReduce();
+        else
+            resizeFromCurrent(+50);
+//          resizeSlightlyIncrease();
+
+        _controlFlags |= FLG_WHEEL_RESIZED;
+    }
+    else {
         int volume;
         QPoint localPoint = statusBar()->mapFromGlobal(e->globalPos());
         QRect  labelRect  = _labelVolume->geometry();
 /*      LogDialog::debug(QString().sprintf("(%d %d %d %d) (%d %d)",
-                        labelRect.x(),labelRect.y(), labelRect.right(),labelRect.bottom(),
-                        localPoint.x(), localPoint.y()));
+                    labelRect.x(),labelRect.y(), labelRect.right(),labelRect.bottom(),
+                    localPoint.x(), localPoint.y()));
 */
         if( labelRect.contains(localPoint) )
             volume = 1;
@@ -1670,7 +1721,7 @@ void PurePlayer::wheelEvent(QWheelEvent* e)
             downVolume(volume);
         else
             upVolume(volume);
-//  }
+    }
 }
 
 void PurePlayer::enterEvent(QEvent*)
@@ -1967,7 +2018,7 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
 
             if( _isSeekable ) {
 //              if( time != _oldTime )
-                _timeslider->setPosition(time);
+                _timeSlider->setPosition(time);
 
 //              _oldTime = time;
             }
@@ -2011,11 +2062,11 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
         _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 0");
 
         setVolume(_volume);
-        setContrast(_videoSettings.contrast, true);
-        setBrightness(_videoSettings.brightness, true);
-        setSaturation(_videoSettings.saturation, true);
-        setHue(_videoSettings.hue, true);
-        setGamma(_videoSettings.gamma, true);
+        setContrast(_videoProfile.contrast, true);
+        setBrightness(_videoProfile.brightness, true);
+        setSaturation(_videoProfile.saturation, true);
+        setHue(_videoProfile.hue, true);
+        setGamma(_videoProfile.gamma, true);
         setLoop(_doLoop);
 
         _controlFlags &= ~FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 1");
@@ -2041,7 +2092,7 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
             _timeLabel->setTotalTime(_videoLength);
             _playList.currentItem()->setTime(_videoLength);
             playListDialog()->updateCurrentItemTime();
-            _timeslider->setLength(_videoLength);
+            _timeSlider->setLength(_videoLength);
             //_speedSpinBox->setRange(0, _videoLength*10);
 
             // テキスト内容によってステータスバーの高さが変わる為、高さを固定にする
@@ -2437,10 +2488,11 @@ void PurePlayer::playCommonProcess()
 
     args << "-softvol-max";
     switch( _volumeFactor ) {
-    case VF_DOUBLE: args << "220"; break;
-    case VF_TRIPLE: args << "330"; break;
-    case VF_NORMAL:
-    default       : args << "110";
+    case VF_ONE_THIRD: args << "36.7"; break;
+    case VF_DOUBLE   : args << "220"; break;
+    case VF_TRIPLE   : args << "330"; break;
+    case VF_NORMAL   :
+    default          : args << "110";
     }
 
     if( _path.left(8).contains("://") )
@@ -2458,7 +2510,7 @@ void PurePlayer::playCommonProcess()
     << "-identify"
     << "-af-add" << "scaletempo"
     << "-osdlevel" << "0"
-    << "-idx"
+    << "-ass"   // windowsでは'-vf-add eq2,hue'単体では多重再生不可。このオプションで改善
     << "-double"
     << "-nodr"          // -drの場合、OSD表示がちらつく
     << "-framedrop"
@@ -2478,10 +2530,15 @@ void PurePlayer::playCommonProcess()
 
 #ifdef Q_OS_WIN32
     << "-colorkey" << QString().sprintf("%#08x",
-                        qRgba(qBlue(COLORKEY), qGreen(COLORKEY), qRed(COLORKEY), 0))
+                        qRgba(qBlue(_colorKey), qGreen(_colorKey), qRed(_colorKey), 0))
 #endif
 
-    << _path;
+    << "-idx";
+
+    if( isPeercastStream() )
+        args << QString(_path).replace("/pls/", "/stream/");
+    else
+        args << _path;
 
     QString mplayerPath;
     if( ConfigData::data()->useMplayerPath )
@@ -2497,44 +2554,132 @@ void PurePlayer::playCommonProcess()
     _mpProcess->waitForStarted();
 }
 
-void PurePlayer::saveVideoSettings()
+void PurePlayer::saveVideoProfileToDefault()
 {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
+    VideoSettings::saveDefaultProfile(_videoProfile.name);
 
-    s.setValue("contrast",   _videoSettings.contrast);
-    s.setValue("brightness", _videoSettings.brightness);
-    s.setValue("saturation", _videoSettings.saturation);
-    s.setValue("hue",        _videoSettings.hue);
-    s.setValue("gamma",      _videoSettings.gamma);
+    if( _videoAdjustDialog != NULL )
+        _videoAdjustDialog->setDefaultProfile(_videoProfile.name);
 
-    LogDialog::debug("PurePlayer::saveVideoSettings(): end");
+    LogDialog::debug("PurePlayer::saveDefaultVideoProfile(): end");
 }
 
-void PurePlayer::loadVideoSettings()
+void PurePlayer::setVideoProfile(const QString& profileName, bool setVideoValue)
 {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
+    LogDialog::debug(tr("PurePlayer::setVideoProfile(): %1").arg(profileName));
+    VideoSettings::VideoProfile profile = VideoSettings::profile(profileName);
 
-    VideoSettings v;
-    v.contrast   = s.value("contrast",   0).toInt();
-    v.brightness = s.value("brightness", 0).toInt();
-    v.saturation = s.value("saturation", 0).toInt();
-    v.hue        = s.value("hue",        0).toInt();
-    v.gamma      = s.value("gamma",      0).toInt();
+    if( profile.isValid() ) {
+        _videoProfile.name = profile.name;
 
-    _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE;  //mpCmd("osd 0");
-    setContrast(v.contrast);
-    setBrightness(v.brightness);
-    setSaturation(v.saturation);
-    setHue(v.hue);
-    setGamma(v.gamma);
-    _controlFlags &= ~FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 1");
+        if( setVideoValue ) {
+            _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE;  //mpCmd("osd 0");
+            setContrast(profile.contrast);
+            setBrightness(profile.brightness);
+            setSaturation(profile.saturation);
+            setHue(profile.hue);
+            setGamma(profile.gamma);
+            _controlFlags &= ~FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 1");
+        }
 
-    LogDialog::debug("PurePlayer::loadVideoSettings(): end");
+        if( _videoAdjustDialog != NULL )
+            _videoAdjustDialog->setProfile(_videoProfile.name);
+
+        LogDialog::debug("PurePlayer::setVideoProfile(): end");
+        return;
+    }
+
+    LogDialog::debug("PurePlayer::setVideoProfile(): failure");
+}
+
+void PurePlayer::createVideoProfileFromCurrent(QString profileName)
+{
+    VideoSettings::VideoProfile profile = _videoProfile;
+
+    // 前方、後方の空白文字を取り除く
+    profileName.remove(QRegExp("^\\s*"));
+    profileName.remove(QRegExp("\\s*$"));
+
+    profile.name = profileName;
+
+    if( VideoSettings::appendProfile(profile) ) {
+        refreshVideoProfile(false);
+        setVideoProfile(profile.name, false);
+    }
+
+    LogDialog::debug("PurePlayer::createProfile(): end");
+}
+
+void PurePlayer::updateVideoProfile()
+{
+    VideoSettings::updateProfile(_videoProfile);
+
+    LogDialog::debug("PurePlayer::updateVideoProfile(): end");
+}
+
+void PurePlayer::restoreVideoProfile()
+{
+    setVideoProfile(_videoProfile.name);
+
+    LogDialog::debug("PurePlayer::restoreVideoProfile(): end");
+}
+
+void PurePlayer::removeVideoProfile()
+{
+    VideoSettings::removeProfile(_videoProfile.name);
+    refreshVideoProfile();
+
+    LogDialog::debug("PurePlayer::removeVideoProfile(): end");
+}
+
+void PurePlayer::refreshVideoProfile(bool restoreVideoValue, bool warning)
+{
+    if( !warning )
+    {
+        VideoSettings::loadProfiles();
+
+        if( _videoSettingsModifiedId != VideoSettings::modifiedId() )
+        {
+            if( _videoAdjustDialog != NULL ) {
+                _videoAdjustDialog->setProfiles(VideoSettings::profileNames());
+                _videoAdjustDialog->setDefaultProfile(VideoSettings::defaultProfileName());
+
+                if( !VideoSettings::profile(_videoProfile.name).isValid() )
+                    setVideoProfile(VideoSettings::defaultProfileName(), restoreVideoValue);
+                else
+                    setVideoProfile(_videoProfile.name, false);
+            }
+            else
+            if( !VideoSettings::profile(_videoProfile.name).isValid() )
+                setVideoProfile(VideoSettings::defaultProfileName(), restoreVideoValue);
+
+            _videoSettingsModifiedId = VideoSettings::modifiedId();
+//          LogDialog::debug("PurePlayer::refreshVideoProfile(): refresh");
+        }
+    }
+    else
+    {
+        QString profileName = _videoProfile.name;
+
+        refreshVideoProfile(restoreVideoValue, false);
+
+        if( !VideoSettings::profile(profileName).isValid() ) {
+            QWidget* parent = _videoAdjustDialog;
+            if( parent == NULL )
+                parent = this;
+
+            QMessageBox::warning(parent, "プロファイルは削除されました",
+                QString("現在選択していたプロファイル「%1」は外部から削除されました。\n"
+                        "デフォルトのプロファイルを選択します。").arg(profileName));
+        }
+    }
+
+//  LogDialog::debug("PurePlayer::refreshVideoProfile(): end");
 }
 
 void PurePlayer::saveInteractiveSettings()
 {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
+    QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
 
     int volume;
     if( _volume > ConfigData::data()->volumeMax )
@@ -2552,7 +2697,7 @@ void PurePlayer::saveInteractiveSettings()
 
 void PurePlayer::loadInteractiveSettings()
 {
-    QSettings s(QSettings::IniFormat, QSettings::UserScope, "PurePlayer", "PurePlayer");
+    QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
 
     mute(s.value("mute", false).toBool());
     setVolume(s.value("volume", 30).toInt());
@@ -2596,25 +2741,11 @@ QSize PurePlayer::videoSize100Percent()
     return videoSize;
 }
 
-// videoSizeに対してスケーリングを計算し、有効なサイズを返す
-QSize PurePlayer::calcPercentageVideoSize(const QSize videoSize, const int percentage)
+// toSizeを有効な値に修正したサイズを返す
+QSize PurePlayer::correctToValidVideoSize(QSize toSize, const QSize& videoSize)
 {
-    if( percentage <= 0 ) return QSize(0, 0); // マイナス分は最後に-1を掛ければ
-                                              // 対応できるが特に対応しない。
-
-    // サイズを求める
-    // サイズの%表示,ビデオ矩形の表示算出処理が高さを元に判定している為、高さ起点で求める
-    int w, h;
-    h = videoSize.height() * percentage / 100;
-    if( videoSize.height() * percentage % 100 )
-        h++;
-
-    w = h * videoSize.width() / videoSize.height();
-    if( h * videoSize.width() % videoSize.height() )
-        w++;
-
-//  LogDialog::debug(QString("PurePlayer::calcPercentageVideoSize(): %1 %2 %3%")
-//                                                   .arg(w).arg(h).arg(percentage));
+    if( videoSize.width() <= 0 || videoSize.height() <= 0 )
+        return QSize(0, 0);
 
     // 最大最小サイズを超える場合は、有効なサイズへ修正する
     // (比を維持しない設定の場合は、超えたサイズでリサイズすると比崩れが起きる為必須)
@@ -2633,26 +2764,48 @@ QSize PurePlayer::calcPercentageVideoSize(const QSize videoSize, const int perce
     int minW = minimumSizeHint().width();
 
     // サイズを修正する
-    if( w > maxW || h > maxH ) {
+    if( toSize.width() > maxW || toSize.height() > maxH ) {
         QRect rc = CommonLib::scaleRectOnRect(QSize(maxW, maxH), videoSize);
-        w = rc.width();
-        h = rc.height();
+        toSize = rc.size();
     }
     else
-    if( w < minW ) { // 注意: 最小値の修正は比を維持しない場合のみ行う
+    if( toSize.width() < minW ) { // 注意: 最小値の修正は比を維持しない場合のみ行う
                      //       (比を維持している場合は小さいサイズでも表示可能な為)
         if( _aspectRatio == NO_KEEP ) {
-            w = minW;
+            toSize.setWidth(minW);
             // セントラルwidgetのサイズがそのままビデオサイズになるので適当に四捨五入
-            h = minW * videoSize.height() / (double)videoSize.width() + 0.5;
+            toSize.setHeight(minW * videoSize.height() / (double)videoSize.width() + 0.5);
         }
     }
 
 //  LogDialog::debug(
-//      QString("PurePlayer::calcPercentageVideoSize(): %1 %2 maxWH:%3 %4 minW: %5")
-//      .arg(w).arg(h).arg(maxW).arg(maxH).arg(minW));
+//      QString("PurePlayer::correctToValidVideoSize(): %1 %2 maxWH:%3 %4 minW: %5")
+//      .arg(toSize.width()).arg(toSize.height()).arg(maxW).arg(maxH).arg(minW));
 
-    return QSize(w, h);
+    return toSize;
+}
+
+// videoSizeに対してスケーリングを計算し、有効なサイズを返す
+QSize PurePlayer::calcPercentageVideoSize(const QSize& videoSize, const int percentage)
+{
+    if( percentage <= 0 ) return QSize(0, 0); // マイナス分は最後に-1を掛ければ
+                                              // 対応できるが特に対応しない。
+
+    // サイズを求める
+    // サイズの%表示,ビデオ矩形の表示算出処理が高さを元に判定している為、高さ起点で求める
+    int w, h;
+    h = videoSize.height() * percentage / 100;
+    if( videoSize.height() * percentage % 100 )
+        h++;
+
+    w = h * videoSize.width() / videoSize.height();
+    if( h * videoSize.width() % videoSize.height() )
+        w++;
+
+//  LogDialog::debug(QString("PurePlayer::calcPercentageVideoSize(): %1 %2 %3%")
+//                                                   .arg(w).arg(h).arg(percentage));
+
+    return correctToValidVideoSize(QSize(w, h), videoSize);
 }
 
 // ビデオに対してスケーリングを計算し、有効なサイズを返す
@@ -2666,6 +2819,38 @@ QSize PurePlayer::calcPercentageVideoSize(const int percentage)
 
     return size;
 }
+
+#ifdef Q_OS_WIN32
+void PurePlayer::initColorKey()
+{
+    QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
+
+    int step = s.value("WinColorKeyStep", 0).toInt();
+
+    s.setValue("WinColorKeyStep", (step+1) % 50);
+
+    _colorKey = genColorKey(step, 0x040506);
+
+    LogDialog::debug(QString("PurePlayer::initColorKey(): %1 %2 %3 %4")
+                    .arg(qRed(_colorKey)).arg(qGreen(_colorKey)).arg(qBlue(_colorKey))
+                    .arg(step));
+}
+
+QRgb PurePlayer::genColorKey(int step, QRgb baseColorKey)
+{
+    step = step % 100;
+
+    int r = qRed(baseColorKey);
+    int g = qGreen(baseColorKey);
+    int b = qBlue(baseColorKey);
+
+    r = (r + step/3 + (step%3 + 2)/3) % 256;
+    g = (g + step/3 + (step%3 + 1)/3) % 256;
+    b = (b + step/3) % 256;
+
+    return (r << 16) + (g << 8) + b;
+}
+#endif // Q_OS_WIN32
 
 void PurePlayer::updateVideoScreenGeometry()
 {
@@ -2816,6 +3001,7 @@ void PurePlayer::setStatus(const STATE s)
         _actReconnectPct->setEnabled(true);
         _actPlayPause->setEnabled(false);
         _actStop->setEnabled(true);
+
 #ifdef Q_WS_X11
         if( !_noVideo ) {
             _videoScreen->setAttribute(Qt::WA_NoSystemBackground, false);
@@ -2833,8 +3019,8 @@ void PurePlayer::setStatus(const STATE s)
         _stopButton->setEnabled(false);
         _frameAdvanceButton->setEnabled(false);
         _screenshotButton->setEnabled(false);
-        _timeslider->setSliderDown(false);
-        _timeslider->setPosition(0);
+        _timeSlider->setSliderDown(false);
+        _timeSlider->setPosition(0);
         visibleInterface(true);
 
         _actScreenshot->setEnabled(false);
