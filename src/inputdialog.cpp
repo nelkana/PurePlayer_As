@@ -37,15 +37,15 @@ QString InputDialog::input(QWidget* parent, const QString& title, const QString&
     dialog._label->setText(text);
     dialog._lineEdit->setText(initText);
 
+    dialog.show();
+
 #ifdef Q_OS_WIN32
     if( parent != NULL ) {
         dialog.move(
             parent->x() + (parent->frameSize().width()-dialog.frameSize().width())/2,
-            parent->y() + (parent->frameSize().height()-dialog.frameSize().height())/2-20);
+            parent->y() + (parent->frameSize().height()-dialog.frameSize().height())/2);
     }
 #endif
-
-    dialog.show();
 
     QString ret;
     if( dialog.exec() )

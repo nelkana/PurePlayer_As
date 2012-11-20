@@ -173,4 +173,11 @@ QString CommonLib::getOpenFileNameDialog(QWidget* parent, const QString& caption
 
     return file;
 }
+/*
+QSize CommonLib::widgetFrameSize(QWidget* const w)
+{
+    return QSize(w->frameSize().width() - w->width(),
+                 w->frameSize().height() - w->height());
+}
+*/
 

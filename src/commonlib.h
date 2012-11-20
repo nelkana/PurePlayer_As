@@ -29,6 +29,7 @@ QString dayOfWeek(int day);
 QRect   scaleRectOnRect(const QSize& baseRect, const QSize& placeRect);
 QString retTheFileNameNotExists(const QString& requestFileName);
 QString getOpenFileNameDialog(QWidget* parent=0, const QString& caption=QString());
+//QSize   widgetFrameSize(QWidget* const);
 
 };
 

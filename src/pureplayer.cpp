@@ -767,8 +767,9 @@ void PurePlayer::openFromDialog()
 
     _openDialog->setPath(_path);
     _openDialog->move(_menuContext->x()
-                        + (_menuContext->width()-_openDialog->width())/2,
+                        + (_menuContext->width()-_openDialog->frameSize().width())/2,
                       _menuContext->y());
+
     _openDialog->show();
 }
 
@@ -1368,13 +1369,14 @@ void PurePlayer::showVideoAdjustDialog()
     _videoAdjustDialog->move(_menuContext->x()
                                  + (_menuContext->width()-_videoAdjustDialog->width())/2,
                              _menuContext->y());
+
     _videoAdjustDialog->show();
 }
 
 void PurePlayer::showLogDialog()
 {
     LogDialog::moveDialog(_menuContext->x()
-                             + (_menuContext->width()-LogDialog::dialog()->width())/2,
+                             + (_menuContext->width()-LogDialog::dialog()->frameSize().width())/2,
                           _menuContext->y());
 
     LogDialog::showDialog();
@@ -1382,16 +1384,21 @@ void PurePlayer::showLogDialog()
 
 void PurePlayer::showConfigDialog()
 {
+    int addX = 0;
     if( _configDialog == NULL ) {
         _configDialog = new ConfigDialog(this);
         connect(_configDialog, SIGNAL(applied(bool)),
                 this,          SLOT(appliedFromConfigDialog(bool)));
+
+        addX = 170;
     }
 
     _configDialog->setData(ConfigData::data());
     _configDialog->move(_menuContext->x()
-                            + (_menuContext->width()-_configDialog->width())/2,
+                            + (_menuContext->width()-_configDialog->frameSize().width())/2 - addX,
                         _menuContext->y());
+
+//  LogDialog::debug(tr("%1 %2").arg(_configDialog->frameSize().width()).arg(_configDialog->size().width()));
     _configDialog->show();
 }
 
@@ -1399,8 +1406,9 @@ void PurePlayer::showPlayListDialog()
 {
     playListDialog()->reflectDataToGui();
     _playListDialog->move(_menuContext->x()
-                                + (_menuContext->width()-_playListDialog->width())/2,
+                            + (_menuContext->width()-_playListDialog->frameSize().width())/2,
                           _menuContext->y());
+
     playListDialog()->show();
 }
 
@@ -1411,7 +1419,7 @@ void PurePlayer::showAboutDialog()
     }
 
     _aboutDialog->move(_menuContext->x()
-                            + (_menuContext->width()-_aboutDialog->width())/2,
+                            + (_menuContext->width()-_aboutDialog->frameSize().width())/2,
                        _menuContext->y());
 
     _aboutDialog->show();
@@ -1700,10 +1708,10 @@ void PurePlayer::wheelEvent(QWheelEvent* e)
         int volume;
         QPoint localPoint = statusBar()->mapFromGlobal(e->globalPos());
         QRect  labelRect  = _labelVolume->geometry();
-    /*      LogDialog::debug(QString().sprintf("(%d %d %d %d) (%d %d)",
-                        labelRect.x(),labelRect.y(), labelRect.right(),labelRect.bottom(),
-                        localPoint.x(), localPoint.y()));
-    */
+/*      LogDialog::debug(QString().sprintf("(%d %d %d %d) (%d %d)",
+                    labelRect.x(),labelRect.y(), labelRect.right(),labelRect.bottom(),
+                    localPoint.x(), localPoint.y()));
+*/
         if( labelRect.contains(localPoint) )
             volume = 1;
         else
