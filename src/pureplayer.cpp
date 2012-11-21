@@ -948,9 +948,7 @@ void PurePlayer::mute(bool b)
     }
 
     if( _state == PLAY ) { //|| _state == READY ) {
-        //mpCmd("osd 0");
         mpCmd(cmd);
-        //mpCmd("osd 1");
         mpCmd("osd_show_text " + text);
     }
     else

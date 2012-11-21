@@ -23,12 +23,13 @@
 
 int main(int argc, char** argv)
 {
+    QApplication app(argc, argv);
+
     if( argc >= 3 ) {
         fprintf(stderr, "Usage: %s [File Path or URL]\n", argv[0]);
         exit(1);
     }
 
-    QApplication app(argc, argv);
     QTextCodec::setCodecForCStrings(QTextCodec::codecForName("UTF-8"));//codecForLocale());
     QTextCodec::setCodecForTr(QTextCodec::codecForName("UTF-8"));//codecForLocale());
 
