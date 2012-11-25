@@ -1614,15 +1614,15 @@ void PurePlayer::mousePressEvent(QMouseEvent* e)
 {
 // 注: mouseDoubleClickEvent()と併せて実装しないと、動作漏れが起きる
 
-/*  LogDialog::debug(QString().sprintf(
-                        "PurePlayer::mousePressEvent():pos %d %d global %d %d",
-                        e->pos().x(),e->pos().y(), e->globalPos().x(),e->globalPos().y()));
-*/
+//  LogDialog::debug(QString().sprintf(
+//                      "PurePlayer::mousePressEvent():pos %d %d global %d %d",
+//                      e->pos().x(),e->pos().y(), e->globalPos().x(),e->globalPos().y()));
+
     if( e->button() == Qt::LeftButton ) {
-        _pressLocalPos.setX(e->pos().x() + geometry().x()-frameGeometry().x());
-        _pressLocalPos.setY(e->pos().y() + geometry().y()-frameGeometry().y());
+        _mousePressLocalPos.setX(e->pos().x() + (geometry().x()-frameGeometry().x()));
+        _mousePressLocalPos.setY(e->pos().y() + (geometry().y()-frameGeometry().y()));
         if( (height()*80/100) < e->y() )
-            _controlFlags |= FLG_MUTE_WHEN_MOUSE_RELEASE;
+            _mousePressWindowPos = pos();
         else
         if( isFullScreen() )
             setCursor(QCursor(Qt::BlankCursor));
@@ -1638,9 +1638,9 @@ void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
     if( e->button() == Qt::LeftButton ) {
         _menuContext->move(x()+width()*0.2, y()+height()*0.2);
 
-        if( _controlFlags & FLG_MUTE_WHEN_MOUSE_RELEASE ) {
-            _controlFlags &= ~FLG_MUTE_WHEN_MOUSE_RELEASE;
-            mute(!isMute());
+        if( (height()*80/100) < e->y() ) {
+            if( _mousePressWindowPos == pos() )
+                mute(!isMute());
         }
 
         _disableWindowMoveFromMouse = false;
@@ -1661,9 +1661,7 @@ void PurePlayer::mouseDoubleClickEvent(QMouseEvent* e)
 {
 //  LogDialog::debug("mouse doubleclick");
     if( e->buttons() & Qt::LeftButton ) {
-        if( (height()*80/100) < e->y() )
-            _controlFlags |= FLG_MUTE_WHEN_MOUSE_RELEASE;
-        else
+        if( (height()*80/100) >= e->y() )
             fullScreenOrWindow();
     }
     else
@@ -1683,9 +1681,7 @@ void PurePlayer::mouseMoveEvent(QMouseEvent* e)
     if( !isMaximized() ) {
         if( e->buttons() & Qt::LeftButton ) {
             if( !_disableWindowMoveFromMouse )
-                move(e->globalPos() - _pressLocalPos);
-
-            _controlFlags &= ~FLG_MUTE_WHEN_MOUSE_RELEASE;
+                move(e->globalPos() - _mousePressLocalPos);
         }
     }
 }

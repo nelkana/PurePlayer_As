@@ -149,7 +149,6 @@ protected:
         FLG_HIDE_DISPLAY_MESSAGE = 0x00000001, // ディスプレイメッセージを非表示
         FLG_SEEKED_REPEAT        = 0x00000002, // ABリピートでseek()した
         FLG_WHEEL_RESIZED        = 0x00000004, // ホイールリサイズした
-        FLG_MUTE_WHEN_MOUSE_RELEASE = 0x00000008, // マウスリリースした時にミュートする
     };
 
 //  bool event(QEvent*);
@@ -285,7 +284,8 @@ private:
     bool            _disableWindowMoveFromMouse;
     bool            _alwaysShowStatusBar;
     quint32         _controlFlags;
-    QPoint          _pressLocalPos;
+    QPoint          _mousePressLocalPos;
+    QPoint          _mousePressWindowPos;
 
     QMenu*          _menuContext;
     QMenu*          _menuReconnect;
