@@ -55,6 +55,30 @@ QString CommonLib::dayOfWeek(int day)
     return QString(d[day]);
 }
 
+QString CommonLib::secondTimeToString(int sec)
+{
+    if( sec < 0 ) return QString();
+
+    int h, m, s;
+    h = sec / 3600;
+    sec %= 3600;
+    m = sec / 60;
+    s = sec % 60;
+
+    if( h == 0 )
+        return QString().sprintf("%02d:%02d", m, s);
+    else
+        return QString().sprintf("%d:%02d:%02d", h, m, s);
+}
+
+// 前方、後方の空白文字を取り除いた文字列を返す
+QString CommonLib::removeSpaceBeforeAfter(QString str)
+{
+    str.remove(QRegExp("^\\s*"));
+    str.remove(QRegExp("\\s*$"));
+    return str;
+}
+
 // 矩形上で、比を維持してスケーリングを行った矩形を返す
 QRect CommonLib::scaleRectOnRect(const QSize& baseRect, const QSize& placeRect)
 {

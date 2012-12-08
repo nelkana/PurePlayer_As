@@ -22,7 +22,6 @@
 #include <QProcess>
 #include <QTimer>
 #include <QLabel>
-#include "playlist.h"
 #include "videosettings.h"
 
 class QWidget;
@@ -40,10 +39,11 @@ class SpeedSpinBox;
 class TimeSlider;
 class InfoLabel;
 class TimeLabel;
+class PlaylistModel;
 class OpenDialog;
 class VideoAdjustDialog;
 class ConfigDialog;
-class PlayListDialog;
+class PlaylistDialog;
 class AboutDialog;
 class LogDialog;
 
@@ -70,8 +70,8 @@ public slots:
     void open(const QString& path);
     void openFromDialog();
     void play();
-    void playPrev();
-    void playNext();
+    bool playPrev();
+    bool playNext();
     void stop();
     void pauseUnPause();
     void frameAdvance();
@@ -88,7 +88,7 @@ public slots:
     void setVolume(int value);
     void setVolumeFactor(VOLUME_FACTOR_MODE);
     void setAudioOutput(AUDIO_OUTPUT_MODE);
-    void setLoop(bool);
+//  void setLoop(bool);
     void setAspectRatio(ASPECT_RATIO);
     void setContrast(int value, bool alwaysSet=false);
     void setBrightness(int value, bool alwaysSet=false);
@@ -126,7 +126,7 @@ public slots:
     void showLogDialog();
     void showAboutDialog();
     void showConfigDialog();
-    void showPlayListDialog();
+    void showPlaylistDialog();
 
     void updateChannelInfo();
     void openContactUrl();
@@ -135,7 +135,7 @@ protected slots:
     void mpCmd(const QString& command);
     void reconnectFromGui() { _reconnectCount=0; reconnect(); }
     void reconnectPurePlayerFromGui() { _reconnectCount=0; reconnectPurePlayer(); }
-    void playFromPlayListDialog() { _reconnectCount=0; restartPlay(); }
+    void playlist_playStopCurrentTrack();
     void buttonPlayPauseClicked();
     void exitFullScreen() { if( isFullScreen() ) fullScreenOrWindow(); }
     void restartPlay(bool keepSeekPos=false) { if(keepSeekPos && _isSeekable) _seekWhenStartMplayer=true; stop(); play(); }
@@ -150,6 +150,7 @@ protected:
         FLG_SEEKED_REPEAT        = 0x00000002, // ABリピートでseek()した
         FLG_WHEEL_RESIZED        = 0x00000004, // ホイールリサイズした
         FLG_MUTE_WHEN_MOUSE_RELEASE = 0x00000008, // マウスリリースした時にミュートする
+        FLG_EOF                  = 0x00000010, // 再生が最後まで到達した
     };
 
 //  bool event(QEvent*);
@@ -180,7 +181,7 @@ protected:
     QSize calcPercentageVideoSize(const QSize& videoSize, const int percentage);
     QSize calcPercentageVideoSize(const int percentage);
 
-    PlayListDialog* playListDialog();
+    PlaylistDialog* playlistDialog();
 
 private slots:
     void mpProcessFinished();
@@ -297,7 +298,7 @@ private:
     QAction*        _actStop;
     QAction*        _actMute;
     QAction*        _actOpenContactUrl;
-    QAction*        _actPlayList;
+    QAction*        _actPlaylist;
     QAction*        _actStatusBar;
     QActionGroup*   _actGroupAudioOutput;
     QActionGroup*   _actGroupVolumeFactor;
@@ -310,12 +311,12 @@ private:
     qint8           _reconnectCount;
     int             _reconnectControlTime;
 
-    PlayList        _playList;
+    PlaylistModel*  _playlist;
 
     OpenDialog*        _openDialog;
     VideoAdjustDialog* _videoAdjustDialog;
     ConfigDialog*      _configDialog;
-    PlayListDialog*    _playListDialog;
+    PlaylistDialog*    _playlistDialog;
     AboutDialog*       _aboutDialog;
 
     bool _debugFlg;

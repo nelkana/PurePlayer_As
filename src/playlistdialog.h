@@ -16,62 +16,38 @@
 #ifndef PLAYLISTDIALOG_H
 #define PLAYLISTDIALOG_H
 
-#include <QTreeWidget>
+#include <QDialog>
 #include "ui_playlistdialog.h"
 
-class PlayList;
+class PlaylistModel;
+class PlaylistView;
 
-class PlayListTreeWidget : public QTreeWidget
+class PlaylistDialog : public QDialog, Ui::PlaylistDialog
 {
     Q_OBJECT
 
 public:
-    PlayListTreeWidget(QWidget* parent);
-    void moveItem(int from, int to) { if(from != to) insertTopLevelItem(to, takeTopLevelItem(from)); }
-    void moveItems(int insert, QList<QTreeWidgetItem*>& selectedItems);
+    explicit PlaylistDialog(PlaylistModel* model, QWidget* parent);
 
 signals:
-    void movedItems(int insert, QList<QTreeWidgetItem*>& items);
-
-protected:
-//  bool event(QEvent*);
-    void showEvent(QShowEvent*);
-    void resizeEvent(QResizeEvent*);
-    void dragEnterEvent(QDragEnterEvent*);
-    void dropEvent(QDropEvent*);
-};
-
-class PlayListDialog : public QDialog, Ui::PlayListDialog
-{
-    Q_OBJECT
-
-public:
-    PlayListDialog(PlayList* playList, QWidget* parent);
-
-    int  selectedIndex() { return _treeWidget->indexOfTopLevelItem(_treeWidget->currentItem()); }
-    void reflectDataToGui();
-    void updateCurrentItemTime();
-    void updateCurrentItemBackground();
-
-signals:
-    void playItem();
-    void stopItem();
+    void playStopCurrentTrack();
+    void stopCurrentTrack();
+    void playPrev();
+    void playNext();
 
 protected slots:
-    void buttonAddClicked();
-    void buttonRemoveClicked();
-    void treewidgetItemDoubleClicked(QTreeWidgetItem* item, int column);
-    void playListTreeWidgetMovedItems(int insert, QList<QTreeWidgetItem*>& items);
+    void buttonAdd_clicked();
+    void buttonRemove_clicked();
+    void buttonUp_clicked();
+    void buttonDown_clicked();
 
-protected:
-    void dragEnterEvent(QDragEnterEvent*);
-    void dropEvent(QDropEvent*);
+    void view_doubleClicked(const QModelIndex&);
 
 private:
-    PlayListTreeWidget* _treeWidget;
-    QTreeWidgetItem*    _currentItem;
+    void setModel(PlaylistModel* model);
 
-    PlayList* _playList;
+    PlaylistModel* _model;
+    PlaylistView*  _view;
 };
 
 #endif // PLAYLISTDIALOG_H

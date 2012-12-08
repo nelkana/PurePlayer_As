@@ -23,6 +23,7 @@
 #include "timeslider.h"
 #include "infolabel.h"
 #include "timelabel.h"
+#include "playlist.h"
 #include "opendialog.h"
 #include "videoadjustdialog.h"
 #include "logdialog.h"
@@ -74,7 +75,6 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _volumeFactor = VF_NORMAL;
     _aspectRatio = RATIO_VIDEO;
     _deinterlace = DI_NO_DEINTERLACE;
-    _doLoop = false;
     _openedNewPath = true;
     _seekWhenStartMplayer = false;
     _reconnectWasCalled = false;
@@ -121,10 +121,12 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _oldFrame = 0;
     connect(&_timerFps, SIGNAL(timeout()), this, SLOT(timerFpsTimeout()));
 
+    _playlist = new PlaylistModel(this);
+
     _openDialog        = NULL;
     _videoAdjustDialog = NULL;
     _configDialog      = NULL;
-    _playListDialog    = NULL;
+    _playlistDialog    = NULL;
     _aboutDialog       = NULL;
 
     createStatusBar();
@@ -286,14 +288,6 @@ void PurePlayer::createToolBar()
     _repeatABButton->setToolTip(tr("ABリピート"));
     connect(_repeatABButton, SIGNAL(clicked(bool)), this, SLOT(repeatAB()));
 
-    _loopButton = new ControlButton(QIcon(":/icons/loop.png"), "", this);
-    _loopButton->setCheckable(true);
-    _loopButton->setFocusPolicy(Qt::NoFocus);
-    _loopButton->setIconSize(iconSize);
-    _loopButton->setFixedSize(buttonSize);
-    _loopButton->setToolTip("ループ");
-    connect(_loopButton, SIGNAL(clicked(bool)), this, SLOT(setLoop(bool)));
-
     _screenshotButton = new ControlButton(QIcon(":/icons/screenshot.png"), "", this);
     _screenshotButton->setFocusPolicy(Qt::NoFocus);
     _screenshotButton->setIconSize(iconSize);
@@ -301,6 +295,9 @@ void PurePlayer::createToolBar()
     _screenshotButton->setToolTip("スクリーンショット");
     connect(_screenshotButton, SIGNAL(clicked(bool)), this, SLOT(screenshot()));
 
+    _timeSlider   = NULL;
+    _speedSpinBox = NULL;
+    _toolBar      = NULL;
     _timeSlider = new TimeSlider(this);
     _timeSlider->installEventFilter(this);
     _timeSlider->setFocusPolicy(Qt::NoFocus);
@@ -339,7 +336,6 @@ void PurePlayer::createToolBar()
     hl->addWidget(prevButton);
     hl->addWidget(nextButton);
     hl->addWidget(_repeatABButton);
-    hl->addWidget(_loopButton);
     hl->addWidget(_screenshotButton);
     hl->addWidget(_timeSlider);
     //hl->addStretch();
@@ -373,6 +369,7 @@ void PurePlayer::createActionContextMenu()
 
     _actPlayPause = new QAction(tr("再生"), this);
     _actPlayPause->setShortcut(tr("space"));
+    _actPlayPause->setAutoRepeat(false);
     connect(_actPlayPause, SIGNAL(triggered()), this, SLOT(buttonPlayPauseClicked()));
     addAction(_actPlayPause);
 
@@ -388,10 +385,10 @@ void PurePlayer::createActionContextMenu()
     _actOpenContactUrl->setVisible(false);
     connect(_actOpenContactUrl, SIGNAL(triggered()), this, SLOT(openContactUrl()));
 
-    _actPlayList = new QAction(tr("プレイリスト"), this);
-    _actPlayList->setShortcut(tr("l"));
-    connect(_actPlayList, SIGNAL(triggered()), this, SLOT(showPlayListDialog()));
-    addAction(_actPlayList);
+    _actPlaylist = new QAction(tr("プレイリスト"), this);
+    _actPlaylist->setShortcut(tr("l"));
+    connect(_actPlaylist, SIGNAL(triggered()), this, SLOT(showPlaylistDialog()));
+    addAction(_actPlaylist);
 
     _actStatusBar = new QAction(tr("ステータスを常に表示"), this);
     _actStatusBar->setCheckable(true);
@@ -580,7 +577,7 @@ void PurePlayer::createActionContextMenu()
     _menuContext->addAction(_actStop);
     _menuContext->addAction(actOpen);
     _menuContext->addAction(_actOpenContactUrl);
-    _menuContext->addAction(_actPlayList);
+    _menuContext->addAction(_actPlaylist);
     _menuContext->addSeparator();
     _menuContext->addAction(_actStatusBar);
     _menuContext->addAction(actConfig);
@@ -601,17 +598,18 @@ void PurePlayer::createActionContextMenu()
 
 void PurePlayer::open(const QString& path)
 {
-    _playList.add(path);
-    _playList.setCurrentIndex(_playList.itemCount()-1);
-    playListDialog()->reflectDataToGui();
-
-    openCommonProcess(path);
+    if( _playlist->appendTrack(path) ) {
+        _playlist->setCurrentTrackIndex(_playlist->rowCount()-1);
+        openCommonProcess(_playlist->currentTrackPath());
+    }
+    else
+        QMessageBox::warning(this, "エラー", "指定されたファイル又はURLが正しくありません");
 }
 
 void PurePlayer::play()
 {
-    if( _playList.itemCount() > 0 ) {
-        QString path = _playList.currentItem()->_path;
+    if( _playlist->rowCount() > 0 ) {
+        QString path = _playlist->currentTrackPath();
         if( path != _path )
             openCommonProcess(path);
         else
@@ -619,36 +617,30 @@ void PurePlayer::play()
     }
 }
 
-void PurePlayer::playPrev()
+bool PurePlayer::playPrev()
 {
-    int index = _playList.currentIndex();
+    PlaylistModel::Track* track = _playlist->currentTrack();
 
-    _playList.downCurrentIndex();
-    if( index != _playList.currentIndex() ) {
-        playListDialog()->updateCurrentItemBackground();
+    _playlist->downCurrentTrackIndex();
+    if( track != _playlist->currentTrack() || _playlist->loopPlay() ) {
         play();
+        return true;
     }
-    else if( _doLoop && _playList.itemCount() > 1 ) {
-        _playList.setCurrentIndex(_playList.itemCount()-1);
-        playListDialog()->updateCurrentItemBackground();
-        play();
-    }
+
+    return false;
 }
 
-void PurePlayer::playNext()
+bool PurePlayer::playNext()
 {
-    int index = _playList.currentIndex();
+    PlaylistModel::Track* track = _playlist->currentTrack();
 
-    _playList.upCurrentIndex();
-    if( index != _playList.currentIndex() ) {
-        playListDialog()->updateCurrentItemBackground();
+    _playlist->upCurrentTrackIndex();
+    if( track != _playlist->currentTrack() || _playlist->loopPlay() ) {
         play();
+        return true;
     }
-    else if( _doLoop && _playList.itemCount() > 1 ) {
-        _playList.setCurrentIndex(0);
-        playListDialog()->updateCurrentItemBackground();
-        play();
-    }
+
+    return false;
 }
 
 void PurePlayer::setCurrentDirectory()
@@ -1017,18 +1009,6 @@ void PurePlayer::setAudioOutput(AUDIO_OUTPUT_MODE mode)
 
         _actGroupAudioOutput->actions()[mode]->setChecked(true);
     }
-}
-
-void PurePlayer::setLoop(bool b)
-{
-    _doLoop = b;
-
-/*  if( _state == PLAY )
-        mpCmd(QString("loop %1 1").arg(_doLoop ? 0:-1));
-    else
-    if( _state == PAUSE )
-        mpCmd(QString("pausing_keep_force loop %1 1").arg(_doLoop ? 0:-1));
-*/
 }
 
 void PurePlayer::setAspectRatio(ASPECT_RATIO ratio)
@@ -1402,14 +1382,13 @@ void PurePlayer::showConfigDialog()
     _configDialog->show();
 }
 
-void PurePlayer::showPlayListDialog()
+void PurePlayer::showPlaylistDialog()
 {
-    playListDialog()->reflectDataToGui();
-    _playListDialog->move(_menuContext->x()
-                            + (_menuContext->width()-_playListDialog->frameSize().width())/2,
+    playlistDialog()->move(_menuContext->x()
+                            + (_menuContext->width()-playlistDialog()->frameSize().width())/2,
                           _menuContext->y());
 
-    playListDialog()->show();
+    playlistDialog()->show();
 }
 
 void PurePlayer::showAboutDialog()
@@ -1746,28 +1725,22 @@ void PurePlayer::dragEnterEvent(QDragEnterEvent* e)
 
 void PurePlayer::dropEvent(QDropEvent* e)
 {
-    QList<QUrl> urls = e->mimeData()->urls();
-    if( urls.isEmpty() )
-        return;
+    if( e->mimeData()->hasFormat("text/uri-list") ) {
+        QList<QUrl> urls = e->mimeData()->urls();
+        _playlist->insertTracks(_playlist->rowCount(), urls);
 
-    for(int i=0; i < urls.size(); i++) {
-        QString path = urls[i].toLocalFile();
-        _playList.add(path);
-        LogDialog::debug("PurePlayer::dropEvent(): " + path);
+        // 新たに追加したアイテム群の先頭要素をカレントインデックスとする
+        _playlist->setCurrentTrackIndex(_playlist->rowCount() - urls.size());
+
+        // プレイリストファイル内にpeercast urlがあった場合、
+        // 同じストリームが開かれる可能性がある為初期化。
+        //_reconnectCount = 0;                  // 現状では必要無し
+
+        stop();
+        play();
     }
-
-    // 新たに追加したアイテム群の先頭要素をカレントインデックスとする
-    _playList.setCurrentIndex(_playList.itemCount() - urls.size());
-
-    playListDialog()->reflectDataToGui();
-
-    // 現状では必要無し:
-    // プレイリストファイル内にpeercast urlがあった場合、
-    // 同じストリームが開かれる可能性がある為初期化。
-    //_reconnectCount = 0;
-
-    stop();
-    play();
+    else
+        QMainWindow::dropEvent(e);
 }
 
 /*
@@ -1815,15 +1788,17 @@ void PurePlayer::middleClickResize()
     }
 }
 
-PlayListDialog* PurePlayer::playListDialog()
+PlaylistDialog* PurePlayer::playlistDialog()
 {
-    if( _playListDialog == NULL ) {
-        _playListDialog = new PlayListDialog(&_playList, this);
-        connect(_playListDialog, SIGNAL(playItem()), this, SLOT(playFromPlayListDialog()));
-        connect(_playListDialog, SIGNAL(stopItem()), this, SLOT(stop()));
+    if( _playlistDialog == NULL ) {
+        _playlistDialog = new PlaylistDialog(_playlist, this);
+        connect(_playlistDialog, SIGNAL(playStopCurrentTrack()), this, SLOT(playlist_playStopCurrentTrack()));
+        connect(_playlistDialog, SIGNAL(stopCurrentTrack()), this, SLOT(stop()));
+        connect(_playlistDialog, SIGNAL(playPrev()), this, SLOT(playPrev()));
+        connect(_playlistDialog, SIGNAL(playNext()), this, SLOT(playNext()));
     }
 
-    return _playListDialog;
+    return _playlistDialog;
 }
 
 void PurePlayer::mpProcessFinished()
@@ -1833,7 +1808,8 @@ void PurePlayer::mpProcessFinished()
     LogDialog::debug(QString("PurePlayer::mpProcessFinished(): state finished with %1.")
                         .arg(_state));
 
-    if( isPeercastStream() ) {
+    if( isPeercastStream() )
+    {
         _elapsedTime = _timeLabel->time();
         LogDialog::debug(QString("PurePlayer::mpProcessFinished(): elapsed time %1")
                             .arg(_elapsedTime));
@@ -1878,26 +1854,8 @@ void PurePlayer::mpProcessFinished()
             setStatus(STOP);
 */
     }
-    else {
-        if( isPlaying() ) {
-            int oldIndex = _playList.currentIndex();
-            _playList.upCurrentIndex();
-            playListDialog()->updateCurrentItemBackground();
-
-            if( oldIndex != _playList.currentIndex() )
-                play();
-            else
-            if( _doLoop ) {
-                _playList.setCurrentIndex(0);
-                playListDialog()->updateCurrentItemBackground();
-                play();
-            }
-            else
-                setStatus(STOP);
-        }
-        else
-            setStatus(STOP);
-    }
+    else if( !(_controlFlags & FLG_EOF) || !playNext() )
+        setStatus(STOP);
 
     LogDialog::debug(QString("PurePlayer::mpProcessFinished(): -end"));
 }
@@ -2067,7 +2025,6 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
         setSaturation(_videoProfile.saturation, true);
         setHue(_videoProfile.hue, true);
         setGamma(_videoProfile.gamma, true);
-        setLoop(_doLoop);
 
         _controlFlags &= ~FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 1");
 
@@ -2090,8 +2047,7 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
             _labelFrame->setText("0");
             _labelFps->setText("0fps");
             _timeLabel->setTotalTime(_videoLength);
-            _playList.currentItem()->setTime(_videoLength);
-            playListDialog()->updateCurrentItemTime();
+            _playlist->setCurrentTrackTime(_videoLength);
             _timeSlider->setLength(_videoLength);
             //_speedSpinBox->setRange(0, _videoLength*10);
 
@@ -2156,6 +2112,9 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
     else
     if( line.startsWith("ID_EXIT=QUIT") )
         setStatus(STOP);
+    else
+    if( line.startsWith("ID_EXIT=EOF") )
+        _controlFlags |= FLG_EOF;
     else
     if( rxScreenshot.indexIn(line) != -1 ) {
         QDateTime dateTime = QDateTime::currentDateTime();
@@ -2424,6 +2383,16 @@ void PurePlayer::mpCmd(const QString& command)
     LogDialog::debug("PurePlayer::mpCmd(): " + command);
 }
 
+void PurePlayer::playlist_playStopCurrentTrack()
+{
+    if( _playlist->isCurrentTrack(_path) && isPlaying() )
+            stop();
+    else {
+        _reconnectCount=0;
+        restartPlay();
+    }
+}
+
 void PurePlayer::buttonPlayPauseClicked()
 {
     switch( _state ) {
@@ -2444,6 +2413,7 @@ void PurePlayer::playCommonProcess()
     }
 
     _noVideo = false;
+    _controlFlags &= ~FLG_EOF;
     setStatus(READY);
 
     QStringList args;
@@ -2596,10 +2566,7 @@ void PurePlayer::createVideoProfileFromCurrent(QString profileName)
 {
     VideoSettings::VideoProfile profile = _videoProfile;
 
-    // 前方、後方の空白文字を取り除く
-    profileName.remove(QRegExp("^\\s*"));
-    profileName.remove(QRegExp("\\s*$"));
-
+    profileName = CommonLib::removeSpaceBeforeAfter(profileName);
     profile.name = profileName;
 
     if( VideoSettings::appendProfile(profile) ) {
@@ -2607,7 +2574,7 @@ void PurePlayer::createVideoProfileFromCurrent(QString profileName)
         setVideoProfile(profile.name, false);
     }
 
-    LogDialog::debug("PurePlayer::createProfile(): end");
+    LogDialog::debug("PurePlayer::createVideoProfileFromCurrent(): end");
 }
 
 void PurePlayer::updateVideoProfile()
