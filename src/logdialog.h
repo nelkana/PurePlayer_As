@@ -62,6 +62,8 @@ protected:
 
 private:
     static LogDialog* s_logDialog;
+    static QWidget*   s_parent;
+    static bool       s_calledShowFunction;
 
     bool _outputTerminal;
 };
@@ -69,13 +71,15 @@ private:
 inline void LogDialog::initDialog(QWidget* parent)
 {
     delete s_logDialog;
-    s_logDialog = new LogDialog(parent);
+    s_logDialog = new LogDialog();
+
+    s_parent = parent;
 }
 
 inline LogDialog* LogDialog::dialog()
 {
-    if( s_logDialog==NULL )
-        s_logDialog = new LogDialog();
+    if( s_logDialog == NULL )
+        initDialog();
 
     return s_logDialog;
 }
@@ -125,14 +129,6 @@ inline void LogDialog::moveDialog(int x, int y)
 {
     if( s_logDialog != NULL )
         s_logDialog->move(x, y);
-}
-
-inline void LogDialog::showDialog()
-{
-    if( s_logDialog != NULL ) {
-        s_logDialog->show();
-        s_logDialog->activateWindow(); // フルスクリーンされてる場合でも表示
-    }
 }
 
 inline void LogDialog::closeDialog()
