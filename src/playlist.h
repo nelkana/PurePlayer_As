@@ -72,6 +72,7 @@ public:
     Track*  currentTrack() { return _currentTrack; }
     bool    isCurrentTrack(const QString& path) { return (_currentTrack!=NULL && path==_currentTrack->path); }
     QString currentTrackPath();
+    void    setCurrentTrackTitle(const QString& title);
     void    setCurrentTrackTime(int sec);
     bool    loopPlay()   { return _loopPlay; }
     bool    randomPlay() { return _randomPlay; }

@@ -98,10 +98,10 @@ public slots:
     void setGamma(int value, bool alwaysSet=false);
     void setDeinterlace(DEINTERLACE_MODE);
     void screenshot();
-    void resizeSlightlyReduce()   { resizePercentageFromCurrent(-10); }
-    void resizeSlightlyIncrease() { resizePercentageFromCurrent(+10); }
-    void resizeReduce()           { resizePercentageFromCurrent(-20); }
-    void resizeIncrease()         { resizePercentageFromCurrent(+20); }
+    void resizeReduce()           { resizeFromCurrent(-300); }
+    void resizeIncrease()         { resizeFromCurrent(+300); }
+//  void resizeSlightlyReduce()   { resizePercentageFromCurrent(-10); }
+//  void resizeSlightlyIncrease() { resizePercentageFromCurrent(+10); }
     void resize320x240()    { resizeFromVideoClient(QSize(320,240)); }
     void resize1280x720()   { resizeFromVideoClient(QSize(1280,720)); }
     void resize25Percent()  { resizeFromVideoClient(calcPercentageVideoSize(25)); }

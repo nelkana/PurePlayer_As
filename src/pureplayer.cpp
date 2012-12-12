@@ -452,14 +452,14 @@ void PurePlayer::createActionContextMenu()
     actIncreaseSize->setShortcut(tr("="));
     connect(actIncreaseSize, SIGNAL(triggered()), this, SLOT(resizeIncrease()));
     addAction(actIncreaseSize);
-    QAction* actSlightlyReduceSize = new QAction(tr("少し小さくする"), this);
-    actSlightlyReduceSize->setShortcut(tr("["));
-    connect(actSlightlyReduceSize, SIGNAL(triggered()), this, SLOT(resizeSlightlyReduce()));
-    addAction(actSlightlyReduceSize);
-    QAction* actSlightlyIncreaseSize = new QAction(tr("少し大きくする"), this);
-    actSlightlyIncreaseSize->setShortcut(tr("]"));
-    connect(actSlightlyIncreaseSize, SIGNAL(triggered()), this, SLOT(resizeSlightlyIncrease()));
-    addAction(actSlightlyIncreaseSize);
+//  QAction* actSlightlyReduceSize = new QAction(tr("少し小さくする"), this);
+//  actSlightlyReduceSize->setShortcut(tr("["));
+//  connect(actSlightlyReduceSize, SIGNAL(triggered()), this, SLOT(resizeSlightlyReduce()));
+//  addAction(actSlightlyReduceSize);
+//  QAction* actSlightlyIncreaseSize = new QAction(tr("少し大きくする"), this);
+//  actSlightlyIncreaseSize->setShortcut(tr("]"));
+//  connect(actSlightlyIncreaseSize, SIGNAL(triggered()), this, SLOT(resizeSlightlyIncrease()));
+//  addAction(actSlightlyIncreaseSize);
     QAction* act320x240 = new QAction(tr("320x240"), this);
     act320x240->setShortcut(tr("0"));
     connect(act320x240, SIGNAL(triggered()), this, SLOT(resize320x240()));
@@ -494,8 +494,8 @@ void PurePlayer::createActionContextMenu()
     QMenu* menuSize = new QMenu(tr("サイズ変更"), this);
     menuSize->addAction(actReduceSize);
     menuSize->addAction(actIncreaseSize);
-    menuSize->addAction(actSlightlyReduceSize);
-    menuSize->addAction(actSlightlyIncreaseSize);
+//  menuSize->addAction(actSlightlyReduceSize);
+//  menuSize->addAction(actSlightlyIncreaseSize);
     menuSize->addSeparator();
     menuSize->addAction(act320x240);
     menuSize->addAction(act1280x720);
@@ -899,12 +899,6 @@ void PurePlayer::reconnectPeercast()
     QUrl url(QString("http://%1:%2/admin?cmd=bump&id=%3").arg(_host).arg(_port).arg(_id));
     _nam->get(QNetworkRequest(url));
     LogDialog::debug("PurePlayer::reconnectPeercast(): ");
-/*
-    _http->setHost(url.host(), url.port());
-    _http->get("/admin?cmd=bump&id=" + id);
-    LogDialog::debug("PurePlayer::reconnectPeercast(): state " +
-                                                    QString("%1").arg(_http->state()));
-*/
 }
 
 void PurePlayer::recordingStartStop()
@@ -2284,6 +2278,8 @@ FAILED:
 
         if( _debugCount ) setWindowTitle(_chName + QString(" %1").arg(_debugCount));
         else              setWindowTitle(_chName);
+
+        _playlist->setCurrentTrackTitle(_chName);
 
         LogDialog::dialog()->setWindowTitle(_chName + " - PureLog");
     }

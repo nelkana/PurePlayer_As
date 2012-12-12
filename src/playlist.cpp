@@ -524,6 +524,16 @@ QString PlaylistModel::trackPath(int row)
     return QString();
 }
 */
+
+void PlaylistModel::setCurrentTrackTitle(const QString& title)
+{
+    int i = _tracks.indexOf(_currentTrack);
+    if( i == -1 ) return;
+
+    _currentTrack->title = title;
+    emit dataChanged(PlaylistModel::index(i, 0), PlaylistModel::index(i, 1));
+}
+
 void PlaylistModel::setCurrentTrackTime(int duration)
 {
     int i = _tracks.indexOf(_currentTrack);
