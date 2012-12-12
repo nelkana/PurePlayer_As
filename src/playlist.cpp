@@ -18,6 +18,7 @@
 #include <QUrl>
 #include <QColor>
 #include <QKeyEvent>
+#include <QHeaderView>
 #include "playlist.h"
 #include "commonlib.h"
 
@@ -322,6 +323,88 @@ void PlaylistModel::removeRows(QModelIndexList& indexes)
     }
 }
 
+class TrackLessThan
+{
+public:
+    TrackLessThan(int column, Qt::SortOrder order)
+    { _column = column; _order = order; }
+
+    bool operator()(PlaylistModel::Track* n1, PlaylistModel::Track* n2)
+    {
+        int ret;
+
+        if( _column == 0 ) {
+            QString str1 = n1->title.toLower(),
+                    str2 = n2->title.toLower();
+
+            ret = compare(str1, str2);
+            if( ret == 0 )
+                ret = compare(n1->duration, n2->duration);
+        }
+        else
+        if( _column == 1 ) {
+            ret = compare(n1->duration, n2->duration);
+            if( ret == 0 ) {
+                QString str1 = n1->title.toLower(),
+                        str2 = n2->title.toLower();
+
+                ret = compare(str1, str2);
+            }
+        }
+
+        if( ret != 0 ) {
+            if( _order == Qt::AscendingOrder )
+                return ret < 0;
+            else
+                return ret > 0;
+        }
+
+        return n1->index < n2->index;
+    }
+
+    template <typename T>
+    int compare(T n1, T n2)
+    {
+        if( n1 == n2 )     return 0;
+        else if( n1 < n2 ) return -1;
+        else               return 1;
+    }
+
+private:
+    int _column;
+    Qt::SortOrder _order;
+};
+
+void PlaylistModel::sort(int column, Qt::SortOrder order)
+{
+    if( column < 0 ) return;
+
+    emit layoutAboutToBeChanged();
+
+    for(int i=0; i < _tracks.size(); i++)
+        _tracks[i]->index = i;
+
+    qSort(_tracks.begin(), _tracks.end(), TrackLessThan(column, order));
+
+    QVector<int> toIndexes(_tracks.size());
+    for(int i=0; i < _tracks.size(); i++)
+        toIndexes[_tracks[i]->index] = i;
+
+    QModelIndexList from = persistentIndexList();
+    QModelIndexList to;
+
+    foreach(const QModelIndex& i, from)
+        to << index(toIndexes[i.row()], i.column());
+
+    changePersistentIndexList(from, to);
+
+    emit layoutChanged();
+
+//  qDebug("PlaylistModel::sort():");
+//  for(int i=0; i < from.size(); i++)
+//      qDebug("from: %d to: %d column: %d", from[i].row(), to[i].row(), from[i].column());
+}
+
 void PlaylistModel::setTracks(const QList<Track*>& tracks)
 {
     qDeleteAll(_tracks);
@@ -443,8 +526,11 @@ QString PlaylistModel::trackPath(int row)
 */
 void PlaylistModel::setCurrentTrackTime(int duration)
 {
-    if( _currentTrack != NULL )
-        _currentTrack->setTime(duration);
+    int i = _tracks.indexOf(_currentTrack);
+    if( i == -1 ) return;
+
+    _currentTrack->setTime(duration);
+    emit dataChanged(PlaylistModel::index(i, 0), PlaylistModel::index(i, 1));
 }
 /*
 void PlaylistModel::test()
@@ -550,8 +636,11 @@ PlaylistView::PlaylistView(QWidget* parent) : QTreeView(parent)
 //  setExpandsOnDoubleClick(false);
     setItemsExpandable(false);
 
-    setSortingEnabled(false);
+    setSortingEnabled(true);
     setWordWrap(false);
+
+    header()->setSortIndicatorShown(true);
+    header()->setSortIndicator(-1, Qt::DescendingOrder);//Qt::AscendingOrder);
 
     QPalette p = palette();
     p.setColor(QPalette::Base, QColor( 32,  31,  31));

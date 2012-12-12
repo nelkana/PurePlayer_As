@@ -376,6 +376,7 @@ void PurePlayer::createActionContextMenu()
     _actStop = new QAction(tr("停止"), this);
     //_actStop->setIcon(QIcon(":/icons/stop.png"));
     _actStop->setShortcut(tr("s"));
+    _actStop->setAutoRepeat(false);
     _actStop->setEnabled(false);
     connect(_actStop, SIGNAL(triggered()), this, SLOT(stop()));
     addAction(_actStop);
@@ -600,10 +601,23 @@ void PurePlayer::open(const QString& path)
 {
     if( _playlist->appendTrack(path) ) {
         _playlist->setCurrentTrackIndex(_playlist->rowCount()-1);
+
+        _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
         openCommonProcess(_playlist->currentTrackPath());
     }
     else
         QMessageBox::warning(this, "エラー", "指定されたファイル又はURLが正しくありません");
+}
+
+void PurePlayer::open(const QList<QUrl>& urls)
+{
+    if( _playlist->insertTracks(_playlist->rowCount(), urls) ) {
+        // 新たに追加したアイテム群の先頭要素をカレントインデックスとする
+        _playlist->setCurrentTrackIndex(_playlist->rowCount() - urls.size());
+
+        _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
+        openCommonProcess(_playlist->currentTrackPath());
+    }
 }
 
 void PurePlayer::play()
@@ -623,6 +637,7 @@ bool PurePlayer::playPrev()
 
     _playlist->downCurrentTrackIndex();
     if( track != _playlist->currentTrack() || _playlist->loopPlay() ) {
+        _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
         play();
         return true;
     }
@@ -636,6 +651,7 @@ bool PurePlayer::playNext()
 
     _playlist->upCurrentTrackIndex();
     if( track != _playlist->currentTrack() || _playlist->loopPlay() ) {
+        _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
         play();
         return true;
     }
@@ -1727,17 +1743,11 @@ void PurePlayer::dropEvent(QDropEvent* e)
 {
     if( e->mimeData()->hasFormat("text/uri-list") ) {
         QList<QUrl> urls = e->mimeData()->urls();
-        _playlist->insertTracks(_playlist->rowCount(), urls);
-
-        // 新たに追加したアイテム群の先頭要素をカレントインデックスとする
-        _playlist->setCurrentTrackIndex(_playlist->rowCount() - urls.size());
+        open(urls);
 
         // プレイリストファイル内にpeercast urlがあった場合、
         // 同じストリームが開かれる可能性がある為初期化。
         //_reconnectCount = 0;                  // 現状では必要無し
-
-        stop();
-        play();
     }
     else
         QMainWindow::dropEvent(e);
@@ -1854,8 +1864,10 @@ void PurePlayer::mpProcessFinished()
             setStatus(STOP);
 */
     }
-    else if( !(_controlFlags & FLG_EOF) || !playNext() )
-        setStatus(STOP);
+    else {
+        if( !(_controlFlags & FLG_EOF) || !playNext() )
+            setStatus(STOP);
+    }
 
     LogDialog::debug(QString("PurePlayer::mpProcessFinished(): -end"));
 }
@@ -2031,17 +2043,6 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
         // mplayerプロセスの子プロセスIDを取得する
         _mpProcess->receiveMplayerChildProcess();
 
-        // ビデオサイズの設定
-        if( _noVideo )
-            _videoSize = QSize(320, 240);
-        else {
-            _videoSize.setWidth(rxVideoWH.cap(1).toInt());
-            if( _videoSize.width() <= 0 ) _videoSize.setWidth(320);
-
-            _videoSize.setHeight(rxVideoWH.cap(2).toInt());
-            if( _videoSize.height() <= 0 ) _videoSize.setHeight(240);
-        }
-
         if( _openedNewPath )
         {
             _labelFrame->setText("0");
@@ -2063,18 +2064,6 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
                 _actStatusBar->setEnabled(true);
             }
 
-            // ウィンドウリサイズ
-            QSize size;
-            if( ConfigData::data()->openIn320x240Size )
-                size = QSize(320, 240);
-            else {
-                size.setWidth(_videoSize.width() / 2);
-                size.setHeight(_videoSize.height() / 2);
-            }
-
-            if( !resizeFromVideoClient(size) )
-                updateVideoScreenGeometry();
-
             _startTime = -1; // open()のタイミングでの初期化では、前の再生の
                              // ステータスラインを拾ってしまう為、ここで初期化。
             _elapsedTime = 0;
@@ -2088,6 +2077,33 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
             // _reconnectControlTimeの比較を、再生開始時の開始時間から比較できる様に更新する
             _reconnectControlTime = _elapsedTime;
         }
+
+        // ビデオサイズの設定
+        if( _noVideo )
+            _videoSize = QSize(320, 240);
+        else {
+            _videoSize.setWidth(rxVideoWH.cap(1).toInt());
+            if( _videoSize.width() <= 0 ) _videoSize.setWidth(320);
+
+            _videoSize.setHeight(rxVideoWH.cap(2).toInt());
+            if( _videoSize.height() <= 0 ) _videoSize.setHeight(240);
+        }
+
+        // ウィンドウリサイズ
+        if( _controlFlags & FLG_RESIZE_WHEN_PLAYED ) {
+            QSize size;
+            if( ConfigData::data()->openIn320x240Size )
+                size = QSize(320, 240);
+            else
+                size = QSize(_videoSize.width()/2, _videoSize.height()/2);
+
+            if( !resizeFromVideoClient(size) )
+                updateVideoScreenGeometry();
+
+            _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
+        }
+        else
+            updateVideoScreenGeometry();
 
         LogDialog::debug("PurePlayer::parseMplayerOutputLine(): videosize " +
                     QString("%1x%2").arg(_videoSize.width()).arg(_videoSize.height()));
@@ -2388,6 +2404,7 @@ void PurePlayer::playlist_playStopCurrentTrack()
     if( _playlist->isCurrentTrack(_path) && isPlaying() )
             stop();
     else {
+        _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
         _reconnectCount=0;
         restartPlay();
     }

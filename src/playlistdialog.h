@@ -43,6 +43,9 @@ protected slots:
 
     void view_doubleClicked(const QModelIndex&);
 
+//protected:
+//  void mouseDoubleClickEvent(QMouseEvent*);
+
 private:
     void setModel(PlaylistModel* model);
 

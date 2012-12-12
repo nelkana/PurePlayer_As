@@ -78,7 +78,11 @@ void PlaylistDialog::view_doubleClicked(const QModelIndex& index)
     _model->setCurrentTrackIndex(index);
     emit playStopCurrentTrack();
 }
-
+/*
+void PlaylistDialog::mouseDoubleClickEvent(QMouseEvent* )
+{
+}
+*/
 void PlaylistDialog::setModel(PlaylistModel* model)
 {
     if( model == NULL ) return;

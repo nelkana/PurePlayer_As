@@ -68,6 +68,7 @@ public:
 
 public slots:
     void open(const QString& path);
+    void open(const QList<QUrl>& urls);
     void openFromDialog();
     void play();
     bool playPrev();
@@ -151,6 +152,7 @@ protected:
         FLG_WHEEL_RESIZED        = 0x00000004, // ホイールリサイズした
         FLG_MUTE_WHEN_MOUSE_RELEASE = 0x00000008, // マウスリリースした時にミュートする
         FLG_EOF                  = 0x00000010, // 再生が最後まで到達した
+        FLG_RESIZE_WHEN_PLAYED   = 0x00000020, // 再生した時リサイズする
     };
 
 //  bool event(QEvent*);

@@ -31,6 +31,7 @@ public:
         QString title;
         QString time;
         int     duration;
+        qint16  index;      // ソート用メモリの無駄
 
         Track(const QString& path=QString(), const QString& title=QString(), int duration=-1);
         Track(const Track& track);
@@ -59,6 +60,7 @@ public:
 //  bool        insertRows(int row, int count, const QModelIndex& parent=QModelIndex());
     bool        removeRows(int row, int count, const QModelIndex& parent=QModelIndex());
     void        removeRows(QModelIndexList&);
+    void        sort(int column, Qt::SortOrder order=Qt::AscendingOrder);
 
     void    setTracks(const QList<Track*>& tracks);
     bool    insertTracks(int row, const QList<QUrl>& urls);
