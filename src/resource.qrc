@@ -12,5 +12,7 @@
     <file>icons/repeatreset.png</file>
     <file>icons/loop.png</file>
     <file>icons/screenshot.png</file>
+    <file>icons/add.png</file>
+    <file>icons/remove.png</file>
   </qresource>
 </RCC>

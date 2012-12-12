@@ -26,6 +26,8 @@ double round(double value, int precision);
 void   msleep(unsigned long msec);
 
 QString dayOfWeek(int day);
+QString secondTimeToString(int sec);
+QString removeSpaceBeforeAfter(QString str);
 QRect   scaleRectOnRect(const QSize& baseRect, const QSize& placeRect);
 QString retTheFileNameNotExists(const QString& requestFileName);
 QString getOpenFileNameDialog(QWidget* parent=0, const QString& caption=QString());
