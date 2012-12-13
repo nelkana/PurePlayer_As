@@ -17,8 +17,6 @@
 #include <QFile>
 #include <QUrl>
 #include <QColor>
-#include <QKeyEvent>
-#include <QHeaderView>
 #include "playlist.h"
 #include "commonlib.h"
 
@@ -625,6 +623,10 @@ bool PlaylistModel::insertTracks(int row, QList<Track*>& inTracks)
 }
 
 // --------------------------------------------------------------------------------------
+#include <QKeyEvent>
+#include <QScrollBar>
+#include <QHeaderView>
+
 PlaylistView::PlaylistView(QWidget* parent) : QTreeView(parent)
 {
     setFocusPolicy(Qt::ClickFocus);
@@ -658,15 +660,25 @@ PlaylistView::PlaylistView(QWidget* parent) : QTreeView(parent)
     setPalette(p);
 }
 
-void PlaylistView::showEvent(QShowEvent* )
+void PlaylistView::showEvent(QShowEvent* e)
 {
-    setColumnWidth(0, width()-70);
+    int w = width() - 70;
+    if( verticalScrollBar()->isVisible() )
+        w -= verticalScrollBar()->width();
+
+    setColumnWidth(0, w);
     resizeColumnToContents(1);
+    QTreeView::showEvent(e);
 }
 
-void PlaylistView::resizeEvent(QResizeEvent* )
+void PlaylistView::resizeEvent(QResizeEvent* e)
 {
-    setColumnWidth(0, width()-70);
+    int w = width() - 70;
+    if( verticalScrollBar()->isVisible() )
+        w -= verticalScrollBar()->width();
+
+    setColumnWidth(0, w);
+    QTreeView::resizeEvent(e);
 }
 
 void PlaylistView::keyPressEvent(QKeyEvent* e)

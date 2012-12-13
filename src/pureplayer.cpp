@@ -75,15 +75,10 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _volumeFactor = VF_NORMAL;
     _aspectRatio = RATIO_VIDEO;
     _deinterlace = DI_NO_DEINTERLACE;
-    _openedNewPath = true;
-    _seekWhenStartMplayer = false;
-    _reconnectWasCalled = false;
-    _isMaximizedBeforeFullScreen = false;
     _videoSize = QSize(320, 240);
     _noVideo = false;
     _isSeekable = false;
     _cursorInWindow = false;
-    _disableWindowMoveFromMouse = false;
     _controlFlags = FLG_NONE;
 
     _port = -1;
@@ -135,9 +130,9 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     ConfigData::loadData();
 //  _actScreenshot->setVisible(ConfigData::data()->screenshot);
 //  _screenshotButton->setVisible(ConfigData::data()->screenshot);
+    _state = STOP;
     _videoSettingsModifiedId = 0;
     refreshVideoProfile();
-    _state = STOP;
     loadInteractiveSettings();
 
     setStatus(STOP);
@@ -729,7 +724,7 @@ void PurePlayer::openCommonProcess(const QString& path)
     }
 
     _path = path;
-    _openedNewPath = true;
+    _controlFlags |= FLG_OPENED_PATH;
 
     setWindowTitle(_chName);
     LogDialog::dialog()->setWindowTitle(_chName + " - PureLog");
@@ -1251,7 +1246,7 @@ void PurePlayer::resizeFromCurrent(int amount)
 void PurePlayer::fullScreenOrWindow()
 {
     if( isFullScreen() ) {
-        if( _isMaximizedBeforeFullScreen )
+        if( _controlFlags & FLG_MAXIMIZED_BEFORE_FULLSCREEN )
             showMaximized();
         else
             showNormal();
@@ -1278,7 +1273,11 @@ void PurePlayer::fullScreenOrWindow()
         setCursor(QCursor(Qt::ArrowCursor));
     }
     else {
-        _isMaximizedBeforeFullScreen = isMaximized();
+        if( isMaximized() )
+            _controlFlags |= FLG_MAXIMIZED_BEFORE_FULLSCREEN;
+        else
+            _controlFlags &= ~FLG_MAXIMIZED_BEFORE_FULLSCREEN;
+
         showFullScreen();
 
         QSize desktop = QApplication::desktop()->size();
@@ -1308,7 +1307,7 @@ void PurePlayer::fullScreenOrWindow()
     // mouseMoveEvent()によるウィンドウ移動を無効にする。
     // (フルスクリーンからウィンドウへ切り替え直後、ウィンドウ移動で位置が飛ぶ問題対応)
     if( QApplication::mouseButtons() | Qt::LeftButton )
-        _disableWindowMoveFromMouse = true;
+        _controlFlags |= FLG_DISABLE_MOUSEWINDOWMOVE;
 }
 
 void PurePlayer::setAlwaysShowStatusBar(bool b)
@@ -1632,7 +1631,7 @@ void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
                 mute(!isMute());
         }
 
-        _disableWindowMoveFromMouse = false;
+        _controlFlags &= ~FLG_DISABLE_MOUSEWINDOWMOVE;
     }
     else
     if( e->button() == Qt::RightButton ) {
@@ -1669,7 +1668,7 @@ void PurePlayer::mouseMoveEvent(QMouseEvent* e)
     else
     if( !isMaximized() ) {
         if( e->buttons() & Qt::LeftButton ) {
-            if( !_disableWindowMoveFromMouse )
+            if( !(_controlFlags & FLG_DISABLE_MOUSEWINDOWMOVE) )
                 move(e->globalPos() - _mousePressLocalPos);
         }
     }
@@ -2031,7 +2030,7 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
         // mplayerプロセスの子プロセスIDを取得する
         _mpProcess->receiveMplayerChildProcess();
 
-        if( _openedNewPath )
+        if( _controlFlags & FLG_OPENED_PATH )
         {
             _labelFrame->setText("0");
             _labelFps->setText("0fps");
@@ -2056,7 +2055,7 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
                              // ステータスラインを拾ってしまう為、ここで初期化。
             _elapsedTime = 0;
 
-            _openedNewPath = false;
+            _controlFlags &= ~FLG_OPENED_PATH;
         }
 
         if( isPeercastStream() ) {
@@ -2106,9 +2105,9 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
     }
     else
     if( line.startsWith("Cache size set to") ) {
-        if( _reconnectWasCalled ) { // 再接続(peercast)は接続後行う
+        if( _controlFlags & FLG_RECONNECT_WAS_CALLED ) { // 再接続(peercast)は接続後行う
             reconnectPeercast();
-            _reconnectWasCalled = false;
+            _controlFlags &= ~FLG_RECONNECT_WAS_CALLED;
         }
 
         updateChannelInfo();
@@ -2477,9 +2476,9 @@ void PurePlayer::playCommonProcess()
     else
         args << "-nocache";
 
-    if( _seekWhenStartMplayer ) {
+    if( _controlFlags & FLG_SEEK_WHEN_PLAYED ) {
         args << "-ss" << QString::number(_timeLabel->time());
-        _seekWhenStartMplayer = false;
+        _controlFlags &= ~FLG_SEEK_WHEN_PLAYED;
     }
 
     args
@@ -2543,7 +2542,7 @@ void PurePlayer::saveVideoProfileToDefault()
 
 void PurePlayer::setVideoProfile(const QString& profileName, bool setVideoValue)
 {
-    LogDialog::debug(tr("PurePlayer::setVideoProfile(): %1").arg(profileName));
+    LogDialog::debug(QString("PurePlayer::setVideoProfile(): %1").arg(profileName));
     VideoSettings::VideoProfile profile = VideoSettings::profile(profileName);
 
     if( profile.isValid() ) {
@@ -3011,7 +3010,7 @@ void PurePlayer::setStatus(const STATE s)
         _actPlayPause->setEnabled(true);
         _actStop->setEnabled(false);
 
-        _reconnectWasCalled = false;
+        _controlFlags &= ~FLG_RECONNECT_WAS_CALLED;
 
         _infoLabel->stopClipInfo();
         _receivedErrorCount = 0;

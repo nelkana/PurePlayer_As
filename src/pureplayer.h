@@ -79,7 +79,7 @@ public slots:
     void repeatAB();
     void seek(double sec, bool relative=false);
     void setSpeed(double rate);
-    void reconnect()           { stop(); _reconnectWasCalled=true; play(); }
+    void reconnect()           { stop(); _controlFlags |= FLG_RECONNECT_WAS_CALLED; play(); }
     void reconnectPurePlayer() { restartPlay(); }
     void reconnectPeercast();
     void recordingStartStop();
@@ -139,20 +139,25 @@ protected slots:
     void playlist_playStopCurrentTrack();
     void buttonPlayPauseClicked();
     void exitFullScreen() { if( isFullScreen() ) fullScreenOrWindow(); }
-    void restartPlay(bool keepSeekPos=false) { if(keepSeekPos && _isSeekable) _seekWhenStartMplayer=true; stop(); play(); }
+    void restartPlay(bool keepSeekPos=false) { if(keepSeekPos && _isSeekable) _controlFlags |= FLG_SEEK_WHEN_PLAYED; stop(); play(); }
 
     void refreshVideoProfile(bool restoreVideoValue=true, bool warning=false);
 
 protected:
     enum STATE { STOP, PAUSE, READY, PLAY };
     enum CONTROL_FLAG {
-        FLG_NONE                 = 0x00000000,
-        FLG_HIDE_DISPLAY_MESSAGE = 0x00000001, // ディスプレイメッセージを非表示
-        FLG_SEEKED_REPEAT        = 0x00000002, // ABリピートでseek()した
-        FLG_WHEEL_RESIZED        = 0x00000004, // ホイールリサイズした
-        FLG_MUTE_WHEN_MOUSE_RELEASE = 0x00000008, // マウスリリースした時にミュートする
-        FLG_EOF                  = 0x00000010, // 再生が最後まで到達した
-        FLG_RESIZE_WHEN_PLAYED   = 0x00000020, // 再生した時リサイズする
+        FLG_NONE                    = 0x00000000,
+        FLG_HIDE_DISPLAY_MESSAGE    = 0x00000001, // ディスプレイメッセージを非表示
+        FLG_SEEKED_REPEAT           = 0x00000002, // ABリピートでseek()した
+        FLG_WHEEL_RESIZED           = 0x00000004, // ホイールリサイズした
+        FLG_EOF                     = 0x00000008, // 再生が最後まで到達した
+        FLG_OPENED_PATH             = 0x00000010, // パスを開いた
+        FLG_RESIZE_WHEN_PLAYED      = 0x00000020, // 再生した時リサイズする
+        FLG_MUTE_WHEN_MOUSE_RELEASE = 0x00000040, // マウスリリースした時にミュートする
+        FLG_DISABLE_MOUSEWINDOWMOVE = 0x00000080, // マウスによるウィンドウ移動を無効にする
+        FLG_SEEK_WHEN_PLAYED        = 0x00000100, // 再生した時、前回の位置へシークする
+        FLG_MAXIMIZED_BEFORE_FULLSCREEN = 0x00000200, // フルスクリーンの前は最大化
+        FLG_RECONNECT_WAS_CALLED    = 0x00000400, // 再接続が呼び出された
     };
 
 //  bool event(QEvent*);
@@ -269,23 +274,17 @@ private:
 
     QTimer          _timerFps;
     quint16         _fpsCount;
-    unsigned int    _oldFrame;
+    uint            _oldFrame;
 
     VideoSettings::VideoProfile _videoProfile;
-    unsigned int    _videoSettingsModifiedId;
+    uint            _videoSettingsModifiedId;
 
     AUDIO_OUTPUT_MODE  _audioOutput;
     VOLUME_FACTOR_MODE _volumeFactor;
     ASPECT_RATIO       _aspectRatio;
     DEINTERLACE_MODE   _deinterlace;
     bool            _isMute;
-    bool            _doLoop;
-    bool            _openedNewPath;
-    bool            _seekWhenStartMplayer;
-    bool            _reconnectWasCalled;
-    bool            _isMaximizedBeforeFullScreen;
     bool            _cursorInWindow;
-    bool            _disableWindowMoveFromMouse;
     bool            _alwaysShowStatusBar;
     quint32         _controlFlags;
     QPoint          _mousePressLocalPos;
