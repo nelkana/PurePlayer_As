@@ -16,11 +16,8 @@
 #ifndef PLAYLISTDIALOG_H
 #define PLAYLISTDIALOG_H
 
-#include <QDialog>
 #include "ui_playlistdialog.h"
-
-class PlaylistModel;
-class PlaylistView;
+#include "playlist.h"
 
 class PlaylistDialog : public QDialog, Ui::PlaylistDialog
 {
@@ -31,20 +28,21 @@ public:
 
 signals:
     void playStopCurrentTrack();
-    void stopCurrentTrack();
     void playPrev();
     void playNext();
 
 protected slots:
+    void addFiles();
+    void addDirectories();
+
     void buttonAdd_clicked();
     void buttonRemove_clicked();
-    void buttonUp_clicked();
-    void buttonDown_clicked();
+    void buttonSort_clicked();
 
     void view_doubleClicked(const QModelIndex&);
 
-//protected:
-//  void mouseDoubleClickEvent(QMouseEvent*);
+protected:
+    void appendTracks(const QStringList& paths) { _model->appendTracks(paths); }
 
 private:
     void setModel(PlaylistModel* model);

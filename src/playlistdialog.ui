@@ -11,11 +11,11 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>プレイリスト</string>
+   <string>PURE PLAYLIST</string>
   </property>
   <layout class="QVBoxLayout" name="_verticalLayout">
    <property name="spacing">
-    <number>2</number>
+    <number>1</number>
    </property>
    <property name="leftMargin">
     <number>0</number>
@@ -27,7 +27,7 @@
     <number>0</number>
    </property>
    <property name="bottomMargin">
-    <number>3</number>
+    <number>1</number>
    </property>
    <item>
     <layout class="QHBoxLayout" name="_horizontalLayout">
@@ -45,13 +45,13 @@
        <property name="minimumSize">
         <size>
          <width>40</width>
-         <height>25</height>
+         <height>21</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
          <width>40</width>
-         <height>25</height>
+         <height>21</height>
         </size>
        </property>
        <property name="focusPolicy">
@@ -80,20 +80,20 @@
        <property name="minimumSize">
         <size>
          <width>40</width>
-         <height>25</height>
+         <height>21</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
          <width>40</width>
-         <height>25</height>
+         <height>21</height>
         </size>
        </property>
        <property name="focusPolicy">
         <enum>Qt::NoFocus</enum>
        </property>
        <property name="toolTip">
-        <string>削除</string>
+        <string>リストから削除</string>
        </property>
        <property name="text">
         <string/>
@@ -115,13 +115,13 @@
        <property name="minimumSize">
         <size>
          <width>40</width>
-         <height>25</height>
+         <height>21</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
          <width>40</width>
-         <height>25</height>
+         <height>21</height>
         </size>
        </property>
        <property name="focusPolicy">
@@ -150,13 +150,13 @@
        <property name="minimumSize">
         <size>
          <width>40</width>
-         <height>25</height>
+         <height>21</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
          <width>40</width>
-         <height>25</height>
+         <height>21</height>
         </size>
        </property>
        <property name="focusPolicy">
@@ -185,13 +185,13 @@
        <property name="minimumSize">
         <size>
          <width>40</width>
-         <height>25</height>
+         <height>21</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
          <width>40</width>
-         <height>25</height>
+         <height>21</height>
         </size>
        </property>
        <property name="focusPolicy">
@@ -220,13 +220,13 @@
        <property name="minimumSize">
         <size>
          <width>40</width>
-         <height>25</height>
+         <height>21</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
          <width>40</width>
-         <height>25</height>
+         <height>21</height>
         </size>
        </property>
        <property name="focusPolicy">
@@ -254,46 +254,37 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="_buttonDown">
+      <widget class="QPushButton" name="_buttonSort">
        <property name="minimumSize">
         <size>
          <width>40</width>
-         <height>25</height>
+         <height>21</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
          <width>40</width>
-         <height>25</height>
+         <height>21</height>
         </size>
        </property>
        <property name="focusPolicy">
         <enum>Qt::NoFocus</enum>
        </property>
-       <property name="text">
-        <string>↑</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="_buttonUp">
-       <property name="minimumSize">
-        <size>
-         <width>40</width>
-         <height>25</height>
-        </size>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>40</width>
-         <height>25</height>
-        </size>
-       </property>
-       <property name="focusPolicy">
-        <enum>Qt::NoFocus</enum>
+       <property name="toolTip">
+        <string>ソート</string>
        </property>
        <property name="text">
-        <string>↓</string>
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset resource="resource.qrc">
+         <normaloff>:/icons/sort.png</normaloff>:/icons/sort.png</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>10</width>
+         <height>10</height>
+        </size>
        </property>
       </widget>
      </item>

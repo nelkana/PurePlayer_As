@@ -25,6 +25,60 @@ const char* const CommonLib::QSETTINGS_ORGNAME = "Settings";
 const char* const CommonLib::QSETTINGS_ORGNAME = "PurePlayer";
 #endif // Q_OS_WIN32
 
+const char* const CommonLib::MEDIA_FORMATS =
+    // (S)VCD (Super Video CD)
+    // CDRwin's .bin image file
+    "*.bin"
+    // DVD, including encrypted DVD
+    // MPEG-1/2 (ES/PS/PES/VOB)
+    " *.mpg *.mpeg *.mp1 *.mp2 *.mp3 *.m1v *.m1a *.mpa *.mpv"
+    " *.m2v *.m2a *.m2s"
+    " *.ps *.m2p"
+    " *.ts *.m2t *.m2ts"
+    " *.vob"
+        //" *.vro"
+    " *.mod"
+    // AVI file format
+    " *.avi"
+    // ASF/WMV/WMA format
+    " *.asf *.wmv *.wma"
+    // QT/MOV/MP4 format
+    " *.qt *.mov"
+    " *.mp4 *.m4a *.m4p *.m4b *.m4r *.m4 *.m4v"
+    " *.3gp *.3g2"
+    " *.aac"
+    // RealAudio/RealVideo format
+    " *.rm *.rmvb *.ra *.ram"
+    // Ogg/OGM files
+    " *.ogv *.oga *.ogx *.ogg *.spx *.ogm"
+    // Matroska
+    " *.mkv *.mka *.mks *.mk3d"
+    // NUT
+    " *.nut"
+    // NSV (Nullsoft Streaming Video)
+    " *.nsv"
+    // VIVO format
+    " *.viv"
+    // FLI format
+    " *.fli" //*.flc"
+    // NuppelVideo format
+    " *.nuv"
+    // yuv4mpeg format
+    " *.y4m"
+    // FILM (.cpk) format // SEGA FILM
+    " *.cpk" //*.cak *.film"
+    // RoQ format // Id Software Game Video
+    " *.roq"
+    // PVA format
+    " *.pva"
+    // streaming via HTTP/FTP, RTP/RTSP, MMS/MMST, MPST, SDP
+    // TV grabbing
+
+    // Bink Video
+    //" *.bik"
+    // Flash Video
+    " *.flv *.f4v *.f4p *.f4a *.f4b";
+
 class MyThread : public QThread
 {
     Q_OBJECT;
@@ -38,6 +92,15 @@ public:
 double CommonLib::round(double value, int precision)
 {
 	return (int)(value * pow(10, precision) + 0.5+(value<0 ? -1:0)) / pow(10, precision);
+}
+
+int CommonLib::digit(int value)
+{
+    int i = 0;
+    while( value /= 10 )
+        i++;
+
+    return i + 1;
 }
 
 void CommonLib::msleep(unsigned long msec)
@@ -138,64 +201,25 @@ QString CommonLib::retTheFileNameNotExists(const QString& requestFileName)
 // ファイルを選択するダイアログを開く。
 QString CommonLib::getOpenFileNameDialog(QWidget* parent, const QString& caption)
 {
-    QString formats =
-        // (S)VCD (Super Video CD)
-        // CDRwin's .bin image file
-        "*.bin"
-        // DVD, including encrypted DVD
-        // MPEG-1/2 (ES/PS/PES/VOB)
-        " *.mpg *.mpeg *.mp1 *.mp2 *.mp3 *.m1v *.m1a *.mpa *.mpv"
-        " *.m2v *.m2a *.m2s"
-        " *.ps *.m2p"
-        " *.ts *.m2t *.m2ts"
-        " *.vob"
-            //" *.vro"
-        " *.mod"
-        // AVI file format
-        " *.avi"
-        // ASF/WMV/WMA format
-        " *.asf *.wmv *.wma"
-        // QT/MOV/MP4 format
-        " *.qt *.mov"
-        " *.mp4 *.m4a *.m4p *.m4b *.m4r *.m4 *.m4v"
-        " *.3gp *.3g2"
-        " *.aac"
-        // RealAudio/RealVideo format
-        " *.rm *.rmvb *.ra *.ram"
-        // Ogg/OGM files
-        " *.ogv *.oga *.ogx *.ogg *.spx *.ogm"
-        // Matroska
-        " *.mkv *.mka *.mks *.mk3d"
-        // NUT
-        " *.nut"
-        // NSV (Nullsoft Streaming Video)
-        " *.nsv"
-        // VIVO format
-        " *.viv"
-        // FLI format
-        " *.fli" //*.flc"
-        // NuppelVideo format
-        " *.nuv"
-        // yuv4mpeg format
-        " *.y4m"
-        // FILM (.cpk) format // SEGA FILM
-        " *.cpk" //*.cak *.film"
-        // RoQ format // Id Software Game Video
-        " *.roq"
-        // PVA format
-        " *.pva"
-        // streaming via HTTP/FTP, RTP/RTSP, MMS/MMST, MPST, SDP
-        // TV grabbing
+    return QFileDialog::getOpenFileName(parent, caption, QDir::homePath(),
+                QObject::tr("メディアファイル(%1);;全てのファイル(*)").arg(MEDIA_FORMATS));
+}
 
-        // Bink Video
-        //" *.bik"
-        // Flash Video
-        " *.flv *.f4v *.f4p *.f4a *.f4b";
+QStringList CommonLib::getOpenFileNamesDialog(QWidget* parent, const QString& caption)
+{
+    return QFileDialog::getOpenFileNames(parent, caption, QDir::homePath(),
+                QObject::tr("メディアファイル(%1);;全てのファイル(*)").arg(MEDIA_FORMATS));
+}
 
-    QString file = QFileDialog::getOpenFileName(parent, caption, "",
-                    QObject::tr("メディアファイル(%1);;全てのファイル(*)").arg(formats));
+QString CommonLib::getExistingDirectoryDialog(QWidget* parent, const QString& caption)
+{
+    return QFileDialog::getExistingDirectory(parent, caption, QDir::homePath());
+}
 
-    return file;
+bool CommonLib::isPeercastUrl(const QString& url)
+{
+    return QRegExp("(?:^http|^mms|^mmsh)://.+:\\d+/(?:stream|pls)/[A-F0-9]{32}")
+            .indexIn(url) != -1;
 }
 /*
 QSize CommonLib::widgetFrameSize(QWidget* const w)

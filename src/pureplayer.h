@@ -89,7 +89,6 @@ public slots:
     void setVolume(int value);
     void setVolumeFactor(VOLUME_FACTOR_MODE);
     void setAudioOutput(AUDIO_OUTPUT_MODE);
-//  void setLoop(bool);
     void setAspectRatio(ASPECT_RATIO);
     void setContrast(int value, bool alwaysSet=false);
     void setBrightness(int value, bool alwaysSet=false);

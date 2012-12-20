@@ -18,6 +18,7 @@
 
 #include <QAbstractTableModel>
 #include <QTreeView>
+#include "commonlib.h"
 
 class PlaylistModel : public QAbstractTableModel
 {
@@ -39,6 +40,14 @@ public:
         void setTime(int duration);
                                                                     //パスが同じなら等しい
 //      bool operator==(const Track& other) const { return this->path == other.path; }
+    };
+
+    enum {
+        COLUMN_COUNT = 3,
+        COLUMN_INDEX = 0,
+        COLUMN_TITLE = 1,
+        COLUMN_TIME  = 2,
+        COLUMN_PATH  = 255, // 実際には存在しないカラム
     };
 
     explicit PlaylistModel(QObject* parent);
@@ -63,8 +72,8 @@ public:
     void        sort(int column, Qt::SortOrder order=Qt::AscendingOrder);
 
     void    setTracks(const QList<Track*>& tracks);
-    bool    insertTracks(int row, const QList<QUrl>& urls);
-    bool    appendTrack(QString path);
+    int     insertTracks(int row, const QList<QUrl>& urls);
+    int     appendTracks(const QStringList& paths);
     void    setCurrentTrackIndex(int index);
     int     trackIndexOf(const QString& path);
     void    downCurrentTrackIndex();
@@ -72,6 +81,7 @@ public:
     Track*  currentTrack() { return _currentTrack; }
     bool    isCurrentTrack(const QString& path) { return (_currentTrack!=NULL && path==_currentTrack->path); }
     QString currentTrackPath();
+    QString trackPath(int row);
     void    setCurrentTrackTitle(const QString& title);
     void    setCurrentTrackTime(int sec);
     bool    loopPlay()   { return _loopPlay; }
@@ -83,8 +93,13 @@ public slots:
     void setLoopPlay(bool b)   { _loopPlay = b; }
     void setRandomPlay(bool b) { _randomPlay = b; }
 
+signals:
+    void removedCurrentTrack();
+    void fluctuatedIndexDigit();
+
 protected:
-    bool insertTracks(int row, QList<Track*>& tracks);
+    int insertTracks(int row, QList<Track*>& tracks);
+    QList<Track*> createTracks(const QStringList& paths);
 
 private:
     QList<Track*> _tracks;
@@ -92,6 +107,8 @@ private:
     Track* _currentTrack;
     bool   _loopPlay;
     bool   _randomPlay;
+
+    CommonLib::EmitDeterFlag _emitFlag;
 };
 
 class PlaylistView : public QTreeView
@@ -101,8 +118,22 @@ class PlaylistView : public QTreeView
 public:
     explicit PlaylistView(QWidget* parent);
 
+public slots:
+    void adjustColumnSize();
+    void removeSelectedTrack();
+    void sortTitleAscending();
+    void sortTitleDescending();
+    void sortTimeAscending();
+    void sortTimeDescending();
+    void sortPathAscending();
+    void sortPathDescending();
+
 signals:
     void pressedReturnKey(const QModelIndex&);
+
+protected slots:
+    virtual void slot_customContextMenuRequested(const QPoint&);
+    void actOpenMediaLocation_triggered();
 
 protected:
     void showEvent(QShowEvent*);
@@ -110,7 +141,25 @@ protected:
     void keyPressEvent(QKeyEvent*);
     void dragEnterEvent(QDragEnterEvent*);
     void dropEvent(QDropEvent*);
+
+    void openMediaLocation(const QString& path);
+
+    QMenu* _menu;
+    QList<QAction*> _actionsForFile;
+
+private:
+    void createContextMenu();
 };
+
+/*
+class PeercastPlaylistView : public PlaylistView
+{
+    Q_OBJECT
+
+public:
+    PeercastPlaylistView(QWidget* parent) : PlaylistView(parent) {}
+};
+*/
 
 /*
 class PlayList

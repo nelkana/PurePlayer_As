@@ -13,8 +13,8 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <QMenu>
 #include "playlistdialog.h"
-#include "playlist.h"
 #include "commonlib.h"
 
 PlaylistDialog::PlaylistDialog(PlaylistModel* model, QWidget* parent) : QDialog(parent)
@@ -22,16 +22,13 @@ PlaylistDialog::PlaylistDialog(PlaylistModel* model, QWidget* parent) : QDialog(
     setupUi(this);
     setAcceptDrops(true);
 
+    _buttonAdd->hide();
     _buttonPlay->hide();
     connect(_buttonAdd,    SIGNAL(clicked()), this, SLOT(buttonAdd_clicked()));
     connect(_buttonRemove, SIGNAL(clicked()), this, SLOT(buttonRemove_clicked()));
     connect(_buttonPrev,   SIGNAL(clicked()), this, SIGNAL(playPrev()));
     connect(_buttonNext,   SIGNAL(clicked()), this, SIGNAL(playNext()));
-
-    _buttonUp->hide();
-    _buttonDown->hide();
-//  connect(_buttonUp,     SIGNAL(clicked()), this, SLOT(buttonUp_clicked()));
-//  connect(_buttonDown,   SIGNAL(clicked()), this, SLOT(buttonDown_clicked()));
+    connect(_buttonSort,   SIGNAL(clicked()), this, SLOT(buttonSort_clicked()));
 
     _view = new PlaylistView(this);
     _verticalLayout->insertWidget(0, _view);
@@ -44,33 +41,67 @@ PlaylistDialog::PlaylistDialog(PlaylistModel* model, QWidget* parent) : QDialog(
     setModel(model);
 }
 
+void PlaylistDialog::addFiles()
+{
+    QStringList files = CommonLib::getOpenFileNamesDialog(this, tr("ファイルを追加"));
+
+    if( !files.isEmpty() )
+        _model->appendTracks(files);
+}
+
+void PlaylistDialog::addDirectories()
+{
+    QString dir = CommonLib::getExistingDirectoryDialog(this, tr("ディレクトリから追加"));
+
+    if( !dir.isEmpty() )
+        _model->appendTracks(QStringList() << dir);
+}
+
 void PlaylistDialog::buttonAdd_clicked()
 {
-    QString file = CommonLib::getOpenFileNameDialog(this, tr("ファイルを選択"));
+    QAction actAddFile(tr("ファイルを追加"), 0);
+    connect(&actAddFile, SIGNAL(triggered()), this, SLOT(addFiles()));
+    QAction actAddDirectory(tr("ディレクトリから追加"), 0);
+    connect(&actAddDirectory, SIGNAL(triggered()), this, SLOT(addDirectories()));
+    QMenu menu;
+    menu.addAction(&actAddFile);
+    menu.addAction(&actAddDirectory);
 
-    if( !file.isEmpty() )
-         _model->appendTrack(file);
+    QPoint point = mapToGlobal(QPoint(_buttonAdd->x(), _buttonAdd->y()+_buttonAdd->height()));
+    menu.exec(point);
 }
 
 void PlaylistDialog::buttonRemove_clicked()
 {
-    PlaylistModel::Track* current = _model->currentTrack();
-
     QModelIndexList indexes = _view->selectionModel()->selectedRows();
     _model->removeRows(indexes);
-
-    if( current != _model->currentTrack() )
-        emit stopCurrentTrack();
 }
 
-void PlaylistDialog::buttonUp_clicked()
+void PlaylistDialog::buttonSort_clicked()
 {
-    _model->upCurrentTrackIndex();
-}
+    QAction actTitleAs(tr("タイトル昇順"), 0);
+    connect(&actTitleAs, SIGNAL(triggered()), _view, SLOT(sortTitleAscending()));
+    QAction actTitleDes(tr("タイトル降順"), 0);
+    connect(&actTitleDes, SIGNAL(triggered()), _view, SLOT(sortTitleDescending()));
+    QAction actTimeAs(tr("時間昇順"), 0);
+    connect(&actTimeAs, SIGNAL(triggered()), _view, SLOT(sortTimeAscending()));
+    QAction actTimeDes(tr("時間降順"), 0);
+    connect(&actTimeDes, SIGNAL(triggered()), _view, SLOT(sortTimeDescending()));
+    QAction actPathAs(tr("パス昇順"), 0);
+    connect(&actPathAs, SIGNAL(triggered()), _view, SLOT(sortPathAscending()));
+    QAction actPathDes(tr("パス降順"), 0);
+    connect(&actPathDes, SIGNAL(triggered()), _view, SLOT(sortPathDescending()));
 
-void PlaylistDialog::buttonDown_clicked()
-{
-    _model->downCurrentTrackIndex();
+    QMenu menu;
+    menu.addAction(&actTitleAs);
+    menu.addAction(&actTitleDes);
+    menu.addAction(&actTimeAs);
+    menu.addAction(&actTimeDes);
+    menu.addAction(&actPathAs);
+    menu.addAction(&actPathDes);
+
+    QPoint point = mapToGlobal(QPoint(_buttonSort->x(), _buttonSort->y() -menu.fontMetrics().height()-8));
+    menu.exec(point, &actPathDes);
 }
 
 void PlaylistDialog::view_doubleClicked(const QModelIndex& index)
@@ -78,17 +109,15 @@ void PlaylistDialog::view_doubleClicked(const QModelIndex& index)
     _model->setCurrentTrackIndex(index);
     emit playStopCurrentTrack();
 }
-/*
-void PlaylistDialog::mouseDoubleClickEvent(QMouseEvent* )
-{
-}
-*/
+
 void PlaylistDialog::setModel(PlaylistModel* model)
 {
     if( model == NULL ) return;
 
-    if( _model != NULL )
+    if( _model != NULL ) {
+        disconnect(_model, SIGNAL(fluctuatedIndexDigit()), _view, SLOT(adjustColumnSize()));
         disconnect(_buttonLoop, SIGNAL(toggled(bool)), _model, SLOT(setLoopPlay(bool)));
+    }
 
     _model = model;
 
@@ -96,6 +125,7 @@ void PlaylistDialog::setModel(PlaylistModel* model)
     _view->setModel(_model);
     delete m;
 
+    connect(_model, SIGNAL(fluctuatedIndexDigit()), _view, SLOT(adjustColumnSize()));
     connect(_buttonLoop, SIGNAL(toggled(bool)), _model, SLOT(setLoopPlay(bool)));
 }
 

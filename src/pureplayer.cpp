@@ -117,6 +117,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     connect(&_timerFps, SIGNAL(timeout()), this, SLOT(timerFpsTimeout()));
 
     _playlist = new PlaylistModel(this);
+    connect(_playlist, SIGNAL(removedCurrentTrack()), this, SLOT(stop()));
 
     _openDialog        = NULL;
     _videoAdjustDialog = NULL;
@@ -594,7 +595,7 @@ void PurePlayer::createActionContextMenu()
 
 void PurePlayer::open(const QString& path)
 {
-    if( _playlist->appendTrack(path) ) {
+    if( _playlist->appendTracks(QStringList() << path) ) {
         _playlist->setCurrentTrackIndex(_playlist->rowCount()-1);
 
         _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
@@ -606,9 +607,10 @@ void PurePlayer::open(const QString& path)
 
 void PurePlayer::open(const QList<QUrl>& urls)
 {
-    if( _playlist->insertTracks(_playlist->rowCount(), urls) ) {
+    int rows = _playlist->insertTracks(_playlist->rowCount(), urls);
+    if( rows ) {
         // 新たに追加したアイテム群の先頭要素をカレントインデックスとする
-        _playlist->setCurrentTrackIndex(_playlist->rowCount() - urls.size());
+        _playlist->setCurrentTrackIndex(_playlist->rowCount() - rows);
 
         _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
         openCommonProcess(_playlist->currentTrackPath());
@@ -1564,7 +1566,6 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
     }
     case Qt::Key_Z:
     {
-//      LogDialog::debug(QString(""));
         break;
     }
     case Qt::Key_X:
@@ -1574,19 +1575,9 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
     case Qt::Key_N:
     {
 //      recordingStartStop();
-/*
-        // ボリュームテキストの色を変える
-        QPalette p = _labelVolume->palette();
-        p.setColor(_labelVolume->foregroundRole(), QColor(106,129,198));
-        _labelVolume->setPalette(p);
-        LogDialog::debug(QString("%1 %2").arg(width()).arg(height()));
-*/
         break;
     }
     case Qt::Key_V:
-//      LogDialog::debug("mplayer pid: " + QString("%1").arg(_mpProcess->pid()));
-//      LogDialog::debug("mplayer cpid: " + QString("%1").arg(_mplayerCPid));
-
         _debugFlg = !_debugFlg;
         LogDialog::debug(QString("blockCount: %1").arg(LogDialog::dialog()->blockCount()));
 
@@ -1790,7 +1781,6 @@ PlaylistDialog* PurePlayer::playlistDialog()
     if( _playlistDialog == NULL ) {
         _playlistDialog = new PlaylistDialog(_playlist, this);
         connect(_playlistDialog, SIGNAL(playStopCurrentTrack()), this, SLOT(playlist_playStopCurrentTrack()));
-        connect(_playlistDialog, SIGNAL(stopCurrentTrack()), this, SLOT(stop()));
         connect(_playlistDialog, SIGNAL(playPrev()), this, SLOT(playPrev()));
         connect(_playlistDialog, SIGNAL(playNext()), this, SLOT(playNext()));
     }

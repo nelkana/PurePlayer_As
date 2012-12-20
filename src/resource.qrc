@@ -14,5 +14,6 @@
     <file>icons/screenshot.png</file>
     <file>icons/add.png</file>
     <file>icons/remove.png</file>
+    <file>icons/sort.png</file>
   </qresource>
 </RCC>

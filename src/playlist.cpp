@@ -13,8 +13,10 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <QDesktopServices>
 #include <QMimeData>
 #include <QFile>
+#include <QDir>
 #include <QUrl>
 #include <QColor>
 #include "playlist.h"
@@ -63,7 +65,7 @@ int PlaylistModel::rowCount(const QModelIndex& ) const
 
 int PlaylistModel::columnCount(const QModelIndex& ) const
 {
-    return 2;
+    return COLUMN_COUNT;
 }
 
 QVariant PlaylistModel::data(const QModelIndex& index, int role) const
@@ -75,17 +77,20 @@ QVariant PlaylistModel::data(const QModelIndex& index, int role) const
 
     switch( role ) {
     case Qt::TextAlignmentRole:
-        if( index.column() == 1 )
+        if( index.column() == COLUMN_INDEX || index.column() == COLUMN_TIME )
             return (int)(Qt::AlignRight | Qt::AlignVCenter);
         else
             return (int)(Qt::AlignLeft | Qt::AlignVCenter);
 
         break;
     case Qt::DisplayRole:
-        if( index.column() == 0 )
+        if( index.column() == COLUMN_INDEX )
+            return QString::number(index.row() + 1) + '.';
+        else
+        if( index.column() == COLUMN_TITLE )
             return _tracks[index.row()]->title;
         else
-        if( index.column() == 1 )
+        if( index.column() == COLUMN_TIME )
             return _tracks[index.row()]->time;
 
         break;
@@ -98,6 +103,9 @@ QVariant PlaylistModel::data(const QModelIndex& index, int role) const
         if( _tracks[index.row()] == _currentTrack )
             return QColor(106,129,198);
 //          return QColor(255,154,231);
+        else
+        if( index.column() == 0 )
+            return QColor(128,128,128);
 
         break;
     }
@@ -129,16 +137,18 @@ QVariant PlaylistModel::headerData(int section, Qt::Orientation orientation, int
 {
     if( role == Qt::DisplayRole ) {
         if( orientation == Qt::Horizontal ) {
-            if( section == 0 )
+            if( section == COLUMN_INDEX )
+                return QVariant();
+            else if( section == COLUMN_TITLE )
                 return "タイトル";
-            else
+            else if( section == COLUMN_TIME )
                 return "時間";
         }
         else
             return QString::number(section + 1);
     }
 
-    return QVariant();
+    return QAbstractTableModel::headerData(section, orientation, role);
 }
 
 Qt::ItemFlags PlaylistModel::flags(const QModelIndex& index) const
@@ -177,7 +187,7 @@ QMimeData* PlaylistModel::mimeData(const QModelIndexList &indexes) const
 
     QList<int> rowList;
     foreach(const QModelIndex& index, indexes) {
-        if( index.isValid() && index.column() == 0 )
+        if( index.isValid() && index.column() == COLUMN_INDEX )
             rowList << index.row();
     }
 
@@ -281,11 +291,18 @@ bool PlaylistModel::insertRows(int row, int count, const QModelIndex& )
     return true;
 }
 */
+
 bool PlaylistModel::removeRows(int row, int count, const QModelIndex& parent)
 {
     if( parent.isValid() ) return false;
     if( row < 0 || row >= _tracks.size() || count < 0 ) return false;
     if( count == 0 ) return true;
+
+    int oldIndexDigit = CommonLib::digit(_tracks.size()); // トラック数の桁増減確認用
+
+    // count訂正
+    if( row + count-1 >= _tracks.size() )
+        count = _tracks.size() - row;
 
     beginRemoveRows(parent, row, row + count-1);
 
@@ -306,7 +323,14 @@ bool PlaylistModel::removeRows(int row, int count, const QModelIndex& parent)
             if( row-1 >= 0 )
                 _currentTrack = _tracks[row-1];
         }
+
+        if( _emitFlag.toEmit() )
+            emit removedCurrentTrack();
     }
+
+    // トラック数の桁増減確認
+    if( oldIndexDigit != CommonLib::digit(_tracks.size()) )
+        emit fluctuatedIndexDigit();
 
     return true;
 }
@@ -315,10 +339,17 @@ void PlaylistModel::removeRows(QModelIndexList& indexes)
 {
     qSort(indexes.begin(), indexes.end(), qGreater<QModelIndex>());
 
+    _emitFlag.begin();
+
     foreach(const QModelIndex& index, indexes) {
         if( index.isValid() )
             removeRows(index.row(), 1);
     }
+
+    _emitFlag.end();
+
+    if( _emitFlag.emitted() )
+        emit removedCurrentTrack();
 }
 
 class TrackLessThan
@@ -329,9 +360,9 @@ public:
 
     bool operator()(PlaylistModel::Track* n1, PlaylistModel::Track* n2)
     {
-        int ret;
+        int ret = 0;
 
-        if( _column == 0 ) {
+        if( _column == PlaylistModel::COLUMN_TITLE ) {
             QString str1 = n1->title.toLower(),
                     str2 = n2->title.toLower();
 
@@ -340,7 +371,7 @@ public:
                 ret = compare(n1->duration, n2->duration);
         }
         else
-        if( _column == 1 ) {
+        if( _column == PlaylistModel::COLUMN_TIME ) {
             ret = compare(n1->duration, n2->duration);
             if( ret == 0 ) {
                 QString str1 = n1->title.toLower(),
@@ -348,6 +379,10 @@ public:
 
                 ret = compare(str1, str2);
             }
+        }
+        else
+        if( _column == PlaylistModel::COLUMN_PATH ) {
+            ret = compare(n1->path, n2->path);
         }
 
         if( ret != 0 ) {
@@ -375,7 +410,9 @@ private:
 
 void PlaylistModel::sort(int column, Qt::SortOrder order)
 {
+    if( column == COLUMN_INDEX ) return;
     if( column < 0 ) return;
+    if( _tracks.isEmpty() ) return;
 
     emit layoutAboutToBeChanged();
 
@@ -411,64 +448,44 @@ void PlaylistModel::setTracks(const QList<Track*>& tracks)
     reset();
 }
 
-bool PlaylistModel::insertTracks(int row, const QList<QUrl>& urls)
+int PlaylistModel::insertTracks(int row, const QList<QUrl>& urls)
 {
-    QList<Track*> tracks;
-
-    QString path, title;
+    QStringList paths;
     foreach(const QUrl& url, urls) {
         if( url.isLocalFile() )
-            path = url.toLocalFile();
+            paths << url.toLocalFile();
         else
-            path = url.toString();
-
-//      path.remove(QRegExp("^\\s*"));
-//      if( path.isEmpty() )
-//          continue;
-
-        if( QFile::exists(path) )
-            title = path.split("/").last();
-        else
-            title = path;
-
-        tracks << new Track(path, title);
+            paths << url.toString();
     }
 
-    if( !insertTracks(row, tracks) ) {
+    QList<Track*> tracks = createTracks(paths);
+
+    int rows = insertTracks(row, tracks);
+    if( !rows )
         qDeleteAll(tracks);
-        return false;
-    }
 
-    return true;
+    return rows;
 }
 
-bool PlaylistModel::appendTrack(QString path)
+int PlaylistModel::appendTracks(const QStringList& paths)
 {
-    path.remove(QRegExp("^\\s*"));
-    if( path.isEmpty() ) return false;
+//  path.remove(QRegExp("^\\s*"));
+//  if( path.isEmpty() ) return false;
 
-    QString title;
-    if( QFile::exists(path) )
-        title = path.split("/").last();
-    else
-        title = path;
+    QList<Track*> tracks = createTracks(paths);
 
-    QList<Track*> tracks;
-    tracks << new Track(path, title);
-
-    if( !insertTracks(_tracks.size(), tracks) ) {
+    int rows = insertTracks(_tracks.size(), tracks);
+    if( !rows )
         qDeleteAll(tracks);
-        return false;
-    }
 
-    return true;
+    return rows;
 }
 
 void PlaylistModel::setCurrentTrackIndex(int index)
 {
     if( 0 <= index && index < _tracks.size() ) {
         _currentTrack = _tracks[index];
-        emit dataChanged(PlaylistModel::index(index, 0), PlaylistModel::index(index, 1));
+        emit dataChanged(PlaylistModel::index(index, 0), PlaylistModel::index(index, columnCount()-1));
     }
 }
 
@@ -513,7 +530,7 @@ QString PlaylistModel::currentTrackPath()
 
     return QString();
 }
-/*
+
 QString PlaylistModel::trackPath(int row)
 {
     if( 0 <= row && row < _tracks.size() )
@@ -521,7 +538,6 @@ QString PlaylistModel::trackPath(int row)
 
     return QString();
 }
-*/
 
 void PlaylistModel::setCurrentTrackTitle(const QString& title)
 {
@@ -529,7 +545,7 @@ void PlaylistModel::setCurrentTrackTitle(const QString& title)
     if( i == -1 ) return;
 
     _currentTrack->title = title;
-    emit dataChanged(PlaylistModel::index(i, 0), PlaylistModel::index(i, 1));
+    emit dataChanged(PlaylistModel::index(i, 0), PlaylistModel::index(i, columnCount()-1));
 }
 
 void PlaylistModel::setCurrentTrackTime(int duration)
@@ -538,7 +554,7 @@ void PlaylistModel::setCurrentTrackTime(int duration)
     if( i == -1 ) return;
 
     _currentTrack->setTime(duration);
-    emit dataChanged(PlaylistModel::index(i, 0), PlaylistModel::index(i, 1));
+    emit dataChanged(PlaylistModel::index(i, 0), PlaylistModel::index(i, columnCount()-1));
 }
 /*
 void PlaylistModel::test()
@@ -572,10 +588,12 @@ void PlaylistModel::test()
         qDebug("%p %s", track, track->path.toAscii().data());
 }
 */
-bool PlaylistModel::insertTracks(int row, QList<Track*>& inTracks)
+int PlaylistModel::insertTracks(int row, QList<Track*>& inTracks)
 {
     if( row < 0 || row > _tracks.size() )// || inTracks.isEmpty() )
-        return false;
+        return 0;
+
+    int oldIndexDigit = CommonLib::digit(_tracks.size()); // トラック数の桁増減確認用
 
     for(int i=0; i < inTracks.size(); i++ ) {
 //      // pathの前方の空白を削除
@@ -606,11 +624,7 @@ bool PlaylistModel::insertTracks(int row, QList<Track*>& inTracks)
     }
 
     if( inTracks.size() == 0 )
-        return false;
-
-    // 初めからトラックが1件もない場合、カレントを先頭に設定する
-    if( _currentTrack == NULL )
-        _currentTrack = inTracks[0];
+        return 0;
 
     beginInsertRows(QModelIndex(), row, row + inTracks.size()-1);
 
@@ -619,16 +633,60 @@ bool PlaylistModel::insertTracks(int row, QList<Track*>& inTracks)
 
     endInsertRows();
 
-    return true;
+    // 初めからトラックが1件もない場合
+    if( _currentTrack == NULL ) {
+        _currentTrack = inTracks[0]; // カレントを先頭に設定する
+        emit fluctuatedIndexDigit();
+    }
+    else
+    if( oldIndexDigit != CommonLib::digit(_tracks.size()) ) // トラック数の桁増減確認
+        emit fluctuatedIndexDigit();
+
+    return inTracks.size();
+}
+
+QList<PlaylistModel::Track*> PlaylistModel::createTracks(const QStringList& paths)
+{
+    QList<Track*> tracks;
+
+    foreach(const QString& path, paths) {
+        QDir dir(path);
+        if( dir.exists() ) {
+            QStringList files = dir.entryList(QString(CommonLib::MEDIA_FORMATS).split(" "),
+                                              QDir::Files);
+            foreach(const QString& file, files)
+                tracks << new Track(dir.absoluteFilePath(file), file);
+        }
+        else {
+            QString title;
+            if( QFile::exists(path) )
+                title = path.split("/").last();
+            else {
+                if( path.indexOf(QRegExp("^\\s*$")) != -1 )
+                    continue;
+
+                title = path;
+            }
+
+            tracks << new Track(path, title);
+        }
+    }
+
+    return tracks;
 }
 
 // --------------------------------------------------------------------------------------
 #include <QKeyEvent>
 #include <QScrollBar>
 #include <QHeaderView>
+#include <QMenu>
 
 PlaylistView::PlaylistView(QWidget* parent) : QTreeView(parent)
 {
+    setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(this, SIGNAL(customContextMenuRequested(const QPoint&)),
+            this, SLOT(slot_customContextMenuRequested(const QPoint&)));
+
     setFocusPolicy(Qt::ClickFocus);
     setTabKeyNavigation(false);
 
@@ -651,33 +709,115 @@ PlaylistView::PlaylistView(QWidget* parent) : QTreeView(parent)
     setSortingEnabled(true);
     setWordWrap(false);
 
-    header()->setSortIndicatorShown(true);
+    setHeaderHidden(true);
+/*  header()->setSortIndicatorShown(true);
+    header()->setMovable(false);
+    header()->setResizeMode(QHeaderView::Fixed);
     header()->setSortIndicator(-1, Qt::DescendingOrder);//Qt::AscendingOrder);
-
+*/
     QPalette p = palette();
     p.setColor(QPalette::Base, QColor( 32,  31,  31));
     p.setColor(QPalette::Text, QColor(212, 210, 207));
     setPalette(p);
+
+    createContextMenu();
+}
+
+void PlaylistView::adjustColumnSize()
+{
+    resizeColumnToContents(0);
+
+    int w = width() - columnWidth(0) - (fontMetrics().width("000:00:00") + 6);
+    if( verticalScrollBar()->isVisible() )
+        w -= verticalScrollBar()->width();
+
+    setColumnWidth(1, w);
+    resizeColumnToContents(2);
+}
+
+void PlaylistView::removeSelectedTrack()
+{
+    PlaylistModel* m = (PlaylistModel*)model();
+    if( m != NULL ) {
+        QModelIndexList indexes = selectionModel()->selectedRows();
+
+        m->removeRows(indexes);
+    }
+}
+
+void PlaylistView::sortTitleAscending()
+{
+    ((PlaylistModel*)model())->sort(PlaylistModel::COLUMN_TITLE, Qt::AscendingOrder);
+}
+
+void PlaylistView::sortTitleDescending()
+{
+    ((PlaylistModel*)model())->sort(PlaylistModel::COLUMN_TITLE, Qt::DescendingOrder);
+}
+
+void PlaylistView::sortTimeAscending()
+{
+    ((PlaylistModel*)model())->sort(PlaylistModel::COLUMN_TIME, Qt::AscendingOrder);
+}
+
+void PlaylistView::sortTimeDescending()
+{
+    ((PlaylistModel*)model())->sort(PlaylistModel::COLUMN_TIME, Qt::DescendingOrder);
+}
+
+void PlaylistView::sortPathAscending()
+{
+    ((PlaylistModel*)model())->sort(PlaylistModel::COLUMN_PATH, Qt::AscendingOrder);
+}
+
+void PlaylistView::sortPathDescending()
+{
+    ((PlaylistModel*)model())->sort(PlaylistModel::COLUMN_PATH, Qt::DescendingOrder);
+}
+
+void PlaylistView::slot_customContextMenuRequested(const QPoint& pos)
+{
+    QModelIndex index = indexAt(pos);
+    if( index.isValid() ) {
+        foreach(QAction* action, _actionsForFile)
+            action->setVisible(true);
+
+        QString path = ((PlaylistModel*)model())->trackPath(index.row());
+        QFileInfo f(path);
+        if( f.isFile() || f.isDir() )
+            _actionsForFile[0]->setEnabled(true);
+        else
+            _actionsForFile[0]->setEnabled(false);
+
+    }
+    else {
+        foreach(QAction* action, _actionsForFile)
+            action->setVisible(false);
+    }
+
+    _menu->exec(viewport()->mapToGlobal(pos));
+}
+
+void PlaylistView::actOpenMediaLocation_triggered()
+{
+    QModelIndex index = indexAt(viewport()->mapFromGlobal(_menu->pos()));
+    if( index.isValid() ) {
+        QString path = ((PlaylistModel*)model())->trackPath(index.row());
+        openMediaLocation(path);
+    }
 }
 
 void PlaylistView::showEvent(QShowEvent* e)
 {
-    int w = width() - 70;
-    if( verticalScrollBar()->isVisible() )
-        w -= verticalScrollBar()->width();
+    adjustColumnSize();
 
-    setColumnWidth(0, w);
-    resizeColumnToContents(1);
     QTreeView::showEvent(e);
 }
 
 void PlaylistView::resizeEvent(QResizeEvent* e)
 {
-    int w = width() - 70;
-    if( verticalScrollBar()->isVisible() )
-        w -= verticalScrollBar()->width();
+    adjustColumnSize();
 
-    setColumnWidth(0, w);
     QTreeView::resizeEvent(e);
 }
 
@@ -686,6 +826,9 @@ void PlaylistView::keyPressEvent(QKeyEvent* e)
     switch( e->key() ) {
     case Qt::Key_Return:
         emit pressedReturnKey(currentIndex());
+        break;
+    case Qt::Key_Delete:
+        removeSelectedTrack();
         break;
     default:
         QTreeView::keyPressEvent(e);
@@ -713,5 +856,35 @@ void PlaylistView::dropEvent(QDropEvent* e)
     }
     else
         QTreeView::dropEvent(e);
+}
+
+void PlaylistView::openMediaLocation(const QString& path)
+{
+//  qDebug("%s", path.toAscii().data());
+    QFileInfo f(path);
+    if( f.isFile() )
+        QDesktopServices::openUrl(QUrl::fromLocalFile(f.path()));
+    else
+    if( f.isDir() )
+        QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+}
+
+void PlaylistView::createContextMenu()
+{
+    QMenu* sortMenu = new QMenu(tr("ソート"), this);
+    sortMenu->addAction(tr("タイトル昇順"), this, SLOT(sortTitleAscending()));
+    sortMenu->addAction(tr("タイトル降順"), this, SLOT(sortTitleDescending()));
+    sortMenu->addAction(tr("時間昇順"), this, SLOT(sortTimeAscending()));
+    sortMenu->addAction(tr("時間降順"), this, SLOT(sortTimeDescending()));
+    sortMenu->addAction(tr("パス昇順"), this, SLOT(sortPathAscending()));
+    sortMenu->addAction(tr("パス降順"), this, SLOT(sortPathDescending()));
+
+    _menu = new QMenu(this);
+    _actionsForFile << _menu->addAction("場所を開く", this, SLOT(actOpenMediaLocation_triggered()));
+    _actionsForFile << _menu->addSeparator();
+    _actionsForFile << _menu->addAction("リストから削除", this, SLOT(removeSelectedTrack()), tr("del"));
+    _actionsForFile << _menu->addSeparator();
+
+    _menu->addMenu(sortMenu);
 }
 
