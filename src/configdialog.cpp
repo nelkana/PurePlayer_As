@@ -218,6 +218,7 @@ void ConfigDialog::setMplayerPathFromDialog()
 
 void ConfigDialog::showEvent(QShowEvent*)
 {
+    adjustSize();
     setFixedSize(size());
     _spinBoxCacheStream->clearFocus();
     _spinBoxVolumeMax->clearFocus();

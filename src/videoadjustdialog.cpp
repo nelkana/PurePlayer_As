@@ -193,6 +193,7 @@ bool VideoAdjustDialog::event(QEvent* e)
 
 void VideoAdjustDialog::showEvent(QShowEvent*)
 {
+    adjustSize();
     setFixedSize(size());
 // フォーカスアウトしても、フォーカスがまた移ってしまうので保留
 //  _spinBox->clearFocus();

@@ -720,6 +720,12 @@ PlaylistView::PlaylistView(QWidget* parent) : QTreeView(parent)
     p.setColor(QPalette::Text, QColor(212, 210, 207));
     setPalette(p);
 
+    QFont f = font();
+    if( f.pointSize() >= 9 ) {
+        f.setPointSize(8);
+        setFont(f);
+    }
+
     createContextMenu();
 }
 

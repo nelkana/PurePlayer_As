@@ -60,6 +60,7 @@ inline AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent)
 
 inline void AboutDialog::showEvent(QShowEvent*)
 {
+    adjustSize();
     setFixedSize(size());
 }
 
