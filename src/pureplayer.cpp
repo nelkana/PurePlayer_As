@@ -183,7 +183,6 @@ void PurePlayer::createStatusBar()
 */
 #endif
 
-    statusBar();
     statusBar()->setStyle(QStyleFactory::create("plastique"));
     statusBar()->setSizeGripEnabled(false);
     statusBar()->setAutoFillBackground(true);
@@ -1600,7 +1599,8 @@ void PurePlayer::mousePressEvent(QMouseEvent* e)
     if( e->button() == Qt::LeftButton ) {
         _mousePressLocalPos.setX(e->pos().x() + (geometry().x()-frameGeometry().x()));
         _mousePressLocalPos.setY(e->pos().y() + (geometry().y()-frameGeometry().y()));
-        if( (height()*80/100) < e->y() )
+
+        if( whetherMuteArea(e->y()) )
             _mousePressWindowPos = pos();
         else
         if( isFullScreen() )
@@ -1617,7 +1617,7 @@ void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
     if( e->button() == Qt::LeftButton ) {
         _menuContext->move(x()+width()*0.2, y()+height()*0.2);
 
-        if( (height()*80/100) < e->y() ) {
+        if( whetherMuteArea(e->y()) ) {
             if( _mousePressWindowPos == pos() )
                 mute(!isMute());
         }
@@ -1640,7 +1640,7 @@ void PurePlayer::mouseDoubleClickEvent(QMouseEvent* e)
 {
 //  LogDialog::debug("mouse doubleclick");
     if( e->buttons() & Qt::LeftButton ) {
-        if( (height()*80/100) >= e->y() )
+        if( !whetherMuteArea(e->y()) )
             fullScreenOrWindow();
     }
     else
@@ -2884,8 +2884,8 @@ void PurePlayer::visibleInterface(bool b)
 void PurePlayer::updateVisibleInterface()
 {
     if( isFullScreen() ) {
-        if( (QApplication::desktop()->screen()->height()*80/100) < QCursor::pos().y() )
-//      if( (height()*80/100) < QCursor::pos().y() )
+        if( QCursor::pos().y() >= (QApplication::desktop()->screen()->height()*80/100) )
+//      if( QCursor::pos().y() >= (height()*80/100) )
             visibleInterface(true);
         else {
             if( isPlaying() )
@@ -2903,6 +2903,17 @@ void PurePlayer::updateVisibleInterface()
 
     // フルスクリーンでもウィンドウ外に出てしまう場合(画面上下)がある為、
     // ウィンドウモードへ戻ってもleaveEvent()が呼ばれない場合がある。
+}
+
+bool PurePlayer::whetherMuteArea(int y)
+{
+    int threshold;
+    if( isFullScreen() )
+        threshold = height() * 80/100;
+    else
+        threshold = height() - statusBar()->height();
+
+    return (y >= threshold);
 }
 
 void PurePlayer::setStatus(const STATE s)

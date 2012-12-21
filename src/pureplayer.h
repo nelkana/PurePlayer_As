@@ -213,6 +213,7 @@ private:
     void updateVideoScreenGeometry();
     void visibleInterface(bool);
     void updateVisibleInterface();
+    bool whetherMuteArea(int y);
     void setStatus(const STATE);
 
 #ifdef Q_OS_WIN32
