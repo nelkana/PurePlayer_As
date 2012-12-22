@@ -2020,14 +2020,15 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
         // mplayerプロセスの子プロセスIDを取得する
         _mpProcess->receiveMplayerChildProcess();
 
+        _timeLabel->setTotalTime(_videoLength);
+        _timeSlider->setLength(_videoLength);
+        _playlist->setCurrentTrackTime(_videoLength);
+        //_speedSpinBox->setRange(0, _videoLength*10);
+
         if( _controlFlags & FLG_OPENED_PATH )
         {
             _labelFrame->setText("0");
             _labelFps->setText("0fps");
-            _timeLabel->setTotalTime(_videoLength);
-            _playlist->setCurrentTrackTime(_videoLength);
-            _timeSlider->setLength(_videoLength);
-            //_speedSpinBox->setRange(0, _videoLength*10);
 
             // テキスト内容によってステータスバーの高さが変わる為、高さを固定にする
             statusBar()->setFixedHeight(statusBar()->height());

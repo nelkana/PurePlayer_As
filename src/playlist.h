@@ -87,12 +87,13 @@ public:
     bool    loopPlay()   { return _loopPlay; }
     bool    randomPlay() { return _randomPlay; }
 
-//  void test();
 public slots:
     void setCurrentTrackIndex(const QModelIndex& index) { if( index.isValid() ) setCurrentTrackIndex(index.row()); }
     void setLoopPlay(bool b)   { _loopPlay = b; }
     void setRandomPlay(bool b) { _randomPlay = b; }
+    void removeAllRows();
 
+//  void test();
 signals:
     void removedCurrentTrack();
     void fluctuatedIndexDigit();

@@ -442,10 +442,21 @@ void PlaylistModel::sort(int column, Qt::SortOrder order)
 
 void PlaylistModel::setTracks(const QList<Track*>& tracks)
 {
+    int oldIndexDigit = CommonLib::digit(_tracks.size()); // トラック数の桁増減確認用
+
     qDeleteAll(_tracks);
     _tracks = tracks;
+    if( _currentTrack != NULL ) {
+        _currentTrack = NULL;
+        emit removedCurrentTrack();
+    }
     setCurrentTrackIndex(0);
+
     reset();
+
+    // トラック数の桁増減確認
+    if( oldIndexDigit != CommonLib::digit(_tracks.size()) )
+        emit fluctuatedIndexDigit();
 }
 
 int PlaylistModel::insertTracks(int row, const QList<QUrl>& urls)
@@ -556,6 +567,20 @@ void PlaylistModel::setCurrentTrackTime(int duration)
     _currentTrack->setTime(duration);
     emit dataChanged(PlaylistModel::index(i, 0), PlaylistModel::index(i, columnCount()-1));
 }
+
+void PlaylistModel::removeAllRows()
+{
+    qDeleteAll(_tracks);
+    _tracks.clear();
+    if( _currentTrack != NULL ) {
+        _currentTrack = NULL;
+        emit removedCurrentTrack();
+//      emit fluctuatedIndexDigit();
+    }
+
+    reset();
+}
+
 /*
 void PlaylistModel::test()
 {
@@ -888,7 +913,7 @@ void PlaylistView::createContextMenu()
     _menu = new QMenu(this);
     _actionsForFile << _menu->addAction("場所を開く", this, SLOT(actOpenMediaLocation_triggered()));
     _actionsForFile << _menu->addSeparator();
-    _actionsForFile << _menu->addAction("リストから削除", this, SLOT(removeSelectedTrack()), tr("del"));
+    _actionsForFile << _menu->addAction("選択項目を削除", this, SLOT(removeSelectedTrack()), tr("del"));
     _actionsForFile << _menu->addSeparator();
 
     _menu->addMenu(sortMenu);

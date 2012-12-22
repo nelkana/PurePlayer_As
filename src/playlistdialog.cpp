@@ -73,8 +73,17 @@ void PlaylistDialog::buttonAdd_clicked()
 
 void PlaylistDialog::buttonRemove_clicked()
 {
-    QModelIndexList indexes = _view->selectionModel()->selectedRows();
-    _model->removeRows(indexes);
+    QAction actAll(tr("全て削除"), 0);
+    connect(&actAll, SIGNAL(triggered()), _model, SLOT(removeAllRows()));
+    QAction actSelect(tr("選択項目を削除"), 0);
+    actSelect.setShortcut(tr("del"));
+    connect(&actSelect, SIGNAL(triggered()), _view, SLOT(removeSelectedTrack()));
+    QMenu menu;
+    menu.addAction(&actAll);
+    menu.addAction(&actSelect);
+
+    QPoint point = mapToGlobal(QPoint(_buttonRemove->x(), _buttonRemove->y() -menu.fontMetrics().height()-8));
+    menu.exec(point, &actSelect);
 }
 
 void PlaylistDialog::buttonSort_clicked()
