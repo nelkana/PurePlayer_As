@@ -35,11 +35,13 @@ public:
         qint8 gamma;
 
         bool isValid() { return !name.isNull(); }
+
+        VideoProfile():contrast(0),brightness(0),hue(0),saturation(0),gamma(0) {}
     };
 
     VideoSettings(QObject* parent) : QObject(parent) {}
     static VideoSettings* object();
-    static unsigned int modifiedId() { return s_modifiedId; }
+    static uint modifiedId() { return s_modifiedId; }
 
     static void loadProfiles();
     static bool checkReload();
@@ -66,7 +68,7 @@ protected:
 
 private:
     static VideoSettings* s_object;
-    static unsigned int s_modifiedId;
+    static uint s_modifiedId;
 
     static QList<VideoProfile> s_profiles;
     static QString s_modifiedIdFile;

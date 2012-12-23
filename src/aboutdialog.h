@@ -17,9 +17,8 @@
 #define ABOUTDIALOG_H
 
 #include "ui_aboutdialog.h"
-#include "logdialog.h"
 
-#define PUREPLAYER_VERSION "0.7.4"
+#define PUREPLAYER_VERSION "0.7.5"
 
 class AboutDialog : public QDialog, Ui::AboutDialog
 {
@@ -36,9 +35,9 @@ inline AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent)
 {
     setupUi(this);
 
-    QString text = 
+    QString text =
         tr("<h3>PurePlayer* %1</h3>"
-        "PurePlayer*は、動画プレイヤー及びPeerCast視聴プレイヤーです。<br>"
+        "PurePlayer*は、メディアプレイヤー及びPeerCast視聴プレイヤーです。<br>"
         "<br>"
         "バックエンドにMPlayer"
             "(<a href=\"http://www.mplayerhq.hu/\">MPlayer</a>または"
@@ -52,14 +51,17 @@ inline AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent)
         "Qtバージョン(使用中): %3<br>"
         "ライセンス: GNU GPLv3<br>"
         "<br>"
+        "連絡先:<br>"
+        "<a href=\"http://jbbs.livedoor.jp/internet/9117/\">http://jbbs.livedoor.jp/internet/9117/</a><br>"
         "Copyright (C) 2012 nel<br>"
         ).arg(PUREPLAYER_VERSION).arg(QT_VERSION_STR).arg(qVersion());
 
     _labelText->setText(text);
 }
 
-inline void AboutDialog::showEvent(QShowEvent*)
+inline void AboutDialog::showEvent(QShowEvent* )
 {
+    adjustSize();
     setFixedSize(size());
 }
 

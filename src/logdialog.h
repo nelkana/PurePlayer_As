@@ -43,8 +43,7 @@ public slots:
     void debugOut(const QString& text, const QColor& color);
     void clear() { _textEdit->clear(); }
 
-    static void moveDialog(const QPoint&);
-    static void moveDialog(const int x, const int y);
+    static void moveDialog(int x, int y);
     static void showDialog();
     static void closeDialog();
     static void debug(const QString& text);
@@ -63,6 +62,8 @@ protected:
 
 private:
     static LogDialog* s_logDialog;
+    static QWidget*   s_parent;
+    static bool       s_calledShowFunction;
 
     bool _outputTerminal;
 };
@@ -70,13 +71,15 @@ private:
 inline void LogDialog::initDialog(QWidget* parent)
 {
     delete s_logDialog;
-    s_logDialog = new LogDialog(parent);
+    s_logDialog = new LogDialog();
+
+    s_parent = parent;
 }
 
 inline LogDialog* LogDialog::dialog()
 {
-    if( s_logDialog==NULL )
-        s_logDialog = new LogDialog();
+    if( s_logDialog == NULL )
+        initDialog();
 
     return s_logDialog;
 }
@@ -122,24 +125,10 @@ inline void LogDialog::debugOut(const QString& text, const QColor& color)
 #endif
 }
 
-inline void LogDialog::moveDialog(const QPoint& pos)
-{
-    if( s_logDialog != NULL )
-        s_logDialog->move(pos);
-}
-
-inline void LogDialog::moveDialog(const int x, const int y)
+inline void LogDialog::moveDialog(int x, int y)
 {
     if( s_logDialog != NULL )
         s_logDialog->move(x, y);
-}
-
-inline void LogDialog::showDialog()
-{
-    if( s_logDialog != NULL ) {
-        s_logDialog->show();
-        s_logDialog->activateWindow(); // フルスクリーンされてる場合でも表示
-    }
 }
 
 inline void LogDialog::closeDialog()

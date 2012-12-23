@@ -20,11 +20,11 @@
 #include "logdialog.h"
 
 VideoSettings* VideoSettings::s_object;
-unsigned int VideoSettings::s_modifiedId = 1; // idは0にはならない
+uint VideoSettings::s_modifiedId = 1;   // idは0にはならない
 
 QList<VideoSettings::VideoProfile> VideoSettings::s_profiles;
-QString      VideoSettings::s_modifiedIdFile;
-QString      VideoSettings::s_defaultProfile;
+QString VideoSettings::s_modifiedIdFile;
+QString VideoSettings::s_defaultProfile;
 
 #define INIT_PROFILE_NAME QObject::tr("profile1") // プロファイル名初期値
 

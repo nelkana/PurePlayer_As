@@ -17,6 +17,8 @@
 #include "logdialog.h"
 
 LogDialog* LogDialog::s_logDialog;
+QWidget*   LogDialog::s_parent;
+bool       LogDialog::s_calledShowFunction = false;
 
 LogDialog::LogDialog(QWidget* parent) : QDialog(parent)
 {
@@ -50,6 +52,27 @@ void LogDialog::printOut(const QString& text, const QColor& color)
         qDebug(text.toAscii().constData());
 }
 
+void LogDialog::showDialog()
+{
+    if( s_logDialog != NULL ) {
+        // KDEでoxygenスタイルを使用した場合の、ウィンドウ又は内部Widgetのリサイズが
+        // 重くなる問題への対応。
+        // 1.ダイアログを一度もまだ表示させていない場合は、親Widgetをセットしない。
+        // 2.最初の表示を行う際は、親Widgetをセットする(必ず行う必要は無い)。
+        if( !s_calledShowFunction && s_parent != NULL ) {
+            Qt::WindowFlags flags = s_logDialog->windowFlags();
+            s_logDialog->setParent(s_parent);
+            s_logDialog->setWindowFlags(flags);
+
+            s_calledShowFunction = true;
+//          qDebug("%08x", (uint)flags);
+        }
+
+        s_logDialog->show();
+        s_logDialog->activateWindow(); // フルスクリーンされてる場合でも表示
+    }
+}
+
 bool LogDialog::event(QEvent* e)
 {
     if( e->type() == QEvent::WindowActivate )
@@ -65,4 +88,5 @@ void LogDialog::keyPressEvent(QKeyEvent* e)
             emit requestCommand(_lineEditCommand->text());
     }
 }
+
 

@@ -16,6 +16,7 @@
 #include <QMessageBox>
 #include "videoadjustdialog.h"
 #include "inputdialog.h"
+#include "commonlib.h"
 #include "logdialog.h"
 
 VideoAdjustDialog::VideoAdjustDialog(QWidget* parent) : QDialog(parent)
@@ -140,8 +141,7 @@ void VideoAdjustDialog::buttonCreateClicked()
             return;
 
         // 前方、後方の空白文字を取り除く
-        name.remove(QRegExp("^\\s*"));
-        name.remove(QRegExp("\\s*$"));
+        name = CommonLib::removeSpaceBeforeAfter(name);
 
         // 既に同じ名前のプロファイルが存在するか探す
         int i;
@@ -193,6 +193,7 @@ bool VideoAdjustDialog::event(QEvent* e)
 
 void VideoAdjustDialog::showEvent(QShowEvent*)
 {
+    adjustSize();
     setFixedSize(size());
 // フォーカスアウトしても、フォーカスがまた移ってしまうので保留
 //  _spinBox->clearFocus();

@@ -36,6 +36,9 @@ public slots:
 
 signals:
     void openPath(const QString path);
+
+protected:
+    void showEvent(QShowEvent*);
 };
 
 inline OpenDialog::OpenDialog(QWidget* parent) : QDialog(parent)
@@ -53,6 +56,12 @@ inline void OpenDialog::selectFile()
 
     if( !file.isEmpty() )
         _lineEdit->setText(file);
+}
+
+inline void OpenDialog::showEvent(QShowEvent* )
+{
+    adjustSize();
+    setFixedHeight(height());
 }
 
 #endif // OPENDIALOG_H
