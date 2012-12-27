@@ -1184,7 +1184,7 @@ void PurePlayer::screenshot()
 
 // ビデオクライアントサイズを指定してウィンドウをリサイズする
 // 返却値:
-// リサイズ処理が行われたら、trueを返す。そうでないならfalseを返す。// 要仕様検討
+// リサイズ処理が行われたら、trueを返す。そうでないならfalseを返す。
 bool PurePlayer::resizeFromVideoClient(QSize size)
 {
     if( isFullScreen() || isMaximized() )
@@ -1541,14 +1541,10 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
             downVolume();
         break;
     case Qt::Key_Right:
-        //mpCmd("osd 0");
         seek(+3, true);
-        //mpCmd("osd 1");
         break;
     case Qt::Key_Left:
-        //mpCmd("osd 0");
         seek(-3, true);
-        //mpCmd("osd 1");
         break;
 
     case Qt::Key_E:
@@ -1577,8 +1573,12 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
         break;
     }
     case Qt::Key_V:
-        _debugFlg = !_debugFlg;
-        LogDialog::debug(QString("blockCount: %1").arg(LogDialog::dialog()->blockCount()));
+        if( e->modifiers() & Qt::AltModifier
+         && e->modifiers() & Qt::ShiftModifier )
+        {
+            _debugFlg = !_debugFlg;
+            LogDialog::debug(QString("blockCount: %1").arg(LogDialog::dialog()->blockCount()));
+        }
 
         break;
 #endif // QT_NO_DEBUG_OUTPUT
@@ -3031,4 +3031,52 @@ void PurePlayer::setStatus(const STATE s)
         break;
     }
 }
+/*
+void PurePlayer::resize(const QSize& size)
+{
+    qDebug("%d,%d %d,%d", width(),height(), size.width(),size.height());
+    if( geometry().x() < 0 || geometry().y() < 0 ) {
+        const int threshold = 50;
+
+        // リサイズするサイズ決定
+        QSize s = size;
+        if( s.width() < minimumSizeHint().width() )
+            s.setWidth(minimumSizeHint().width());
+
+        // 右xがしきい値より大きい場合で外に出る場合は、右xをしきい値としてリサイズ。
+        // 右xがしきい値より小さい場合で外に出る場合は、右xは現在のままでリサイズ。
+        // xの位置決定(クライアント位置)
+        int x = geometry().x();
+        qDebug("x: %d", x);
+        if( (geometry().x() + s.width()-1) < 0 ) { // デスクトップ外へ完全に出たなら
+            int rx = geometry().x() + width()-1;
+            if( rx >= threshold )
+                x = threshold - s.width();
+            else
+                x = rx - (s.width()-1);
+
+            if( x > 0 )
+                x = 0;
+        }
+
+        // yの位置決定(クライアント位置)
+        int y = geometry().y();
+        if( (geometry().y() + s.height()-1) < 0 ) { // デスクトップ外へ完全に出たなら
+            int by = geometry().y() + height()-1;
+            if( by >= threshold )
+                y = threshold - s.height();
+            else
+                y = by - (s.height()-1);
+
+            if( y > 0 )
+                y = 0;
+        }
+
+        setGeometry(QRect(QPoint(x, y), s));
+        qDebug("p: %d,%d s: %d,%d", x,y, width(), height());
+    }
+    else
+        QMainWindow::resize(size);
+}
+*/
 

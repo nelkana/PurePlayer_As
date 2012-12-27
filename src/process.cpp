@@ -25,10 +25,10 @@ CommonProcess::CommonProcess(QObject* parent) : QProcess(parent)
     setProcessChannelMode(QProcess::MergedChannels);
 
     connect(this, SIGNAL(readyReadStandardOutput()),
-            this, SLOT(slotReadyReadStandardOutput()));
+            this, SLOT(slot_readyReadStandardOutput()));
 }
 
-void CommonProcess::slotReadyReadStandardOutput()
+void CommonProcess::slot_readyReadStandardOutput()
 {
 #ifdef Q_OS_WIN32
     QByteArray ba = readAllStandardOutput();
@@ -57,7 +57,7 @@ void CommonProcess::slotReadyReadStandardOutput()
 MplayerProcess::MplayerProcess(QObject* parent) : CommonProcess(parent)
 {
     connect(this, SIGNAL(finished(int, QProcess::ExitStatus)),
-            this, SLOT(slotFinished(int, QProcess::ExitStatus)));
+            this, SLOT(slot_finished(int, QProcess::ExitStatus)));
 
     _mplayerCPid = 0;
 }
@@ -85,25 +85,25 @@ void MplayerProcess::receiveMplayerChildProcess()
 #endif
 }
 
-void MplayerProcess::slotFinished(int /*exitCode*/, QProcess::ExitStatus /*exitStatus*/)
+void MplayerProcess::slot_finished(int /*exitCode*/, QProcess::ExitStatus /*exitStatus*/)
 {
-//  LogDialog::debug(QString("MplayerProcess::slotFinished(): start-"));
+//  LogDialog::debug(QString("MplayerProcess::slot_finished(): start-"));
 
 #if defined(Q_OS_LINUX) || defined(Q_OS_MAC)
     // mplayer子プロセスが残ってる場合終了させる
     if( _mplayerCPid != 0 ) {
         QProcess p;
         p.start("sh", QStringList() << "-c"
-                                    << QString("ps --no-headers p %1|grep mplayer")
-                                                                    .arg(_mplayerCPid));
+                                    << QString("ps --no-headers p %1|grep -F '%2'")
+                                                    .arg(_mplayerCPid).arg(_path));
         if( p.waitForFinished() ) {
             QString s = p.readAllStandardOutput();
-            LogDialog::debug("MplayerProcess::slotFinished(): ps cpid " + s);
+            LogDialog::debug("MplayerProcess::slot_finished(): ps cpid " + s);
 
             if( !s.isEmpty() ) { // 子プロセスが存在しているなら
                 p.start("kill", QStringList() << QString("%1").arg(_mplayerCPid));
                 p.waitForFinished();
-                LogDialog::debug("MplayerProcess::slotFinished(): terminated cpid " +
+                LogDialog::debug("MplayerProcess::slot_finished(): terminated cpid " +
                                        QString("%1").arg(_mplayerCPid), QColor(255,0,0));
 
 #ifndef QT_NO_DEBUG_OUTPUT
@@ -119,7 +119,7 @@ void MplayerProcess::slotFinished(int /*exitCode*/, QProcess::ExitStatus /*exitS
 
     emit finished();
 
-//  LogDialog::debug(QString("MplayerProcess::slotFinished(): -end"));
+//  LogDialog::debug(QString("MplayerProcess::slot_finished(): -end"));
 }
 
 // ---------------------------------------------------------------------------------------

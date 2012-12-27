@@ -30,7 +30,7 @@ signals:
     void outputLine(const QString& line);
 
 private slots:
-    void slotReadyReadStandardOutput();
+    void slot_readyReadStandardOutput();
 
 private:
     QString _outputTempBuff;
@@ -42,6 +42,7 @@ class MplayerProcess : public CommonProcess
 
 public:
     MplayerProcess(QObject* parent);
+    void start(const QString& program, const QStringList& arguments, OpenMode mode=ReadWrite);
     void receiveMplayerChildProcess();
     void command(const QString& command) { write(command.toLocal8Bit() + "\n"); }
 
@@ -50,11 +51,19 @@ signals:
     void debugKilledCPid();     // debug
 
 private slots:
-    void slotFinished(int, QProcess::ExitStatus);
+    void slot_finished(int, QProcess::ExitStatus);
 
 private:
-    Q_PID _mplayerCPid;
+    QString _path;
+    Q_PID   _mplayerCPid;
 };
+
+inline void MplayerProcess::start(const QString& program, const QStringList& arguments,
+                                  OpenMode mode)
+{
+    _path = program;
+    CommonProcess::start(program, arguments, mode);
+}
 
 class RecordingProcess : public CommonProcess
 {

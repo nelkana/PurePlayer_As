@@ -66,6 +66,9 @@ public:
                                                                         || _isSeekable); }
     bool isPeercastStream() { return _port != -1; }
 
+//  void resize(const QSize&);
+//  void resize(int w, int h) { resize(QSize(w, h)); }
+
 public slots:
     void open(const QString& path);
     void open(const QList<QUrl>& urls);
