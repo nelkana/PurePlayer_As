@@ -147,6 +147,7 @@ protected slots:
 
 protected:
     enum STATE { STOP, PAUSE, READY, PLAY };
+    enum PEERCAST_TYPE { PCT_VP, PCT_ST };
     enum CONTROL_FLAG {
         FLG_NONE                    = 0x00000000,
         FLG_HIDE_DISPLAY_MESSAGE    = 0x00000001, // ディスプレイメッセージを非表示
@@ -189,6 +190,11 @@ protected:
     QSize correctToValidVideoSize(QSize toSize, const QSize& videoSize);
     QSize calcPercentageVideoSize(const QSize& videoSize, const int percentage);
     QSize calcPercentageVideoSize(const int percentage);
+
+    bool updateChannelInfoPcVp(const QString& reply);
+    bool updateChannelInfoPcSt(const QString& reply);
+    bool updateChannelStatusPcSt(const QString& reply);
+    void reflectChannelInfo();
 
     PlaylistDialog* playlistDialog();
 
@@ -245,7 +251,11 @@ private:
     QWidget*        _statusbarSpaceR;
 
     QNetworkAccessManager* _nam;
-    MplayerProcess* _mpProcess;
+    QNetworkReply*         _replyChannelInfoPcVp;
+    QNetworkReply*         _replyChannelInfoPcSt;
+    QNetworkReply*         _replyChannelStatusPcSt;
+    QVector<PEERCAST_TYPE> _attemptPeercastType;
+    MplayerProcess*   _mpProcess;
     RecordingProcess* _recordingProcess;
 #ifdef Q_OS_WIN32
     QRgb _colorKey;
