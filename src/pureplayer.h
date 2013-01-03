@@ -82,7 +82,7 @@ public slots:
     void repeatAB();
     void seek(double sec, bool relative=false);
     void setSpeed(double rate);
-    void reconnect()           { stop(); _controlFlags |= FLG_RECONNECT_WAS_CALLED; play(); }
+    void reconnect();
     void reconnectPurePlayer() { restartPlay(); }
     void reconnectPeercast();
     void recordingStartStop();
@@ -147,7 +147,7 @@ protected slots:
 
 protected:
     enum STATE { STOP, PAUSE, READY, PLAY };
-    enum PEERCAST_TYPE { PCT_VP, PCT_ST };
+    enum PEERCAST_TYPE { PCT_UNKNOWN, PCT_VP, PCT_ST };
     enum CONTROL_FLAG {
         FLG_NONE                    = 0x00000000,
         FLG_HIDE_DISPLAY_MESSAGE    = 0x00000001, // ディスプレイメッセージを非表示
@@ -159,8 +159,9 @@ protected:
         FLG_MUTE_WHEN_MOUSE_RELEASE = 0x00000040, // マウスリリースした時にミュートする
         FLG_DISABLE_MOUSEWINDOWMOVE = 0x00000080, // マウスによるウィンドウ移動を無効にする
         FLG_SEEK_WHEN_PLAYED        = 0x00000100, // 再生した時、前回の位置へシークする
-        FLG_MAXIMIZED_BEFORE_FULLSCREEN = 0x00000200, // フルスクリーンの前は最大化
-        FLG_RECONNECT_WAS_CALLED    = 0x00000400, // 再接続が呼び出された
+        FLG_RECONNECT_WHEN_PLAYED   = 0x00000200, // 再生した時、再接続(peercast)する
+        FLG_MAXIMIZED_BEFORE_FULLSCREEN = 0x00000400, // フルスクリーンの前は最大化
+        FLG_RECONNECTED             = 0x00000800, // 再接続した
     };
 
 //  bool event(QEvent*);
@@ -232,6 +233,7 @@ private:
 
 private:
     STATE           _state;
+    PEERCAST_TYPE   _peercastType;
     QWidget*        _videoScreen;
     QToolBar*       _toolBar;
     ControlButton*  _playPauseButton;

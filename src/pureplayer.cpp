@@ -141,6 +141,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     refreshVideoProfile();
     loadInteractiveSettings();
 
+    _peercastType = PCT_UNKNOWN;
     setStatus(STOP);
     resizeFromVideoClient(_videoSize);
 
@@ -893,12 +894,24 @@ void PurePlayer::setSpeed(double rate)
         mpCmd(QString().sprintf("pausing_keep_force speed_set %.1f", rate));
 }
 
+void PurePlayer::reconnect()
+{
+    stop();
+    if( _peercastType==PCT_ST && _controlFlags & FLG_RECONNECTED )
+        _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
+    else
+        _controlFlags |= FLG_RECONNECT_WHEN_PLAYED;
+
+    play();
+}
+
 void PurePlayer::reconnectPeercast()
 {
     if( !isPeercastStream() ) return;
 
     QUrl url(QString("http://%1:%2/admin?cmd=bump&id=%3").arg(_host).arg(_port).arg(_id));
     _nam->get(QNetworkRequest(url));
+    _controlFlags |= FLG_RECONNECTED;
     LogDialog::debug("PurePlayer::reconnectPeercast(): ");
 }
 
@@ -1878,7 +1891,7 @@ void PurePlayer::mpProcessFinished()
             setStatus(STOP);
     }
 
-    LogDialog::debug(QString("PurePlayer::mpProcessFinished(): -end"));
+    LogDialog::debug("PurePlayer::mpProcessFinished(): -end");
 }
 
 void PurePlayer::mpProcessError(QProcess::ProcessError error)
@@ -2128,9 +2141,9 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
     }
     else
     if( line.startsWith("Cache size set to") ) {
-        if( _controlFlags & FLG_RECONNECT_WAS_CALLED ) { // 再接続(peercast)は接続後行う
+        if( _controlFlags & FLG_RECONNECT_WHEN_PLAYED ) { // 再接続(peercast)は接続後行う
             reconnectPeercast();
-            _controlFlags &= ~FLG_RECONNECT_WAS_CALLED;
+            _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
         }
 
         updateChannelInfo();
@@ -2393,8 +2406,13 @@ void PurePlayer::replyFinished(QNetworkReply* reply)
             Q_ASSERT( _attemptPeercastType.size() > 0 );
             Q_ASSERT( _attemptPeercastType.at(0) == PCT_VP );
             _attemptPeercastType.pop_front();
+            if( _attemptPeercastType.size() == 0 )
+                _peercastType = PCT_UNKNOWN;
+
             updateChannelInfo();
         }
+        else
+            _peercastType = PCT_VP;
     }
     else
     if( reply == _replyChannelInfoPcSt ) {
@@ -2409,8 +2427,13 @@ void PurePlayer::replyFinished(QNetworkReply* reply)
             Q_ASSERT( _attemptPeercastType.size() > 0 );
             Q_ASSERT( _attemptPeercastType.at(0) == PCT_ST );
             _attemptPeercastType.pop_front();
+            if( _attemptPeercastType.size() == 0 )
+                _peercastType = PCT_UNKNOWN;
+
             updateChannelInfo();
         }
+        else
+            _peercastType = PCT_ST;
     }
     else
     if( reply == _replyChannelStatusPcSt ) {
@@ -2573,6 +2596,7 @@ void PurePlayer::playCommonProcess()
 
     _noVideo = false;
     _controlFlags &= ~FLG_EOF;
+    _controlFlags &= ~FLG_RECONNECTED;
     setStatus(READY);
 
     QStringList args;
@@ -3174,7 +3198,7 @@ void PurePlayer::setStatus(const STATE s)
         _actPlayPause->setEnabled(true);
         _actStop->setEnabled(false);
 
-        _controlFlags &= ~FLG_RECONNECT_WAS_CALLED;
+        _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
 
         _infoLabel->stopClipInfo();
         _receivedErrorCount = 0;
