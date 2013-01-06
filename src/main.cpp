@@ -42,11 +42,14 @@ int main(int argc, char** argv)
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, QApplication::applicationDirPath());
 #endif
 
-    PurePlayer main;
-    main.show();
+    PurePlayer* main = new PurePlayer();
+    main->show();
     if( argc >= 2 )
-        main.open(argv[1]);
+        main->open(argv[1]);
 
-    return app.exec();
+    int ret = app.exec();
+    delete main;
+
+    return ret;
 }
 

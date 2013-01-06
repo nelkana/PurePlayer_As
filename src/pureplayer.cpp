@@ -122,7 +122,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     connect(&_timerFps, SIGNAL(timeout()), this, SLOT(timerFpsTimeout()));
 
     _playlist = new PlaylistModel(this);
-    connect(_playlist, SIGNAL(removedCurrentTrack()), this, SLOT(stop()));
+    connect(_playlist, SIGNAL(removedCurrentTrack()), this, SLOT(stopFromGui()));
 
     _openDialog        = NULL;
     _videoAdjustDialog = NULL;
@@ -155,7 +155,7 @@ PurePlayer::~PurePlayer()
 {
     delete statusBar()->style();
 
-    RenameTimerTask::waitForTasksFinished();
+    Task::waitForTasksFinished();
 }
 
 void PurePlayer::createStatusBar()
@@ -259,7 +259,7 @@ void PurePlayer::createToolBar()
     _stopButton->setIconSize(iconSize);
     _stopButton->setFixedSize(buttonSize);
     _stopButton->setToolTip(tr("停止"));
-    connect(_stopButton, SIGNAL(clicked(bool)), this, SLOT(stop()));
+    connect(_stopButton, SIGNAL(clicked(bool)), this, SLOT(stopFromGui()));
 
     _frameAdvanceButton = new ControlButton(QIcon(":/icons/frame.png"), "", this);
     _frameAdvanceButton->setFocusPolicy(Qt::NoFocus);
@@ -379,7 +379,7 @@ void PurePlayer::createActionContextMenu()
     _actStop->setShortcut(tr("s"));
     _actStop->setAutoRepeat(false);
     _actStop->setEnabled(false);
-    connect(_actStop, SIGNAL(triggered()), this, SLOT(stop()));
+    connect(_actStop, SIGNAL(triggered()), this, SLOT(stopFromGui()));
     addAction(_actStop);
 
     _actOpenContactUrl = new QAction(tr("コンタクトURLを開く"), this);
@@ -785,27 +785,36 @@ void PurePlayer::openFromDialog()
 
 void PurePlayer::stop()
 {
-    LogDialog::debug("PurePlayer::stop(): start-");
+    const QString debugPrefix = "PurePlayer::stop(): ";
+    LogDialog::debug(debugPrefix + "start-");
     setStatus(STOP);
 
     if( _mpProcess->state() == QProcess::NotRunning ) {
-        LogDialog::debug("PurePlayer::stop(): -end. process not running.");
+        LogDialog::debug(debugPrefix + "-end. process not running.");
         return;
     }
 
     // mplayerプロセスを終了させる
     mpCmd("quit");
     if( !_mpProcess->waitForFinished(1000) ) {
-        LogDialog::debug("PurePlayer::stop(): _mpProcess->terminate()", QColor(255,0,0));
+        LogDialog::debug(debugPrefix + "_mpProcess->terminate()", QColor(255,0,0));
         _mpProcess->terminate();
         if( !_mpProcess->waitForFinished(3000) ) {
-            LogDialog::debug("PurePlayer::stop(): _mpProcess->kill()", QColor(255,0,0));
+            LogDialog::debug(debugPrefix + "_mpProcess->kill()", QColor(255,0,0));
             _mpProcess->kill();
             _mpProcess->waitForFinished(2000);
         }
     }
 
-    LogDialog::debug("PurePlayer::stop(): -end");
+    LogDialog::debug(debugPrefix + "-end");
+}
+
+void PurePlayer::stopPeercast()
+{
+    if( !isPeercastStream() ) return;
+
+    new PeercastStopTask(_host, _port, _id, this);
+    LogDialog::debug("PurePlayer::stopPeercast(): ");
 }
 
 void PurePlayer::pauseUnPause()
@@ -896,11 +905,18 @@ void PurePlayer::setSpeed(double rate)
 
 void PurePlayer::reconnect()
 {
-    stop();
-    if( _peercastType==PCT_ST && _controlFlags & FLG_RECONNECTED )
-        _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
-    else
+    if( _peercastType == PCT_ST ) {
+        bool stoped = isStop();
+        stop();
+        if( stoped || _controlFlags & FLG_RECONNECTED )
+            _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
+        else
+            _controlFlags |= FLG_RECONNECT_WHEN_PLAYED;
+    }
+    else {
+        stop();
         _controlFlags |= FLG_RECONNECT_WHEN_PLAYED;
+    }
 
     play();
 }
@@ -1542,7 +1558,7 @@ void PurePlayer::closeEvent(QCloseEvent* e)
     LogDialog::closeDialog();
     saveInteractiveSettings();
     hide();
-    stop();
+    stopFromGui();
     e->accept();
 
     LogDialog::debug("PurePlayer::closeEvent():-end");
@@ -1835,63 +1851,47 @@ PlaylistDialog* PurePlayer::playlistDialog()
 
 void PurePlayer::mpProcessFinished()
 {
-    LogDialog::print(QString("[%1]PurePlayer::mpProcessFinished(): start-")
+    const QString debugPrefix = "PurePlayer::mpProcessFinished(): ";
+    LogDialog::print(QString("[%1]" + debugPrefix + "start-")
                         .arg(QTime::currentTime().toString()), QColor(106,129,198));
-    LogDialog::debug(QString("PurePlayer::mpProcessFinished(): state finished with %1.")
-                        .arg(_state));
+    LogDialog::debug(QString(debugPrefix + "state finished with %1.").arg(_state));
 
     if( isPeercastStream() )
     {
         _elapsedTime = _timeLabel->time();
-        LogDialog::debug(QString("PurePlayer::mpProcessFinished(): elapsed time %1")
-                            .arg(_elapsedTime));
+        LogDialog::debug(QString(debugPrefix + "elapsed time %1").arg(_elapsedTime));
 
         if( isStop() ) {
             setStatus(STOP);
+//          if( _controlFlags & FLG_EXPLICITLY_STOPPED )
+//              stopPeercast();
         }
         else {
             _reconnectCount++;
-            LogDialog::debug(QString("PurePlayer::mpProcessFinished(): reconnectCount %1")
-                             .arg(_reconnectCount));
+            LogDialog::debug(QString(debugPrefix + "reconnectCount %1").arg(_reconnectCount));
 
             if( _reconnectCount <= 3 ) {
                 if( _searchingConnection ) {
-                    LogDialog::debug("PurePlayer::mpProcessFinished(): reconnectPurePlayer",
-                                     QColor(255,0,0));
+                    LogDialog::debug(debugPrefix + "reconnectPurePlayer", QColor(255,0,0));
                     reconnectPurePlayer();
                 }
                 else {
-                    LogDialog::debug("PurePlayer::mpProcessFinished(): reconnect",
-                                     QColor(255,0,0));
+                    LogDialog::debug(debugPrefix + "reconnect", QColor(255,0,0));
                     reconnect();
                 }
             }
-            else
-                setStatus(STOP);
-        }
-/*
-         if( isPlaying() ) {
-            if( _searchingConnection ) {
-                LogDialog::debug("PurePlayer::mpProcessFinished(): reconnectPurePlayer",
-                                 QColor(255,0,0));
-                reconnectPurePlayer();
-            }
             else {
-                LogDialog::debug("PurePlayer::mpProcessFinished(): reconnect",
-                                 QColor(255,0,0));
-                reconnect();
+                setStatus(STOP);
+//              stopPeercast();
             }
         }
-        else
-            setStatus(STOP);
-*/
     }
     else {
         if( !(_controlFlags & FLG_EOF) || !playNext() )
             setStatus(STOP);
     }
 
-    LogDialog::debug("PurePlayer::mpProcessFinished(): -end");
+    LogDialog::debug(debugPrefix + "-end");
 }
 
 void PurePlayer::mpProcessError(QProcess::ProcessError error)
@@ -2553,7 +2553,7 @@ void PurePlayer::mpCmd(const QString& command)
 void PurePlayer::playlist_playStopCurrentTrack()
 {
     if( _playlist->isCurrentTrack(_path) && isPlaying() )
-            stop();
+            stopFromGui();
     else {
         _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
         _reconnectCount=0;
@@ -2596,6 +2596,7 @@ void PurePlayer::playCommonProcess()
 
     _noVideo = false;
     _controlFlags &= ~FLG_EOF;
+    _controlFlags &= ~FLG_EXPLICITLY_STOPPED;
     _controlFlags &= ~FLG_RECONNECTED;
     setStatus(READY);
 

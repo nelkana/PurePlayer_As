@@ -17,24 +17,53 @@
 #define TASK_H
 
 #include <QTimer>
+#include <QNetworkAccessManager>
 
-class RenameTimerTask : public QTimer
+class Task : public QObject
+{
+    Q_OBJECT;
+
+public:
+    Task(QObject* parent);
+    virtual ~Task() {}
+
+    static void waitForTasksFinished();
+
+protected:
+    void deleteObject();
+
+private:
+    static QList<Task*> s_listTask;
+};
+
+class RenameTimerTask : public Task
 {
     Q_OBJECT;
 
 public:
     RenameTimerTask(const QString& fileName, const QString& baseName, QObject* parent);
 
-    static void waitForTasksFinished();
-
 protected slots:
-    void timeoutSlot();
+    void slot_timeout();
 
 private:
+    QTimer  _timer;
     QString _fileName;
     QString _baseName;
+};
 
-    static QList<RenameTimerTask*> s_listTask;
+class PeercastStopTask : public Task
+{
+    Q_OBJECT;
+
+public:
+    PeercastStopTask(const QString& host, const short port, const QString& id, QObject* parent);
+
+protected slots:
+    void nam_finished(QNetworkReply*);
+
+private:
+    QNetworkAccessManager _nam;
 };
 
 #endif // TASK_H

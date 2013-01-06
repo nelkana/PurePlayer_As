@@ -77,6 +77,7 @@ public slots:
     bool playPrev();
     bool playNext();
     void stop();
+    void stopPeercast();
     void pauseUnPause();
     void frameAdvance();
     void repeatAB();
@@ -136,6 +137,7 @@ public slots:
 
 protected slots:
     void mpCmd(const QString& command);
+    void stopFromGui()      { _controlFlags |= FLG_EXPLICITLY_STOPPED; stop(); }
     void reconnectFromGui() { _reconnectCount=0; reconnect(); }
     void reconnectPurePlayerFromGui() { _reconnectCount=0; reconnectPurePlayer(); }
     void playlist_playStopCurrentTrack();
@@ -162,6 +164,7 @@ protected:
         FLG_RECONNECT_WHEN_PLAYED   = 0x00000200, // 再生した時、再接続(peercast)する
         FLG_MAXIMIZED_BEFORE_FULLSCREEN = 0x00000400, // フルスクリーンの前は最大化
         FLG_RECONNECTED             = 0x00000800, // 再接続した
+        FLG_EXPLICITLY_STOPPED      = 0x00001000, // 明示的に停止した
     };
 
 //  bool event(QEvent*);
