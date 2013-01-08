@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012 nel
+/*  Copyright (C) 2012-2013 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
+#include <QScriptEngine>
 #include "pureplayer.h"
 #include "process.h"
 #include "controlbutton.h"
@@ -88,6 +89,10 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     connect(_nam, SIGNAL(finished(QNetworkReply*)),
             this, SLOT(replyFinished(QNetworkReply*)));
 
+    _replyChannelInfoPcVp   = NULL;
+    _replyChannelInfoPcSt   = NULL;
+    _replyChannelStatusPcSt = NULL;
+
     _mpProcess = new MplayerProcess(this);
     connect(_mpProcess, SIGNAL(outputLine(const QString&)),
             this,       SLOT(parseMplayerOutputLine(const QString&)));
@@ -117,7 +122,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     connect(&_timerFps, SIGNAL(timeout()), this, SLOT(timerFpsTimeout()));
 
     _playlist = new PlaylistModel(this);
-    connect(_playlist, SIGNAL(removedCurrentTrack()), this, SLOT(stop()));
+    connect(_playlist, SIGNAL(removedCurrentTrack()), this, SLOT(stopFromGui()));
 
     _openDialog        = NULL;
     _videoAdjustDialog = NULL;
@@ -136,6 +141,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     refreshVideoProfile();
     loadInteractiveSettings();
 
+    _peercastType = PCT_UNKNOWN;
     setStatus(STOP);
     resizeFromVideoClient(_videoSize);
 
@@ -149,7 +155,7 @@ PurePlayer::~PurePlayer()
 {
     delete statusBar()->style();
 
-    RenameTimerTask::waitForTasksFinished();
+    Task::waitForTasksFinished();
 }
 
 void PurePlayer::createStatusBar()
@@ -253,7 +259,7 @@ void PurePlayer::createToolBar()
     _stopButton->setIconSize(iconSize);
     _stopButton->setFixedSize(buttonSize);
     _stopButton->setToolTip(tr("停止"));
-    connect(_stopButton, SIGNAL(clicked(bool)), this, SLOT(stop()));
+    connect(_stopButton, SIGNAL(clicked(bool)), this, SLOT(stopFromGui()));
 
     _frameAdvanceButton = new ControlButton(QIcon(":/icons/frame.png"), "", this);
     _frameAdvanceButton->setFocusPolicy(Qt::NoFocus);
@@ -373,7 +379,7 @@ void PurePlayer::createActionContextMenu()
     _actStop->setShortcut(tr("s"));
     _actStop->setAutoRepeat(false);
     _actStop->setEnabled(false);
-    connect(_actStop, SIGNAL(triggered()), this, SLOT(stop()));
+    connect(_actStop, SIGNAL(triggered()), this, SLOT(stopFromGui()));
     addAction(_actStop);
 
     _actOpenContactUrl = new QAction(tr("コンタクトURLを開く"), this);
@@ -730,8 +736,6 @@ void PurePlayer::openCommonProcess(const QString& path)
     setWindowTitle(_chName);
     LogDialog::dialog()->setWindowTitle(_chName + " - PureLog");
 
-    _searchingConnection = false;
-
     _contactUrl = "";
     _actOpenContactUrl->setEnabled(false);
 
@@ -779,27 +783,36 @@ void PurePlayer::openFromDialog()
 
 void PurePlayer::stop()
 {
-    LogDialog::debug("PurePlayer::stop(): start-");
+    const QString debugPrefix = "PurePlayer::stop(): ";
+    LogDialog::debug(debugPrefix + "start-");
     setStatus(STOP);
 
     if( _mpProcess->state() == QProcess::NotRunning ) {
-        LogDialog::debug("PurePlayer::stop(): -end. process not running.");
+        LogDialog::debug(debugPrefix + "-end. process not running.");
         return;
     }
 
     // mplayerプロセスを終了させる
     mpCmd("quit");
     if( !_mpProcess->waitForFinished(1000) ) {
-        LogDialog::debug("PurePlayer::stop(): _mpProcess->terminate()", QColor(255,0,0));
+        LogDialog::debug(debugPrefix + "_mpProcess->terminate()", QColor(255,0,0));
         _mpProcess->terminate();
         if( !_mpProcess->waitForFinished(3000) ) {
-            LogDialog::debug("PurePlayer::stop(): _mpProcess->kill()", QColor(255,0,0));
+            LogDialog::debug(debugPrefix + "_mpProcess->kill()", QColor(255,0,0));
             _mpProcess->kill();
             _mpProcess->waitForFinished(2000);
         }
     }
 
-    LogDialog::debug("PurePlayer::stop(): -end");
+    LogDialog::debug(debugPrefix + "-end");
+}
+
+void PurePlayer::stopPeercast()
+{
+    if( !isPeercastStream() ) return;
+
+    new PeercastStopTask(_host, _port, _id, this);
+    LogDialog::debug("PurePlayer::stopPeercast(): ");
 }
 
 void PurePlayer::pauseUnPause()
@@ -888,12 +901,31 @@ void PurePlayer::setSpeed(double rate)
         mpCmd(QString().sprintf("pausing_keep_force speed_set %.1f", rate));
 }
 
+void PurePlayer::reconnect()
+{
+    if( _peercastType == PCT_ST ) {
+        bool stoped = isStop();
+        stop();
+        if( stoped || _controlFlags & FLG_RECONNECTED )
+            _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
+        else
+            _controlFlags |= FLG_RECONNECT_WHEN_PLAYED;
+    }
+    else {
+        stop();
+        _controlFlags |= FLG_RECONNECT_WHEN_PLAYED;
+    }
+
+    play();
+}
+
 void PurePlayer::reconnectPeercast()
 {
     if( !isPeercastStream() ) return;
 
     QUrl url(QString("http://%1:%2/admin?cmd=bump&id=%3").arg(_host).arg(_port).arg(_id));
     _nam->get(QNetworkRequest(url));
+    _controlFlags |= FLG_RECONNECTED;
     LogDialog::debug("PurePlayer::reconnectPeercast(): ");
 }
 
@@ -1184,7 +1216,7 @@ void PurePlayer::screenshot()
 
 // ビデオクライアントサイズを指定してウィンドウをリサイズする
 // 返却値:
-// リサイズ処理が行われたら、trueを返す。そうでないならfalseを返す。// 要仕様検討
+// リサイズ処理が行われたら、trueを返す。そうでないならfalseを返す。
 bool PurePlayer::resizeFromVideoClient(QSize size)
 {
     if( isFullScreen() || isMaximized() )
@@ -1414,13 +1446,42 @@ void PurePlayer::showAboutDialog()
 
 void PurePlayer::updateChannelInfo()
 {
+    const QString debugPrefix = "PurePlayer::updateChannelInfo(): ";
     if( !isPeercastStream() ) return;
+    if( _attemptPeercastType.isEmpty() ) {
+        _replyChannelInfoPcVp   = NULL;
+        _replyChannelInfoPcSt   = NULL;
+        _replyChannelStatusPcSt = NULL;
+        LogDialog::debug(debugPrefix + "unknown peercast", QColor(255,0,0));
+        return;
+    }
 
-    QUrl url(QString("http://%1:%2/html/ja/relayinfo.html?id=%3")
-             .arg(_host).arg(_port).arg(_id));
+    if( _attemptPeercastType.at(0) == PCT_VP ) {
+        QUrl url(QString("http://%1:%2/html/ja/relayinfo.html?id=%3").arg(_host).arg(_port).arg(_id));
 
-    _nam->get(QNetworkRequest(url));
-    LogDialog::debug("PurePlayer::updateChannelInfo(): ");
+        _replyChannelInfoPcVp = _nam->get(QNetworkRequest(url));
+
+        _replyChannelInfoPcSt   = NULL;
+        _replyChannelStatusPcSt = NULL;
+    }
+    else { // _attemptPeercastType.at(0) == PCT_ST
+        QUrl url(QString("http://%1:%2/api/1").arg(_host).arg(_port));
+        QString json("{\"jsonrpc\": \"2.0\", \"method\": \"%1\", \"params\": [\"" + _id + "\"], \"id\": 1}");
+        QNetworkRequest request(url);
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+        QByteArray data(json.arg("getChannelInfo").toLatin1());
+        request.setHeader(QNetworkRequest::ContentLengthHeader, data.size());
+        _replyChannelInfoPcSt = _nam->post(request, data);
+
+        QByteArray data2(json.arg("getChannelStatus").toLatin1());
+        request.setHeader(QNetworkRequest::ContentLengthHeader, data2.size());
+        _replyChannelStatusPcSt = _nam->post(request, data2);
+
+        _replyChannelInfoPcVp = NULL;
+    }
+
+    LogDialog::debug(debugPrefix + "end");
 }
 
 void PurePlayer::openContactUrl()
@@ -1495,7 +1556,7 @@ void PurePlayer::closeEvent(QCloseEvent* e)
     LogDialog::closeDialog();
     saveInteractiveSettings();
     hide();
-    stop();
+    stopFromGui();
     e->accept();
 
     LogDialog::debug("PurePlayer::closeEvent():-end");
@@ -1541,14 +1602,10 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
             downVolume();
         break;
     case Qt::Key_Right:
-        //mpCmd("osd 0");
         seek(+3, true);
-        //mpCmd("osd 1");
         break;
     case Qt::Key_Left:
-        //mpCmd("osd 0");
         seek(-3, true);
-        //mpCmd("osd 1");
         break;
 
     case Qt::Key_E:
@@ -1577,8 +1634,12 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
         break;
     }
     case Qt::Key_V:
-        _debugFlg = !_debugFlg;
-        LogDialog::debug(QString("blockCount: %1").arg(LogDialog::dialog()->blockCount()));
+        if( e->modifiers() & Qt::AltModifier
+         && e->modifiers() & Qt::ShiftModifier )
+        {
+            _debugFlg = !_debugFlg;
+            LogDialog::debug(QString("blockCount: %1").arg(LogDialog::dialog()->blockCount()));
+        }
 
         break;
 #endif // QT_NO_DEBUG_OUTPUT
@@ -1670,10 +1731,8 @@ void PurePlayer::wheelEvent(QWheelEvent* e)
     if( e->buttons() & Qt::RightButton ) {
         if( e->delta() < 0 )
             resizeFromCurrent(-50);
-//          resizeSlightlyReduce();
         else
             resizeFromCurrent(+50);
-//          resizeSlightlyIncrease();
 
         _controlFlags |= FLG_WHEEL_RESIZED;
     }
@@ -1790,63 +1849,47 @@ PlaylistDialog* PurePlayer::playlistDialog()
 
 void PurePlayer::mpProcessFinished()
 {
-    LogDialog::print(QString("[%1]PurePlayer::mpProcessFinished(): start-")
+    const QString debugPrefix = "PurePlayer::mpProcessFinished(): ";
+    LogDialog::print(QString("[%1]" + debugPrefix + "start-")
                         .arg(QTime::currentTime().toString()), QColor(106,129,198));
-    LogDialog::debug(QString("PurePlayer::mpProcessFinished(): state finished with %1.")
-                        .arg(_state));
+    LogDialog::debug(QString(debugPrefix + "state finished with %1.").arg(_state));
 
     if( isPeercastStream() )
     {
         _elapsedTime = _timeLabel->time();
-        LogDialog::debug(QString("PurePlayer::mpProcessFinished(): elapsed time %1")
-                            .arg(_elapsedTime));
+        LogDialog::debug(QString(debugPrefix + "elapsed time %1").arg(_elapsedTime));
 
         if( isStop() ) {
             setStatus(STOP);
+//          if( _controlFlags & FLG_EXPLICITLY_STOPPED )
+//              stopPeercast();
         }
         else {
             _reconnectCount++;
-            LogDialog::debug(QString("PurePlayer::mpProcessFinished(): reconnectCount %1")
-                             .arg(_reconnectCount));
+            LogDialog::debug(QString(debugPrefix + "reconnectCount %1").arg(_reconnectCount));
 
             if( _reconnectCount <= 3 ) {
-                if( _searchingConnection ) {
-                    LogDialog::debug("PurePlayer::mpProcessFinished(): reconnectPurePlayer",
-                                     QColor(255,0,0));
+                if( _channelStatus == CS_SEARCH ) {
+                    LogDialog::debug(debugPrefix + "reconnectPurePlayer", QColor(255,0,0));
                     reconnectPurePlayer();
                 }
                 else {
-                    LogDialog::debug("PurePlayer::mpProcessFinished(): reconnect",
-                                     QColor(255,0,0));
+                    LogDialog::debug(debugPrefix + "reconnect", QColor(255,0,0));
                     reconnect();
                 }
             }
-            else
-                setStatus(STOP);
-        }
-/*
-         if( isPlaying() ) {
-            if( _searchingConnection ) {
-                LogDialog::debug("PurePlayer::mpProcessFinished(): reconnectPurePlayer",
-                                 QColor(255,0,0));
-                reconnectPurePlayer();
-            }
             else {
-                LogDialog::debug("PurePlayer::mpProcessFinished(): reconnect",
-                                 QColor(255,0,0));
-                reconnect();
+                setStatus(STOP);
+//              stopPeercast();
             }
         }
-        else
-            setStatus(STOP);
-*/
     }
     else {
         if( !(_controlFlags & FLG_EOF) || !playNext() )
             setStatus(STOP);
     }
 
-    LogDialog::debug(QString("PurePlayer::mpProcessFinished(): -end"));
+    LogDialog::debug(debugPrefix + "-end");
 }
 
 void PurePlayer::mpProcessError(QProcess::ProcessError error)
@@ -2042,8 +2085,8 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
                 _actStatusBar->setEnabled(true);
             }
 
-            _startTime = -1; // open()のタイミングでの初期化では、前の再生の
-                             // ステータスラインを拾ってしまう為、ここで初期化。
+            _startTime = -1; // open()のタイミングでの初期化では、
+                             // 前の再生のステータスラインを拾ってしまう為ここで初期化。
             _elapsedTime = 0;
 
             _controlFlags &= ~FLG_OPENED_PATH;
@@ -2054,6 +2097,9 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
 
             // _reconnectControlTimeの比較を、再生開始時の開始時間から比較できる様に更新する
             _reconnectControlTime = _elapsedTime;
+
+            if( _channelStatus == CS_SEARCH )
+                updateChannelInfo();
         }
 
         // ビデオサイズの設定
@@ -2096,9 +2142,9 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
     }
     else
     if( line.startsWith("Cache size set to") ) {
-        if( _controlFlags & FLG_RECONNECT_WAS_CALLED ) { // 再接続(peercast)は接続後行う
+        if( _controlFlags & FLG_RECONNECT_WHEN_PLAYED ) { // 再接続(peercast)は接続後行う
             reconnectPeercast();
-            _controlFlags &= ~FLG_RECONNECT_WAS_CALLED;
+            _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
         }
 
         updateChannelInfo();
@@ -2187,95 +2233,253 @@ void PurePlayer::recordingOutputLine(const QString& line)
     LogDialog::print("PurePlayer::recordingOutputLine(): " + line);
 }
 
-void PurePlayer::replyFinished(QNetworkReply* reply)
+bool PurePlayer::updateChannelInfoPcVp(const QString& reply)
 {
-    if( reply->error() != QNetworkReply::NoError )
-        LogDialog::debug("PurePlayer::replyFinished(): error " +
-                                       QString::number(reply->error()), QColor(255,0,0));
+    const QString debugPrefix = "PurePlayer::updateChannelInfoPcVp(): ";
+    LogDialog::debug(debugPrefix + "called");
 
-    // チャンネル情報リクエスト
-    if( reply->url().path().contains("/relayinfo.html") ) {
-        int i;
-        QRegExp rx;
-        QString out = reply->readAll();
+    int start, end;
 
-        LogDialog::debug("PurePlayer::replyFinished(): size " + QString::number(out.size()));
-//      LogDialog::debug("PurePlayer::replyFinished(): " + out);
+    // チャンネル名の取得
+    start = reply.indexOf("<td>チャンネル名");
+    if( start == -1 ) {
+        reflectChannelInfo();
+        return false;
+    }
+    start = reply.indexOf("\">", start);
+    start += 2;
+    end = reply.indexOf('<', start);
 
-        // チャンネル名の取得
-        //rx.setPattern("<td>チャンネル名</td>.+\">(.*)</a>.+<td>ジャンル</td>.+<td>概要</td>");
-        rx.setPattern("<td>チャンネル名</td>.+\">(.*)</a></td>\\s*</tr>\\s*<tr id=\"d\">");
-        i = out.indexOf(rx);
-        if( i == -1 )
-            goto FAILED;
+    _chName = reply.mid(start, end - start);
+    _chName.replace("&lt;","<").replace("&gt;",">")
+           .replace("&amp;","&").replace("&quot;","\"");
+//  QTextDocument txt;
+//  txt.setHtml(_chName);
+//  _chName = txt.toPlainText();
+    LogDialog::debug(debugPrefix + "name " + _chName);
 
-        _chName = rx.cap(1);
-        _chName.replace("&lt;","<").replace("&gt;",">")
-               .replace("&amp;","&").replace("&quot;","\"");
-//      QTextDocument txt;
-//      txt.setHtml(_chName);
-//      _chName = txt.toPlainText();
-        LogDialog::debug("PurePlayer::replyFinished(): chName " + _chName);
-        if( _chName.isEmpty() )
-            _chName = "PurePlayer*";
+    // コンタクトURLの取得
+    start = reply.indexOf("<td>URL", start);
+    if( start == -1 ) {
+        reflectChannelInfo();
+        return false;
+    }
+    start = reply.indexOf("\">", start);
+    start += 2;
+    end = reply.indexOf('<', start);
 
-        // コンタクトURLの取得
-        rx.setPattern("<td>URL</td>.+\">(.*)</a>.+<td>配信者から");
-        i = out.indexOf(rx, i);
-        if( i == -1 )
-            goto FAILED;
+    _contactUrl = reply.mid(start, end - start);
+    LogDialog::debug(debugPrefix + "url " + _contactUrl);
+/*
+    // 接続先IPアドレスの取得
+    start = reply.indexOf("<td>取得元", start);
+    if( start == -1 ) {
+        reflectChannelInfo();
+        return false;
+    }
+    start = reply.indexOf("<br>", start);
+    start += 4;
+    start = reply.indexOf(QRegExp("\\S"), start);
+    end = reply.indexOf('<', start);
 
-        _contactUrl = rx.cap(1);
-        LogDialog::debug("PurePlayer::replyFinished(): contact url " + _contactUrl);
+    QString temp = reply.mid(start, end - start);
+    QString rootIp = temp.left(temp.indexOf(':'));
 
-        // 接続先IPアドレスの取得
-        rx.setPattern("<td>取得元</td>.+(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}).+<td>受信時間</td>");
-        i = out.indexOf(rx, i);
-        if( i == -1 )
-            goto FAILED;
-
-        LogDialog::debug(QString("PurePlayer::replyFinished(): %1 %2")
-                                                        .arg(rx.cap(1)).arg(_rootIp));
+    LogDialog::debug(debugPrefix + rootIp + ' ' + _rootIp);
 
 #ifndef QT_NO_DEBUG_OUTPUT
-        if( rx.cap(1) == _rootIp )
-            _chName = "[" + _chName + "]"; // 「peercastのみ再接続」する度にも、チャンネル情報取らなくてはいけなくなるので要検討
+    if( rootIp == _rootIp )
+        _chName = "[" + _chName + "]";
 #endif
-
-/*        if( rx.cap(1) == "0.0.0.0" )
-            _searchingConnection = true;
-        else
-            _searchingConnection = false;
 */
-        // peercastの状態取得
-        rx.setPattern("<td>状態</td>\\s*<td>([a-zA-Z]+)</td>");
-        i = out.indexOf(rx, i);
-        if( i == -1 )
-            goto FAILED;
+    // 接続状態の取得
+    start = reply.indexOf("<td>状態", start);
+    if( start == -1 ) {
+        reflectChannelInfo();
+        return false;
+    }
+    start++;
+    start = reply.indexOf("<td>", start);
+    start += 4;
+    end = reply.indexOf('<', start);
 
-        if( rx.cap(1) == "SEARCH" )
-            _searchingConnection = true;
-        else
-            _searchingConnection = false;
+    QString status = reply.mid(start, end - start);
+    if( status == "RECEIVE" )
+        _channelStatus = CS_RECEIVE;
+    else
+    if( status == "SEARCH" )
+        _channelStatus = CS_SEARCH;
+    else
+    if( status == "CONNECT" )
+        _channelStatus = CS_CONNECT;
+    else
+    if( status == "ERROR" )
+        _channelStatus = CS_ERROR;
+    else
+        _channelStatus = CS_UNKNOWN;
 
-        LogDialog::debug(QString("PurePlayer::replyFinished(): state %1").arg(rx.cap(1)));
+//  _searchingConnection = (rootIp == "0.0.0.0");
 
-FAILED:
-        if( _contactUrl.isEmpty() )
-            _actOpenContactUrl->setEnabled(false);
-        else
-            _actOpenContactUrl->setEnabled(true);
+    LogDialog::debug(debugPrefix + "status " + status);
 
-        if( _debugCount ) setWindowTitle(_chName + QString(" %1").arg(_debugCount));
-        else              setWindowTitle(_chName);
+    reflectChannelInfo();
+    return true;
+}
 
-        _playlist->setCurrentTrackTitle(_chName);
+bool PurePlayer::updateChannelInfoPcSt(const QString& reply)
+{
+    const QString debugPrefix = "PurePlayer::updateChannelInfoPcSt(): ";
+    LogDialog::debug(debugPrefix + "called");
 
-        LogDialog::dialog()->setWindowTitle(_chName + " - PureLog");
+    QScriptEngine engine;
+    QScriptValue  value;
+//  value = engine.evaluate("(" + reply + ")");
+    value = engine.evaluate("JSON.parse").call(QScriptValue(), QScriptValueList() << reply);
+
+    if( value.isError() ) {
+        LogDialog::debug(debugPrefix + value.toString(), QColor(255,0,0));
+        return false;
     }
 
-    LogDialog::debug(QString("PurePlayer::replyFinished(): end. request url %1")
-                                                        .arg(reply->url().toString()));
+    value = value.property("result").property("info");
+    if( !value.isValid() )
+        return false;
+
+    _chName     = value.property("name").toString();
+    _contactUrl = value.property("url").toString();
+
+    reflectChannelInfo();
+
+    LogDialog::debug(debugPrefix + "name " + _chName);
+    LogDialog::debug(debugPrefix + "url " + _contactUrl);
+
+    return true;
+}
+
+bool PurePlayer::updateChannelStatusPcSt(const QString& reply)
+{
+    const QString debugPrefix = "PurePlayer::updateChannelStatusPcSt(): ";
+    LogDialog::debug(debugPrefix + "called");
+
+    QScriptEngine engine;
+    QScriptValue  value;
+//  value = engine.evaluate("(" + reply + ")");
+    value = engine.evaluate("JSON.parse").call(QScriptValue(), QScriptValueList() << reply);
+
+    if( value.isError() ) {
+        LogDialog::debug(debugPrefix + value.toString(), QColor(255,0,0));
+        return false;
+    }
+
+    value = value.property("result");
+    if( !value.isValid() )
+        return false;
+
+    QString status = value.property("status").toString();
+    if( status == "Receiving" )
+        _channelStatus = CS_RECEIVE;
+    else
+    if( status == "Searching" )
+        _channelStatus = CS_SEARCH;
+    else
+    if( status == "Connecting" )
+        _channelStatus = CS_CONNECT;
+    else
+    if( status == "Error" )
+        _channelStatus = CS_ERROR;
+    else
+        _channelStatus = CS_UNKNOWN;
+
+    LogDialog::debug(debugPrefix + "status " + status);
+
+    return true;
+}
+
+void PurePlayer::reflectChannelInfo()
+{
+    if( _contactUrl.isEmpty() )
+        _actOpenContactUrl->setEnabled(false);
+    else
+        _actOpenContactUrl->setEnabled(true);
+
+    if( _chName.isEmpty() )
+        _chName = "PurePlayer*";
+
+    if( _debugCount ) setWindowTitle(_chName + QString(" %1").arg(_debugCount));
+    else              setWindowTitle(_chName);
+
+    _playlist->setCurrentTrackTitle(_chName);
+
+    LogDialog::dialog()->setWindowTitle(_chName + " - PureLog");
+}
+
+void PurePlayer::replyFinished(QNetworkReply* reply)
+{
+    const QString debugPrefix = "PurePlayer::replyFinished(): ";
+    if( reply->error() != QNetworkReply::NoError )
+        LogDialog::debug(debugPrefix + "error " + QString::number(reply->error()), QColor(255,0,0));
+
+    if( reply == _replyChannelInfoPcVp ) {
+        _replyChannelInfoPcVp = NULL;
+
+        bool error = !(reply->error() == QNetworkReply::NoError);
+        if( !error ) {
+            QString out = reply->readAll();
+            error = !updateChannelInfoPcVp(out);
+        }
+
+        if( error ) {
+            Q_ASSERT( _attemptPeercastType.size() > 0 );
+            Q_ASSERT( _attemptPeercastType.at(0) == PCT_VP );
+            _attemptPeercastType.pop_front();
+            if( _attemptPeercastType.size() == 0 )
+                _peercastType = PCT_UNKNOWN;
+
+            updateChannelInfo();
+        }
+        else
+            _peercastType = PCT_VP;
+    }
+    else
+    if( reply == _replyChannelInfoPcSt ) {
+        _replyChannelInfoPcSt = NULL;
+
+        bool error = !(reply->error() == QNetworkReply::NoError);
+        if( !error ) {
+            QString out = reply->readAll();
+            error = !updateChannelInfoPcSt(out);
+        }
+
+        if( error ) {
+            Q_ASSERT( _attemptPeercastType.size() > 0 );
+            Q_ASSERT( _attemptPeercastType.at(0) == PCT_ST );
+            _attemptPeercastType.pop_front();
+            if( _attemptPeercastType.size() == 0 )
+                _peercastType = PCT_UNKNOWN;
+
+            updateChannelInfo();
+        }
+        else
+            _peercastType = PCT_ST;
+    }
+    else
+    if( reply == _replyChannelStatusPcSt ) {
+        _replyChannelStatusPcSt = NULL;
+
+        bool error = !(reply->error() == QNetworkReply::NoError);
+        if( !error ) {
+            QString out = reply->readAll();
+            error = !updateChannelStatusPcSt(out);
+            if( !error ) {
+                if( _channelStatus == CS_ERROR )
+                    stopPeercast();
+            }
+        }
+    }
+
+    LogDialog::debug(QString("%1end. %2, %3")
+        .arg(debugPrefix).arg(reply->url().toString()).arg(QString().sprintf("%p", reply)));
+
     reply->deleteLater();
 }
 
@@ -2305,34 +2509,31 @@ void PurePlayer::actGroupDeinterlaceChanged(QAction* action)
 
 void PurePlayer::timerReconnectTimeout()
 {
-/*  LogDialog::debug(QString("PurePlayer::timerReconnectTimeout(): time %1")
-                        .arg(_timeLabel->time()));
-    LogDialog::debug(QString("PurePlayer::timerReconnectTimeout(): currentTime %1")
-                        .arg(_currentTime));
-    LogDialog::debug(QString("PurePlayer::timerReconnectTimeout(): frame %1")
-                        .arg(_currentFrame));
-*/
-//  LogDialog::debug("PurePlayer::timerReconnectTimeout(): " +
-//                                              QString::number(_receivedErrorCount));
+    const QString debugPrefix = "PurePlayer::timerReconnectTimeout(): ";
+//  LogDialog::debug(QString(debugPrefix + "time %1").arg(_timeLabel->time()));
+//  LogDialog::debug(QString(debugPrefix + "currentTime %1").arg(_currentTime));
+//  LogDialog::debug(QString(debugPrefix + "frame %1").arg(_currentFrame));
+
+//  LogDialog::debug(debugPrefix + QString::number(_receivedErrorCount));
 
     if( _reconnectControlTime == _timeLabel->time() ) {
-        LogDialog::debug(QString("PurePlayer::timerReconnectTimeout(): reconnect time %1")
+        LogDialog::debug(QString(debugPrefix + "reconnect time %1")
                 .arg(_reconnectControlTime), QColor(255,0,0));
 
-        if( _searchingConnection )
+        if( _channelStatus == CS_SEARCH )
             reconnectPurePlayer();
         else
             reconnect();
     }
     else
     if( _receivedErrorCount > 10 ) {
-        LogDialog::debug(QString("PurePlayer::timerReconnectTimeout(): reconnect count %1")
+        LogDialog::debug(QString(debugPrefix + "reconnect count %1")
                 .arg(_receivedErrorCount), QColor(255,0,0));
 
         reconnect();
     }
     else
-    if( _searchingConnection )
+    if( _channelStatus == CS_SEARCH )
         updateChannelInfo();
     else
     if( _receivedErrorCount == 0 )
@@ -2382,7 +2583,7 @@ void PurePlayer::mpCmd(const QString& command)
 void PurePlayer::playlist_playStopCurrentTrack()
 {
     if( _playlist->isCurrentTrack(_path) && isPlaying() )
-            stop();
+            stopFromGui();
     else {
         _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
         _reconnectCount=0;
@@ -2409,8 +2610,25 @@ void PurePlayer::playCommonProcess()
         return;
     }
 
+    if( _attemptPeercastType.isEmpty() || _attemptPeercastType.at(0) == PCT_VP ) {
+        _attemptPeercastType.clear();
+        _attemptPeercastType.push_back(PCT_VP);
+        _attemptPeercastType.push_back(PCT_ST);
+    }
+    else {
+        _attemptPeercastType.clear();
+        _attemptPeercastType.push_back(PCT_ST);
+        _attemptPeercastType.push_back(PCT_VP);
+    }
+    _replyChannelInfoPcVp   = NULL;
+    _replyChannelInfoPcSt   = NULL;
+    _replyChannelStatusPcSt = NULL;
+    _channelStatus = CS_UNKNOWN;
+
     _noVideo = false;
     _controlFlags &= ~FLG_EOF;
+    _controlFlags &= ~FLG_EXPLICITLY_STOPPED;
+    _controlFlags &= ~FLG_RECONNECTED;
     setStatus(READY);
 
     QStringList args;
@@ -2513,7 +2731,7 @@ void PurePlayer::playCommonProcess()
     else
         mplayerPath = "mplayer";
 
-    LogDialog::print(QString("[%1]PurePlayer: mplayer pocess start -------------")
+    LogDialog::print(QString("[%1]PurePlayer: mplayer process start -------------")
                         .arg(QTime::currentTime().toString()), QColor(106,129,198));
     LogDialog::print(QString("PurePlayer: %1 %2").arg(mplayerPath).arg(args.join(" ")));
 
@@ -3012,7 +3230,7 @@ void PurePlayer::setStatus(const STATE s)
         _actPlayPause->setEnabled(true);
         _actStop->setEnabled(false);
 
-        _controlFlags &= ~FLG_RECONNECT_WAS_CALLED;
+        _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
 
         _infoLabel->stopClipInfo();
         _receivedErrorCount = 0;
@@ -3031,4 +3249,52 @@ void PurePlayer::setStatus(const STATE s)
         break;
     }
 }
+/*
+void PurePlayer::resize(const QSize& size)
+{
+    qDebug("%d,%d %d,%d", width(),height(), size.width(),size.height());
+    if( geometry().x() < 0 || geometry().y() < 0 ) {
+        const int threshold = 50;
+
+        // リサイズするサイズ決定
+        QSize s = size;
+        if( s.width() < minimumSizeHint().width() )
+            s.setWidth(minimumSizeHint().width());
+
+        // 右xがしきい値より大きい場合で外に出る場合は、右xをしきい値としてリサイズ。
+        // 右xがしきい値より小さい場合で外に出る場合は、右xは現在のままでリサイズ。
+        // xの位置決定(クライアント位置)
+        int x = geometry().x();
+        qDebug("x: %d", x);
+        if( (geometry().x() + s.width()-1) < 0 ) { // デスクトップ外へ完全に出たなら
+            int rx = geometry().x() + width()-1;
+            if( rx >= threshold )
+                x = threshold - s.width();
+            else
+                x = rx - (s.width()-1);
+
+            if( x > 0 )
+                x = 0;
+        }
+
+        // yの位置決定(クライアント位置)
+        int y = geometry().y();
+        if( (geometry().y() + s.height()-1) < 0 ) { // デスクトップ外へ完全に出たなら
+            int by = geometry().y() + height()-1;
+            if( by >= threshold )
+                y = threshold - s.height();
+            else
+                y = by - (s.height()-1);
+
+            if( y > 0 )
+                y = 0;
+        }
+
+        setGeometry(QRect(QPoint(x, y), s));
+        qDebug("p: %d,%d s: %d,%d", x,y, width(), height());
+    }
+    else
+        QMainWindow::resize(size);
+}
+*/
 

@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012 nel
+/*  Copyright (C) 2012-2013 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 #include "ui_aboutdialog.h"
 
-#define PUREPLAYER_VERSION "0.7.5"
+#define PUREPLAYER_VERSION "0.7.6"
 
 class AboutDialog : public QDialog, Ui::AboutDialog
 {
@@ -53,7 +53,7 @@ inline AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent)
         "<br>"
         "連絡先:<br>"
         "<a href=\"http://jbbs.livedoor.jp/internet/9117/\">http://jbbs.livedoor.jp/internet/9117/</a><br>"
-        "Copyright (C) 2012 nel<br>"
+        "Copyright (C) 2012-2013 nel<br>"
         ).arg(PUREPLAYER_VERSION).arg(QT_VERSION_STR).arg(qVersion());
 
     _labelText->setText(text);

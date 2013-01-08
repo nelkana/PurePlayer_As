@@ -3,7 +3,7 @@ TARGET = pureplayer
 DESTDIR = ..
 DEPENDPATH += .
 INCLUDEPATH += .
-QT += network
+QT += network script
 CONFIG += release
 #CONFIG += debug
 
