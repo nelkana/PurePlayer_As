@@ -150,6 +150,7 @@ protected slots:
 protected:
     enum STATE { STOP, PAUSE, READY, PLAY };
     enum PEERCAST_TYPE { PCT_UNKNOWN, PCT_VP, PCT_ST };
+    enum CHANNEL_STATUS { CS_UNKNOWN, CS_CONNECT, CS_RECEIVE, CS_SEARCH, CS_ERROR };
     enum CONTROL_FLAG {
         FLG_NONE                    = 0x00000000,
         FLG_HIDE_DISPLAY_MESSAGE    = 0x00000001, // ディスプレイメッセージを非表示
@@ -275,7 +276,7 @@ private:
     QString         _chName;
     QString         _contactUrl;
     QString         _connectedIP;
-    bool            _searchingConnection;
+    CHANNEL_STATUS  _channelStatus;
 
     QSize           _videoSize;
     double          _videoLength;

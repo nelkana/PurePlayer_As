@@ -736,8 +736,6 @@ void PurePlayer::openCommonProcess(const QString& path)
     setWindowTitle(_chName);
     LogDialog::dialog()->setWindowTitle(_chName + " - PureLog");
 
-    _searchingConnection = false;
-
     _contactUrl = "";
     _actOpenContactUrl->setEnabled(false);
 
@@ -1871,7 +1869,7 @@ void PurePlayer::mpProcessFinished()
             LogDialog::debug(QString(debugPrefix + "reconnectCount %1").arg(_reconnectCount));
 
             if( _reconnectCount <= 3 ) {
-                if( _searchingConnection ) {
+                if( _channelStatus == CS_SEARCH ) {
                     LogDialog::debug(debugPrefix + "reconnectPurePlayer", QColor(255,0,0));
                     reconnectPurePlayer();
                 }
@@ -2087,8 +2085,8 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
                 _actStatusBar->setEnabled(true);
             }
 
-            _startTime = -1; // open()のタイミングでの初期化では、前の再生の
-                             // ステータスラインを拾ってしまう為、ここで初期化。
+            _startTime = -1; // open()のタイミングでの初期化では、
+                             // 前の再生のステータスラインを拾ってしまう為ここで初期化。
             _elapsedTime = 0;
 
             _controlFlags &= ~FLG_OPENED_PATH;
@@ -2099,6 +2097,9 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
 
             // _reconnectControlTimeの比較を、再生開始時の開始時間から比較できる様に更新する
             _reconnectControlTime = _elapsedTime;
+
+            if( _channelStatus == CS_SEARCH )
+                updateChannelInfo();
         }
 
         // ビデオサイズの設定
@@ -2303,9 +2304,21 @@ bool PurePlayer::updateChannelInfoPcVp(const QString& reply)
     end = reply.indexOf('<', start);
 
     QString status = reply.mid(start, end - start);
+    if( status == "RECEIVE" )
+        _channelStatus = CS_RECEIVE;
+    else
+    if( status == "SEARCH" )
+        _channelStatus = CS_SEARCH;
+    else
+    if( status == "CONNECT" )
+        _channelStatus = CS_CONNECT;
+    else
+    if( status == "ERROR" )
+        _channelStatus = CS_ERROR;
+    else
+        _channelStatus = CS_UNKNOWN;
 
 //  _searchingConnection = (rootIp == "0.0.0.0");
-    _searchingConnection = (status == "SEARCH");
 
     LogDialog::debug(debugPrefix + "status " + status);
 
@@ -2363,8 +2376,20 @@ bool PurePlayer::updateChannelStatusPcSt(const QString& reply)
         return false;
 
     QString status = value.property("status").toString();
+    if( status == "Receiving" )
+        _channelStatus = CS_RECEIVE;
+    else
+    if( status == "Searching" )
+        _channelStatus = CS_SEARCH;
+    else
+    if( status == "Connecting" )
+        _channelStatus = CS_CONNECT;
+    else
+    if( status == "Error" )
+        _channelStatus = CS_ERROR;
+    else
+        _channelStatus = CS_UNKNOWN;
 
-    _searchingConnection = (status == "Searching");
     LogDialog::debug(debugPrefix + "status " + status);
 
     return true;
@@ -2395,11 +2420,12 @@ void PurePlayer::replyFinished(QNetworkReply* reply)
         LogDialog::debug(debugPrefix + "error " + QString::number(reply->error()), QColor(255,0,0));
 
     if( reply == _replyChannelInfoPcVp ) {
+        _replyChannelInfoPcVp = NULL;
+
         bool error = !(reply->error() == QNetworkReply::NoError);
         if( !error ) {
             QString out = reply->readAll();
             error = !updateChannelInfoPcVp(out);
-            _replyChannelInfoPcVp = NULL;
         }
 
         if( error ) {
@@ -2416,11 +2442,12 @@ void PurePlayer::replyFinished(QNetworkReply* reply)
     }
     else
     if( reply == _replyChannelInfoPcSt ) {
+        _replyChannelInfoPcSt = NULL;
+
         bool error = !(reply->error() == QNetworkReply::NoError);
         if( !error ) {
             QString out = reply->readAll();
             error = !updateChannelInfoPcSt(out);
-            _replyChannelInfoPcSt = NULL;
         }
 
         if( error ) {
@@ -2437,10 +2464,16 @@ void PurePlayer::replyFinished(QNetworkReply* reply)
     }
     else
     if( reply == _replyChannelStatusPcSt ) {
-        if( reply->error() == QNetworkReply::NoError ) {
+        _replyChannelStatusPcSt = NULL;
+
+        bool error = !(reply->error() == QNetworkReply::NoError);
+        if( !error ) {
             QString out = reply->readAll();
-            updateChannelStatusPcSt(out);
-            _replyChannelStatusPcSt = NULL;
+            error = !updateChannelStatusPcSt(out);
+            if( !error ) {
+                if( _channelStatus == CS_ERROR )
+                    stopPeercast();
+            }
         }
     }
 
@@ -2476,34 +2509,31 @@ void PurePlayer::actGroupDeinterlaceChanged(QAction* action)
 
 void PurePlayer::timerReconnectTimeout()
 {
-/*  LogDialog::debug(QString("PurePlayer::timerReconnectTimeout(): time %1")
-                        .arg(_timeLabel->time()));
-    LogDialog::debug(QString("PurePlayer::timerReconnectTimeout(): currentTime %1")
-                        .arg(_currentTime));
-    LogDialog::debug(QString("PurePlayer::timerReconnectTimeout(): frame %1")
-                        .arg(_currentFrame));
-*/
-//  LogDialog::debug("PurePlayer::timerReconnectTimeout(): " +
-//                                              QString::number(_receivedErrorCount));
+    const QString debugPrefix = "PurePlayer::timerReconnectTimeout(): ";
+//  LogDialog::debug(QString(debugPrefix + "time %1").arg(_timeLabel->time()));
+//  LogDialog::debug(QString(debugPrefix + "currentTime %1").arg(_currentTime));
+//  LogDialog::debug(QString(debugPrefix + "frame %1").arg(_currentFrame));
+
+//  LogDialog::debug(debugPrefix + QString::number(_receivedErrorCount));
 
     if( _reconnectControlTime == _timeLabel->time() ) {
-        LogDialog::debug(QString("PurePlayer::timerReconnectTimeout(): reconnect time %1")
+        LogDialog::debug(QString(debugPrefix + "reconnect time %1")
                 .arg(_reconnectControlTime), QColor(255,0,0));
 
-        if( _searchingConnection )
+        if( _channelStatus == CS_SEARCH )
             reconnectPurePlayer();
         else
             reconnect();
     }
     else
     if( _receivedErrorCount > 10 ) {
-        LogDialog::debug(QString("PurePlayer::timerReconnectTimeout(): reconnect count %1")
+        LogDialog::debug(QString(debugPrefix + "reconnect count %1")
                 .arg(_receivedErrorCount), QColor(255,0,0));
 
         reconnect();
     }
     else
-    if( _searchingConnection )
+    if( _channelStatus == CS_SEARCH )
         updateChannelInfo();
     else
     if( _receivedErrorCount == 0 )
@@ -2593,6 +2623,7 @@ void PurePlayer::playCommonProcess()
     _replyChannelInfoPcVp   = NULL;
     _replyChannelInfoPcSt   = NULL;
     _replyChannelStatusPcSt = NULL;
+    _channelStatus = CS_UNKNOWN;
 
     _noVideo = false;
     _controlFlags &= ~FLG_EOF;
