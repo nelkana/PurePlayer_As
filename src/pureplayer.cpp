@@ -49,6 +49,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 
     setFont(QFont("DejaVu Sans", 9));
     setWindowIcon(appIcon);
+    setWindowTitle("PurePlayer*");
     setAcceptDrops(true);
 
     setAutoFillBackground(true);
@@ -84,6 +85,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 
     _port = -1;
     _id   = "";
+    _chName = "";
 
     _nam = new QNetworkAccessManager(this);
     connect(_nam, SIGNAL(finished(QNetworkReply*)),
@@ -108,9 +110,6 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
             this,              SLOT(recordingOutputLine(const QString&)));
 //  connect(_recordingProcess, SIGNAL(finished()),
 //          this,              SLOT(recordingProcessFinished()));
-
-    _chName = "PurePlayer*";
-    setWindowTitle(_chName);
 
     _receivedErrorCount = 0;
     _reconnectCount = 0;
@@ -600,8 +599,9 @@ void PurePlayer::createActionContextMenu()
 
 void PurePlayer::open(const QString& path)
 {
-    if( _playlist->appendTracks(QStringList() << path) ) {
-        _playlist->setCurrentTrackIndex(_playlist->rowCount()-1);
+    int rows = _playlist->appendTracks(QStringList() << path);
+    if( rows ) {
+        _playlist->setCurrentTrackIndex(_playlist->rowCount() - rows);
 
         _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
         openCommonProcess(_playlist->currentTrackPath());
@@ -694,7 +694,7 @@ void PurePlayer::openCommonProcess(const QString& path)
         else
             _rootIp = "";
 
-        _chName = "PurePlayer*";
+        _chName = "";
         _reconnectCount = 0;
 
         _menuReconnect->menuAction()->setVisible(true);
@@ -715,7 +715,7 @@ void PurePlayer::openCommonProcess(const QString& path)
         _port   = -1;
         _id     = "";
         _rootIp = "";
-        _chName = path.split("/").last();
+        _chName = _playlist->currentTrackTitle(); //path.split("/").last();
 
         _menuReconnect->menuAction()->setVisible(false);
         // _actPlayPauseとのショートカットキー切り替えの為、設定
@@ -733,11 +733,8 @@ void PurePlayer::openCommonProcess(const QString& path)
     _path = path;
     _controlFlags |= FLG_OPENED_PATH;
 
-    setWindowTitle(_chName);
-    LogDialog::dialog()->setWindowTitle(_chName + " - PureLog");
-
     _contactUrl = "";
-    _actOpenContactUrl->setEnabled(false);
+    reflectChannelInfo();
 
     _infoLabel->clearClipInfo();
 
@@ -1393,13 +1390,9 @@ void PurePlayer::showVideoAdjustDialog()
     _videoAdjustDialog->show();
 }
 
-void PurePlayer::showLogDialog()
+void PurePlayer::showPlaylistDialog()
 {
-    LogDialog::moveDialog(_menuContext->x()
-                             + (_menuContext->width()-LogDialog::dialog()->frameSize().width())/2,
-                          _menuContext->y());
-
-    LogDialog::showDialog();
+    playlistDialog()->show();
 }
 
 void PurePlayer::showConfigDialog()
@@ -1422,13 +1415,13 @@ void PurePlayer::showConfigDialog()
     _configDialog->show();
 }
 
-void PurePlayer::showPlaylistDialog()
+void PurePlayer::showLogDialog()
 {
-    playlistDialog()->move(_menuContext->x()
-                            + (_menuContext->width()-playlistDialog()->frameSize().width())/2,
+    LogDialog::moveDialog(_menuContext->x()
+                             + (_menuContext->width()-LogDialog::dialog()->frameSize().width())/2,
                           _menuContext->y());
 
-    playlistDialog()->show();
+    LogDialog::showDialog();
 }
 
 void PurePlayer::showAboutDialog()
@@ -1613,8 +1606,6 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
         break;
 
 #ifndef QT_NO_DEBUG_OUTPUT
-//  case Qt::Key_D: showLogDialog();        break;
-//  case Qt::Key_O: mpCmd("osd");           break;
     case Qt::Key_B:
     {
         repeatAB();
@@ -1842,6 +1833,10 @@ PlaylistDialog* PurePlayer::playlistDialog()
         connect(_playlistDialog, SIGNAL(playStopCurrentTrack()), this, SLOT(playlist_playStopCurrentTrack()));
         connect(_playlistDialog, SIGNAL(playPrev()), this, SLOT(playPrev()));
         connect(_playlistDialog, SIGNAL(playNext()), this, SLOT(playNext()));
+
+        QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
+        _playlistDialog->move(s.value("playlist_pos", QPoint(x()+width()/2, y()+height()/2)).toPoint());
+        _playlistDialog->resize(s.value("playlist_size", _playlistDialog->size()).toSize());
     }
 
     return _playlistDialog;
@@ -2242,10 +2237,9 @@ bool PurePlayer::updateChannelInfoPcVp(const QString& reply)
 
     // チャンネル名の取得
     start = reply.indexOf("<td>チャンネル名");
-    if( start == -1 ) {
-        reflectChannelInfo();
+    if( start == -1 )
         return false;
-    }
+
     start = reply.indexOf("\">", start);
     start += 2;
     end = reply.indexOf('<', start);
@@ -2402,15 +2396,22 @@ void PurePlayer::reflectChannelInfo()
     else
         _actOpenContactUrl->setEnabled(true);
 
-    if( _chName.isEmpty() )
-        _chName = "PurePlayer*";
+    QString title;
+    if( _chName.isEmpty() ) {
+        title = "PurePlayer*";
+    }
+    else {
+        title = _chName;
+        if( isPeercastStream() )
+            _playlist->setCurrentTrackTitle(_chName);
+    }
 
-    if( _debugCount ) setWindowTitle(_chName + QString(" %1").arg(_debugCount));
-    else              setWindowTitle(_chName);
+    if( _debugCount )
+        setWindowTitle(title + QString(" %1").arg(_debugCount));
+    else
+        setWindowTitle(title);
 
-    _playlist->setCurrentTrackTitle(_chName);
-
-    LogDialog::dialog()->setWindowTitle(_chName + " - PureLog");
+    LogDialog::dialog()->setWindowTitle(title + " - PureLog");
 }
 
 void PurePlayer::replyFinished(QNetworkReply* reply)
@@ -2873,6 +2874,11 @@ void PurePlayer::saveInteractiveSettings()
     s.setValue("mute",      _isMute);
     s.setValue("statusbar", _alwaysShowStatusBar);
     s.setValue("pos",       pos());
+
+    if( _playlistDialog != NULL ) {
+        s.setValue("playlist_pos", _playlistDialog->pos());
+        s.setValue("playlist_size", _playlistDialog->size());
+    }
 
     LogDialog::debug("PurePlayer::saveInteractiveSettings(): end");
 }

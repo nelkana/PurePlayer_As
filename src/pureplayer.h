@@ -127,10 +127,10 @@ public slots:
     void removeVideoProfile();
 
     void showVideoAdjustDialog();
+    void showPlaylistDialog();
+    void showConfigDialog();
     void showLogDialog();
     void showAboutDialog();
-    void showConfigDialog();
-    void showPlaylistDialog();
 
     void updateChannelInfo();
     void openContactUrl();

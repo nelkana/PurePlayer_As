@@ -462,12 +462,8 @@ void PlaylistModel::setTracks(const QList<Track*>& tracks)
 int PlaylistModel::insertTracks(int row, const QList<QUrl>& urls)
 {
     QStringList paths;
-    foreach(const QUrl& url, urls) {
-        if( url.isLocalFile() )
-            paths << url.toLocalFile();
-        else
-            paths << url.toString();
-    }
+    foreach(const QUrl& url, urls)
+        paths << url.toString();
 
     QList<Track*> tracks = createTracks(paths);
 
@@ -532,6 +528,14 @@ void PlaylistModel::upCurrentTrackIndex()
         i = 0;
 
     setCurrentTrackIndex(i);
+}
+
+QString PlaylistModel::currentTrackTitle()
+{
+    if( _currentTrack != NULL )
+        return _currentTrack->title;
+
+    return QString();
 }
 
 QString PlaylistModel::currentTrackPath()
@@ -674,7 +678,11 @@ QList<PlaylistModel::Track*> PlaylistModel::createTracks(const QStringList& path
 {
     QList<Track*> tracks;
 
-    foreach(const QString& path, paths) {
+    foreach(QString path, paths) {
+        QUrl url(path);
+        if( url.isLocalFile() )
+            path = url.toLocalFile();
+
         QDir dir(path);
         if( dir.exists() ) {
             QStringList files = dir.entryList(QString(CommonLib::MEDIA_FORMATS).split(" "),
