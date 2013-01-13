@@ -200,6 +200,7 @@ protected:
     bool updateChannelInfoPcSt(const QString& reply);
     bool updateChannelStatusPcSt(const QString& reply);
     void reflectChannelInfo();
+    QString genDateTimeSaveFileName(const QString& suffix=QString());
 
     PlaylistDialog* playlistDialog();
 

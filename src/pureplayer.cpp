@@ -929,11 +929,7 @@ void PurePlayer::reconnectPeercast()
 void PurePlayer::recordingStartStop()
 {
     if( _recordingProcess->state() == QProcess::NotRunning ) {
-        QDateTime dateTime = QDateTime::currentDateTime();
-        QString saveName = QString("%1_%2.avi").arg(_chName)
-                                .arg(dateTime.toString("yyyyMMdd_")
-                                    + CommonLib::dayOfWeek(dateTime.date().dayOfWeek()-1)
-                                    + dateTime.toString("_hhmmss"));
+        QString saveName = genDateTimeSaveFileName("avi");
 
         QStringList args;
         args
@@ -1907,6 +1903,7 @@ void PurePlayer::mpProcessDebugKilledCPid()
 
 void PurePlayer::parseMplayerOutputLine(const QString& line)
 {
+    const QString debugPrefix = "PurePlayer::parseMplayerOutputLine(): ";
     static QRegExp rxCacheFill("^Cache fill: *([0-9.]+)%");
 //  static QRegExp rxVideoW("^ID_VIDEO_WIDTH=(\\d+)");
 //  static QRegExp rxVideoH("^ID_VIDEO_HEIGHT=(\\d+)");
@@ -1923,12 +1920,12 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
     static QRegExp rxScreenshot("^\\*\\*\\* screenshot '(.+)'");
     static QRegExp rxScreenshotError(".+ Error opening .+ for writing!");
 
-    if( rxStatus.indexIn(line) != -1 ) {
+    if( rxStatus.indexIn(line) != -1 )
+    {
         if( _startTime == -1 ) {
             _startTime = rxStatus.cap(1).toDouble();
             _oldTime = _startTime;
-            LogDialog::debug("PurePlayer::parseMplayerOutputLine(): init startTime "
-                                + QString::number(_startTime));
+            LogDialog::debug(debugPrefix + QString("init startTime %1").arg(_startTime));
         }
 
         _currentTime = rxStatus.cap(1).toDouble();
@@ -1940,31 +1937,21 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
                 // 現在の取得時間が前の取得時間から大きく飛んだ場合、経過時間を無効にする
                 // (再生開始時の古いキャッシュ再生による開始時間ズレの対応)
                 if( differenceTime > 1 ) {
-                    LogDialog::debug(
-                        QString("PurePlayer::parseMplayerOutputLine(): oldElapsed %1")
-                                            .arg(_elapsedTime), QColor(255,0,0));
+                    LogDialog::debug(debugPrefix + QString("oldElapsed %1")
+                                        .arg(_elapsedTime), QColor(255,0,0));
 
                     _elapsedTime += _oldTime - _startTime;
                     _startTime = _currentTime;
 
-                    LogDialog::debug(
-                        QString("PurePlayer::parseMplayerOutputLine(): elapsed %1")
-                                            .arg(_elapsedTime), QColor(255,0,0));
-                    LogDialog::debug(
-                        QString("PurePlayer::parseMplayerOutputLine(): startTime %1")
-                                            .arg(_startTime), QColor(255,0,0));
-                    LogDialog::debug(
-                        QString("PurePlayer::parseMplayerOutputLine(): diff %1 old %2")
-                                            .arg(differenceTime)
-                                            .arg(_oldTime), QColor(255,0,0));
+                    LogDialog::debug(debugPrefix + QString("elapsed %1").arg(_elapsedTime), QColor(255,0,0));
+                    LogDialog::debug(debugPrefix + QString("startTime %1").arg(_startTime), QColor(255,0,0));
+                    LogDialog::debug(debugPrefix + QString("diff %1 old %2").arg(differenceTime).arg(_oldTime), QColor(255,0,0));
                 }
 
                 // 差分時間が特に大きい場合、再接続する
                 // (差分時間が大きいとフレームがしばらく停止してしまう為)
                 if( differenceTime > 10 ) {
-                    LogDialog::debug(
-                        "PurePlayer::parseMplayerOutputLine(): reconnect diff",
-                        QColor(255,0,0));
+                    LogDialog::debug(debugPrefix + "reconnect diff", QColor(255,0,0));
 
                     reconnectPurePlayer();
                     //reconnect();
@@ -1983,8 +1970,7 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
 
                         _controlFlags |= FLG_SEEKED_REPEAT;
 
-                        LogDialog::debug(
-                            QString("PurePlayer::parseMplayerOutputLine(): old %1 current %2 end %3")
+                        LogDialog::debug(debugPrefix + QString("old %1 current %2 end %3")
                             .arg(_oldTime).arg(_currentTime).arg(_repeatEndTime/10.0));
                     }
                     else
@@ -2124,8 +2110,7 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
         else
             updateVideoScreenGeometry();
 
-        LogDialog::debug("PurePlayer::parseMplayerOutputLine(): videosize " +
-                    QString("%1x%2").arg(_videoSize.width()).arg(_videoSize.height()));
+        LogDialog::debug(debugPrefix + QString("videosize %1x%2").arg(_videoSize.width()).arg(_videoSize.height()));
     }
     else
     if( line.startsWith("ID_PAUSED") )
@@ -2152,33 +2137,20 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
         _controlFlags |= FLG_EOF;
     else
     if( rxScreenshot.indexIn(line) != -1 ) {
-        QDateTime dateTime = QDateTime::currentDateTime();
-        QString baseName = QString("%1_%2").arg(_chName)
-                                .arg(dateTime.toString("yyyyMMdd_")
-                                    + CommonLib::dayOfWeek(dateTime.date().dayOfWeek()-1)
-                                    + dateTime.toString("_hhmmss"));
+        QString file = rxScreenshot.cap(1);
+        QString newName = genDateTimeSaveFileName(QFileInfo(file).suffix());
 
-        new RenameTimerTask(rxScreenshot.cap(1), baseName, this);
+        new RenameFileTask(file, newName, this);
 
-        _infoLabel->setText("保存: スクリーンショット", 3000);
+        _infoLabel->setText(tr("保存: スクリーンショット"), 3000);
     }
     else
     if( rxScreenshotError.indexIn(line) != -1 )
-        _infoLabel->setText("エラー: スクリーンショット保存", 3000);
+        _infoLabel->setText(tr("エラー: スクリーンショット保存"), 3000);
     else
     if( rxCacheFill.indexIn(line) != -1 )
         _infoLabel->setText(QString("Cache: %1%").arg(rxCacheFill.cap(1), 5));
-/*  else
-    if( rxVideoW.indexIn(line) != -1 ) {
-        _videoSize.setWidth(rxVideoW.cap(1).toInt());
-        if( _videoSize.width() <= 0 ) _videoSize.setWidth(320);
-    }
     else
-    if( rxVideoH.indexIn(line) != -1 ) {
-        _videoSize.setHeight(rxVideoH.cap(1).toInt());
-        if( _videoSize.height() <= 0 ) _videoSize.setHeight(240);
-    }
-*/  else
     if( rxLength.indexIn(line) != -1 )
         _videoLength = rxLength.cap(1).toDouble();
     else
@@ -2204,12 +2176,9 @@ void PurePlayer::parseMplayerOutputLine(const QString& line)
      || line.contains("Bits overconsumption:") )
     {
         if( isPeercastStream() ) {
-/*          LogDialog::debug(QString("PurePlayer::parseMplayerOutputLine(): time %1")
-                                .arg(_timeLabel->time()));
-            LogDialog::debug(QString("PurePlayer::parseMplayerOutputLine(): timea %1")
-                                .arg(_currentTime));
-            LogDialog::debug(QString("PurePlayer::parseMplayerOutputLine(): frame %1")
-                                .arg(_currentFrame));
+/*          LogDialog::debug(debugPrefix + QString("time %1").arg(_timeLabel->time()));
+            LogDialog::debug(debugPrefix + QString("timea %1").arg(_currentTime));
+            LogDialog::debug(debugPrefix + QString("frame %1").arg(_currentFrame));
 */
 //          _debugFlg = !_debugFlg;
 
@@ -2412,6 +2381,27 @@ void PurePlayer::reflectChannelInfo()
         setWindowTitle(title);
 
     LogDialog::dialog()->setWindowTitle(title + " - PureLog");
+}
+
+QString PurePlayer::genDateTimeSaveFileName(const QString& suffix)
+{
+    QString title;
+    if( _chName.isEmpty() || (!isPeercastStream() && !QFile::exists(_path)) )
+        title = "snap";
+    else
+        title = _chName;
+
+    QDateTime dateTime = QDateTime::currentDateTime();
+    QString name = QString("%1_%2")
+                        .arg(title)
+                        .arg(dateTime.toString("yyyyMMdd_")
+                            + CommonLib::dayOfWeek(dateTime.date().dayOfWeek()-1)
+                            + dateTime.toString("_hhmm_ss"));
+
+    if( !suffix.isEmpty() )
+        name += '.' + suffix;
+
+    return name;
 }
 
 void PurePlayer::replyFinished(QNetworkReply* reply)

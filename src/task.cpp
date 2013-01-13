@@ -22,19 +22,19 @@
 #include "task.h"
 #include "commonlib.h"
 
-QList<Task*> Task::s_listTask;
+QList<Task*> Task::s_tasks;
 
 Task::Task(QObject* parent) : QObject(parent)
 {
-    s_listTask.append(this);
+    s_tasks.append(this);
 }
 
 void Task::waitForTasksFinished()
 {
-//  for(int i=0; i < s_listTask.count(); i++)
-//      qDebug() << QString().sprintf("renameTimerTaskList: %p", s_listTask.at(i));
+//  for(int i=0; i < s_tasks.count(); i++)
+//      qDebug() << QString().sprintf("tasks: %p", s_tasks.at(i));
 
-    while( s_listTask.count() ) {
+    while( s_tasks.count() ) {
         QCoreApplication::instance()->processEvents(QEventLoop::ExcludeUserInputEvents);
         CommonLib::msleep(1);
     }
@@ -42,53 +42,35 @@ void Task::waitForTasksFinished()
 
 void Task::deleteObject()
 {
-    s_listTask.removeOne(this);
+    s_tasks.removeOne(this);
     deleteLater();
 }
 
 // ---------------------------------------------------------------------------------------
-RenameTimerTask::RenameTimerTask(const QString& fileName, const QString& baseName,
+RenameFileTask::RenameFileTask(const QString& file, const QString& newName,
         QObject* parent) : Task(parent)
 {
     _timer.setSingleShot(true);
     _timer.setInterval(1500);
     connect(&_timer, SIGNAL(timeout()), this, SLOT(slot_timeout()));
 
-    _fileName = fileName;
-    _baseName = baseName;
+    _file = file;
+    _newName = newName;
 
     _timer.start();
 }
 
-void RenameTimerTask::slot_timeout()
+void RenameFileTask::slot_timeout()
 {
-    // ファイルリネーム処理
-    if( QFile::exists(_fileName) ) {
-        QString suffix = QFileInfo(_fileName).suffix();
-        if( !suffix.isEmpty() )
-            suffix = "." + suffix;
+    if( QFile::exists(_file) ) {
+        QString name = CommonLib::retTheFileNameNotExists(_newName);
 
-        // 重複しないリネームファイル名を決定する
-        QString name = CommonLib::retTheFileNameNotExists(_baseName + suffix);
-/*
-        QFileInfo file(_baseName + suffix);
-        int num = 1;
-        while( file.exists() || file.isSymLink() ) {
-            num++;
-            if( num > LIMIT_NUM ) break;
-
-            file.setFile(QString("%1_%2%3").arg(_baseName).arg(num).arg(suffix));
-
-//          LogDialog::debug(file.fileName());
-        }
-*/
-        // リネーム
-        if( QFile::rename(_fileName, name) )
-            _fileName = name;
+        if( QFile::rename(_file, name) )
+            _file = name;
     }
 
     deleteObject();
-//  LogDialog::debug(QString("rename: %1").arg(_fileName));
+//  LogDialog::debug(QString("rename: %1").arg(_file));
 }
 
 // ---------------------------------------------------------------------------------------

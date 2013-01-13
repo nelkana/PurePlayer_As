@@ -33,23 +33,23 @@ protected:
     void deleteObject();
 
 private:
-    static QList<Task*> s_listTask;
+    static QList<Task*> s_tasks;
 };
 
-class RenameTimerTask : public Task
+class RenameFileTask : public Task
 {
     Q_OBJECT;
 
 public:
-    RenameTimerTask(const QString& fileName, const QString& baseName, QObject* parent);
+    RenameFileTask(const QString& file, const QString& newName, QObject* parent);
 
 protected slots:
     void slot_timeout();
 
 private:
     QTimer  _timer;
-    QString _fileName;
-    QString _baseName;
+    QString _file;
+    QString _newName;
 };
 
 class PeercastStopTask : public Task
