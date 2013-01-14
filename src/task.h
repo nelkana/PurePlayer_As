@@ -18,6 +18,7 @@
 
 #include <QTimer>
 #include <QNetworkAccessManager>
+#include "pureplayer.h"
 
 class Task : public QObject
 {
@@ -33,23 +34,23 @@ protected:
     void deleteObject();
 
 private:
-    static QList<Task*> s_listTask;
+    static QList<Task*> s_tasks;
 };
 
-class RenameTimerTask : public Task
+class RenameFileTask : public Task
 {
     Q_OBJECT;
 
 public:
-    RenameTimerTask(const QString& fileName, const QString& baseName, QObject* parent);
+    RenameFileTask(const QString& file, const QString& newName, QObject* parent);
 
 protected slots:
     void slot_timeout();
 
 private:
     QTimer  _timer;
-    QString _fileName;
-    QString _baseName;
+    QString _file;
+    QString _newName;
 };
 
 class PeercastStopTask : public Task
@@ -64,6 +65,33 @@ protected slots:
 
 private:
     QNetworkAccessManager _nam;
+};
+
+class PeercastDisconnectTask : public Task
+{
+    Q_OBJECT;
+
+public:
+    PeercastDisconnectTask(const QString& host, const short port, const QString& id,
+                           const PurePlayer::PEERCAST_TYPE type, QObject* parent);
+
+protected:
+    bool getChannelStatusPcVp(const QString& reply);
+    bool getChannelStatusPcSt(const QString& reply);
+
+protected slots:
+    void timer_timeout();
+    void nam_finished(QNetworkReply*);
+
+private:
+    QTimer  _timer;
+    QNetworkAccessManager _nam;
+    QString _host;
+    short   _port;
+    QString _id;
+    PurePlayer::PEERCAST_TYPE _peercastType;
+    int     _listeners;
+    bool    _searchingConnection;
 };
 
 #endif // TASK_H

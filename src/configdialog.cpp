@@ -67,7 +67,7 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
     _checkBoxSoftVideoEq->setEnabled(false);
 #else
     connect(_checkBoxSoftVideoEq, SIGNAL(clicked(bool)),
-            this,                 SLOT(checkBoxSoftVideoEqClicked(bool)));
+            this,                 SLOT(checkBoxSoftVideoEq_clicked(bool)));
 #endif // QT_NO_DEBUG_OUTPUT
 
 #else
@@ -76,6 +76,7 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
 
     _groupBoxScreenshotPath->setFocusPolicy(Qt::NoFocus); // qtデザイナでは効果無し、ここで指定
     _groupBoxMplayerPath->setFocusPolicy(Qt::NoFocus);
+    _groupBoxContactUrlPath->setFocusPolicy(Qt::NoFocus);
     _checkBoxScreenshot->setVisible(false); // debug
 
     QPalette palette = _groupBoxScreenshotPath->palette();
@@ -84,13 +85,38 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
     palette.setColor(QPalette::Inactive, QPalette::Text, palette.color(QPalette::WindowText));
     _groupBoxScreenshotPath->setPalette(palette);
     _groupBoxMplayerPath->setPalette(palette);
+    _groupBoxContactUrlPath->setPalette(palette);
     palette.setColor(QPalette::Active, QPalette::Text, colorText);
     palette.setColor(QPalette::Inactive, QPalette::Text, colorText);
     _lineEditScreenshotPath->setPalette(palette);
     _lineEditMplayerPath->setPalette(palette);
+    _lineEditContactUrlPath->setPalette(palette);
+    _lineEditContactUrlArg->setPalette(palette);
 
     connect(_buttonScreenshotPath, SIGNAL(clicked()), this, SLOT(setScreenshotPathFromDialog()));
     connect(_buttonMplayerPath, SIGNAL(clicked()), this, SLOT(setMplayerPathFromDialog()));
+    connect(_buttonContactUrlPath, SIGNAL(clicked()), this, SLOT(setContactUrlPathFromDialog()));
+    connect(_buttonContactUrlArg, SIGNAL(clicked()), this, SLOT(buttonContactUrlArg_clicked()));
+
+    // コンタクトURLパス指定部のエディットボックスの幅設定
+    int w = _lineEditContactUrlArg->fontMetrics().width(ConfigData::CONTACTURL_ARG_DEFAULT) + 20;
+    _lineEditContactUrlArg->setMinimumWidth(w);
+    _lineEditContactUrlPath->setMinimumWidth(w);
+
+    // コンタクトURLパス選択ボタン、引数ボタンの幅設定
+    w = _buttonContactUrlPath->fontMetrics().width(_buttonContactUrlPath->text()) + 14;
+    if( w < 30 )
+        w = 30;
+
+    if( w < _buttonContactUrlPath->sizeHint().width() )
+        _buttonContactUrlPath->setMaximumWidth(w);
+
+    w = _buttonContactUrlArg->fontMetrics().width(_buttonContactUrlArg->text()) + 14;
+    if( w < 30 )
+        w = 30;
+
+    if( w < _buttonContactUrlArg->sizeHint().width() )
+        _buttonContactUrlArg->setMaximumWidth(w);
 
     resize(10,10);
 }
@@ -118,10 +144,14 @@ void ConfigDialog::setData(ConfigData::Data* data)
     _checkBox320x240->setChecked(_data->openIn320x240Size);
     _checkBoxSoftVideoEq->setChecked(_data->useSoftWareVideoEq);
     _checkBoxScreenshot->setChecked(_data->screenshot);
+    _checkBoxDisconnectChannel->setChecked(_data->disconnectChannel);
     _groupBoxScreenshotPath->setChecked(_data->useScreenshotPath);
     _lineEditScreenshotPath->setText(_data->screenshotPath);
     _groupBoxMplayerPath->setChecked(_data->useMplayerPath);
     _lineEditMplayerPath->setText(_data->mplayerPath);
+    _groupBoxContactUrlPath->setChecked(_data->useContactUrlPath);
+    _lineEditContactUrlPath->setText(_data->contactUrlPath);
+    _lineEditContactUrlArg->setText(_data->contactUrlArg);
 }
 
 void ConfigDialog::apply()
@@ -165,6 +195,7 @@ void ConfigDialog::apply()
         restart = true;
 
     _data->screenshot = _checkBoxScreenshot->isChecked();
+    _data->disconnectChannel = _checkBoxDisconnectChannel->isChecked();
 
     _data->volumeMax = _spinBoxVolumeMax->value();
     _data->cacheStreamSize = _spinBoxCacheStream->value();
@@ -195,6 +226,10 @@ void ConfigDialog::apply()
 
     _data->mplayerPath = _lineEditMplayerPath->text();
 
+    _data->useContactUrlPath = _groupBoxContactUrlPath->isChecked();
+    _data->contactUrlPath = _lineEditContactUrlPath->text();
+    _data->contactUrlArg = _lineEditContactUrlArg->text();
+
     emit applied(restart);
 }
 
@@ -216,17 +251,28 @@ void ConfigDialog::setMplayerPathFromDialog()
         _lineEditMplayerPath->setText(path);
 }
 
+void ConfigDialog::setContactUrlPathFromDialog()
+{
+    QString path = QFileDialog::getOpenFileName(this, tr("ファイルを選択"), "",
+                                                tr("全てのファイル(*)"));
+
+    if( !path.isEmpty() )
+        _lineEditContactUrlPath->setText(path);
+}
+
 void ConfigDialog::showEvent(QShowEvent*)
 {
-    adjustSize();
+//  adjustSize();
     setFixedSize(size());
     _spinBoxCacheStream->clearFocus();
     _spinBoxVolumeMax->clearFocus();
     _lineEditScreenshotPath->clearFocus();
     _lineEditMplayerPath->clearFocus();
+    _lineEditContactUrlPath->clearFocus();
+    _lineEditContactUrlArg->clearFocus();
 }
 
-void ConfigDialog::checkBoxSoftVideoEqClicked(bool checked)
+void ConfigDialog::checkBoxSoftVideoEq_clicked(bool checked)
 {
     if( !checked ) {
         QMessageBox::StandardButton ret =
@@ -243,5 +289,10 @@ void ConfigDialog::checkBoxSoftVideoEqClicked(bool checked)
         if( ret == QMessageBox::No )
             _checkBoxSoftVideoEq->setCheckState(Qt::Checked);
     }
+}
+
+void ConfigDialog::buttonContactUrlArg_clicked()
+{
+    _lineEditContactUrlArg->setText(ConfigData::CONTACTURL_ARG_DEFAULT);
 }
 

@@ -179,12 +179,12 @@ QRect CommonLib::scaleRectOnRect(const QSize& baseRect, const QSize& placeRect)
 QString CommonLib::retTheFileNameNotExists(const QString& requestFileName)
 {
     QFileInfo file(requestFileName);
-    QString baseName = file.baseName();
+    QString baseName = file.completeBaseName();
     QString suffix   = file.suffix();
     if( !suffix.isEmpty() )
         suffix = "." + suffix;
 
-    unsigned long num = 1;
+    ulong num = 1;
     while( file.exists() || file.isSymLink() ) {
         num++;
 //      if( num > limitNum ) break;

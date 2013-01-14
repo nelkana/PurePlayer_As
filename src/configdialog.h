@@ -33,6 +33,7 @@ public slots:
     void apply();
     void setScreenshotPathFromDialog();
     void setMplayerPathFromDialog();
+    void setContactUrlPathFromDialog();
 
 signals:
     void applied(bool requestRestartMplayer);
@@ -41,7 +42,8 @@ protected:
     void showEvent(QShowEvent*);
 
 private slots:
-    void checkBoxSoftVideoEqClicked(bool checked);
+    void checkBoxSoftVideoEq_clicked(bool checked);
+    void buttonContactUrlArg_clicked();
 
 private:
     ConfigData::Data* _data;

@@ -80,6 +80,7 @@ public:
     void    upCurrentTrackIndex();
     Track*  currentTrack() { return _currentTrack; }
     bool    isCurrentTrack(const QString& path) { return (_currentTrack!=NULL && path==_currentTrack->path); }
+    QString currentTrackTitle();
     QString currentTrackPath();
     QString trackPath(int row);
     void    setCurrentTrackTitle(const QString& title);

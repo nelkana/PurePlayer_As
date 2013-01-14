@@ -21,6 +21,8 @@
 class ConfigData
 {
 public:
+    static const char* const CONTACTURL_ARG_DEFAULT;
+
     struct Data {
         QString voName;
         QString aoName;
@@ -33,6 +35,10 @@ public:
         QString screenshotPath;
         bool    useMplayerPath;
         QString mplayerPath;
+        bool    useContactUrlPath;
+        QString contactUrlPath;
+        QString contactUrlArg;
+        bool    disconnectChannel;
     };
 
     static Data* data() { return &s_data; }

@@ -56,6 +56,7 @@ public:
     enum DEINTERLACE_MODE { DI_NO_DEINTERLACE, DI_YADIF, DI_YADIF_DOUBLE, DI_LINEAR_BLEND };
     enum AUDIO_OUTPUT_MODE { AO_STEREO, AO_MONAURAL, AO_LEFT, AO_RIGHT };
     enum VOLUME_FACTOR_MODE { VF_ONE_THIRD, VF_NORMAL, VF_DOUBLE, VF_TRIPLE };
+    enum PEERCAST_TYPE { PCT_UNKNOWN, PCT_VP, PCT_ST };
 
     PurePlayer(QWidget* parent = 0);
     virtual ~PurePlayer();
@@ -127,10 +128,10 @@ public slots:
     void removeVideoProfile();
 
     void showVideoAdjustDialog();
+    void showPlaylistDialog();
+    void showConfigDialog();
     void showLogDialog();
     void showAboutDialog();
-    void showConfigDialog();
-    void showPlaylistDialog();
 
     void updateChannelInfo();
     void openContactUrl();
@@ -149,7 +150,6 @@ protected slots:
 
 protected:
     enum STATE { STOP, PAUSE, READY, PLAY };
-    enum PEERCAST_TYPE { PCT_UNKNOWN, PCT_VP, PCT_ST };
     enum CHANNEL_STATUS { CS_UNKNOWN, CS_CONNECT, CS_RECEIVE, CS_SEARCH, CS_ERROR };
     enum CONTROL_FLAG {
         FLG_NONE                    = 0x00000000,
@@ -200,7 +200,9 @@ protected:
     bool updateChannelInfoPcSt(const QString& reply);
     bool updateChannelStatusPcSt(const QString& reply);
     void reflectChannelInfo();
+    QString genDateTimeSaveFileName(const QString& suffix=QString());
 
+    void closeAllOtherDialog();
     PlaylistDialog* playlistDialog();
 
 private slots:
