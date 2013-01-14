@@ -683,6 +683,8 @@ void PurePlayer::openCommonProcess(const QString& path)
     QRegExp rxPeercastUrl(
             "(?:^http|^mms|^mmsh)://(.+):(\\d+)/(?:stream|pls)/([A-F0-9]{32})");
 
+    stopFromGui();
+
     if( rxPeercastUrl.indexIn(path) != -1 ) {
         _host = rxPeercastUrl.cap(1);
         _port = rxPeercastUrl.cap(2).toShort();
@@ -759,7 +761,6 @@ void PurePlayer::openCommonProcess(const QString& path)
 */
     LogDialog::debug("PurePlayer::openCommonProcess(): current dir " + QDir::currentPath());
 
-    stop();
     playCommonProcess();
 }
 
@@ -1553,10 +1554,13 @@ void PurePlayer::closeEvent(QCloseEvent* e)
 {
     LogDialog::debug("PurePlayer::closeEvent(): start-");
 
-    LogDialog::closeDialog();
+    closeAllOtherDialog();
     saveInteractiveSettings();
     hide();
-    stopFromGui();
+    stop();
+    if( isPeercastStream() && ConfigData::data()->disconnectChannel )
+        new PeercastDisconnectTask(_host, _port, _id, _peercastType, this);
+
     e->accept();
 
     LogDialog::debug("PurePlayer::closeEvent():-end");
@@ -1833,6 +1837,26 @@ void PurePlayer::middleClickResize()
     }
 }
 
+void PurePlayer::closeAllOtherDialog()
+{
+    LogDialog::closeDialog();
+
+    if( _videoAdjustDialog != NULL )
+        _videoAdjustDialog->close();
+
+    if( _openDialog != NULL )
+        _openDialog->close();
+
+    if( _playlistDialog != NULL )
+        _playlistDialog->close();
+
+    if( _configDialog != NULL )
+        _configDialog->close();
+
+    if( _aboutDialog != NULL )
+        _aboutDialog->close();
+}
+
 PlaylistDialog* PurePlayer::playlistDialog()
 {
     if( _playlistDialog == NULL ) {
@@ -1863,8 +1887,11 @@ void PurePlayer::mpProcessFinished()
 
         if( isStop() ) {
             setStatus(STOP);
-//          if( _controlFlags & FLG_EXPLICITLY_STOPPED )
-//              stopPeercast();
+            if( ConfigData::data()->disconnectChannel
+             && _controlFlags & FLG_EXPLICITLY_STOPPED )
+            {
+                new PeercastDisconnectTask(_host, _port, _id, _peercastType, this);
+            }
         }
         else {
             _reconnectCount++;
@@ -1882,7 +1909,8 @@ void PurePlayer::mpProcessFinished()
             }
             else {
                 setStatus(STOP);
-//              stopPeercast();
+                if( ConfigData::data()->disconnectChannel )
+                    new PeercastDisconnectTask(_host, _port, _id, _peercastType, this);
             }
         }
     }
@@ -2588,6 +2616,7 @@ void PurePlayer::playlist_playStopCurrentTrack()
             stopFromGui();
     else {
         _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
+        _controlFlags |= FLG_EXPLICITLY_STOPPED;
         _reconnectCount=0;
         restartPlay();
     }

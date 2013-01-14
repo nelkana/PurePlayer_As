@@ -144,6 +144,7 @@ void ConfigDialog::setData(ConfigData::Data* data)
     _checkBox320x240->setChecked(_data->openIn320x240Size);
     _checkBoxSoftVideoEq->setChecked(_data->useSoftWareVideoEq);
     _checkBoxScreenshot->setChecked(_data->screenshot);
+    _checkBoxDisconnectChannel->setChecked(_data->disconnectChannel);
     _groupBoxScreenshotPath->setChecked(_data->useScreenshotPath);
     _lineEditScreenshotPath->setText(_data->screenshotPath);
     _groupBoxMplayerPath->setChecked(_data->useMplayerPath);
@@ -194,6 +195,7 @@ void ConfigDialog::apply()
         restart = true;
 
     _data->screenshot = _checkBoxScreenshot->isChecked();
+    _data->disconnectChannel = _checkBoxDisconnectChannel->isChecked();
 
     _data->volumeMax = _spinBoxVolumeMax->value();
     _data->cacheStreamSize = _spinBoxCacheStream->value();

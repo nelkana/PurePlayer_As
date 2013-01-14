@@ -40,6 +40,7 @@ void ConfigData::saveData()
     s.setValue("useContactUrlPath", s_data.useContactUrlPath);
     s.setValue("contactUrlPath", s_data.contactUrlPath);
     s.setValue("contactUrlArg", s_data.contactUrlArg);
+    s.setValue("disconnectChannel", s_data.disconnectChannel);
 }
 
 void ConfigData::loadData()
@@ -72,5 +73,6 @@ void ConfigData::loadData()
     s_data.useContactUrlPath = s.value("useContactUrlPath", false).toBool();
     s_data.contactUrlPath = s.value("contactUrlPath", "").toString();
     s_data.contactUrlArg = s.value("contactUrlArg", CONTACTURL_ARG_DEFAULT).toString();
+    s_data.disconnectChannel = s.value("disconnectChannel", false).toBool();
 }
 

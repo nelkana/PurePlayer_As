@@ -18,6 +18,7 @@
 
 #include <QTimer>
 #include <QNetworkAccessManager>
+#include "pureplayer.h"
 
 class Task : public QObject
 {
@@ -64,6 +65,33 @@ protected slots:
 
 private:
     QNetworkAccessManager _nam;
+};
+
+class PeercastDisconnectTask : public Task
+{
+    Q_OBJECT;
+
+public:
+    PeercastDisconnectTask(const QString& host, const short port, const QString& id,
+                           const PurePlayer::PEERCAST_TYPE type, QObject* parent);
+
+protected:
+    bool getChannelStatusPcVp(const QString& reply);
+    bool getChannelStatusPcSt(const QString& reply);
+
+protected slots:
+    void timer_timeout();
+    void nam_finished(QNetworkReply*);
+
+private:
+    QTimer  _timer;
+    QNetworkAccessManager _nam;
+    QString _host;
+    short   _port;
+    QString _id;
+    PurePlayer::PEERCAST_TYPE _peercastType;
+    int     _listeners;
+    bool    _searchingConnection;
 };
 
 #endif // TASK_H

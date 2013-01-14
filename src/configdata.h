@@ -38,6 +38,7 @@ public:
         bool    useContactUrlPath;
         QString contactUrlPath;
         QString contactUrlArg;
+        bool    disconnectChannel;
     };
 
     static Data* data() { return &s_data; }

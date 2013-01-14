@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>382</width>
-    <height>460</height>
+    <height>459</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -166,6 +166,19 @@
        </property>
        <property name="text">
         <string>スクリーンショット機能を有効にする</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="_checkBoxDisconnectChannel">
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
+       <property name="toolTip">
+        <string>配信が停止した時、数秒後チャンネルの切断を行います。</string>
+       </property>
+       <property name="text">
+        <string>配信が停止した時、チャンネルを切断する</string>
        </property>
       </widget>
      </item>
