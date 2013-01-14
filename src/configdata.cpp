@@ -19,6 +19,7 @@
 #include "commonlib.h"
 #include "logdialog.h"
 
+const char* const ConfigData::CONTACTURL_ARG_DEFAULT = "\"%{ContactUrl}\"";
 ConfigData::Data ConfigData::s_data;
 
 void ConfigData::saveData()
@@ -36,6 +37,9 @@ void ConfigData::saveData()
     s.setValue("screenshotPath", s_data.screenshotPath);
     s.setValue("useMplayerPath", s_data.useMplayerPath);
     s.setValue("mplayerPath", s_data.mplayerPath);
+    s.setValue("useContactUrlPath", s_data.useContactUrlPath);
+    s.setValue("contactUrlPath", s_data.contactUrlPath);
+    s.setValue("contactUrlArg", s_data.contactUrlArg);
 }
 
 void ConfigData::loadData()
@@ -65,5 +69,8 @@ void ConfigData::loadData()
     s_data.screenshotPath = s.value("screenshotPath", QDir::homePath()).toString();
     s_data.useMplayerPath = s.value("useMplayerPath", false).toBool();
     s_data.mplayerPath = s.value("mplayerPath", "").toString();
+    s_data.useContactUrlPath = s.value("useContactUrlPath", false).toBool();
+    s_data.contactUrlPath = s.value("contactUrlPath", "").toString();
+    s_data.contactUrlArg = s.value("contactUrlArg", CONTACTURL_ARG_DEFAULT).toString();
 }
 

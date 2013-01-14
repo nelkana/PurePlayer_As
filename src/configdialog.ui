@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>398</width>
-    <height>381</height>
+    <width>382</width>
+    <height>460</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -133,7 +133,7 @@
         <enum>Qt::NoFocus</enum>
        </property>
        <property name="toolTip">
-        <string>ビデオ調整が反映されない場合に有効です。</string>
+        <string>ビデオ調整が反映されない場合に効果があります。</string>
        </property>
        <property name="text">
         <string>ビデオ調整にソフトウェアビデオイコライザーを使用する</string>
@@ -355,6 +355,93 @@
           </property>
           <property name="text">
            <string>選択</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="_groupBoxContactUrlPath">
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
+       <property name="toolTip">
+        <string>無効の場合またはプログラムが起動できなかった場合は、既定のブラウザで開きます。</string>
+       </property>
+       <property name="title">
+        <string>コンタクトURLを開くプログラムを指定する</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+       <layout class="QHBoxLayout" name="horizontalLayout_7">
+        <property name="spacing">
+         <number>4</number>
+        </property>
+        <property name="margin">
+         <number>4</number>
+        </property>
+        <item>
+         <widget class="QLineEdit" name="_lineEditContactUrlPath">
+          <property name="focusPolicy">
+           <enum>Qt::ClickFocus</enum>
+          </property>
+          <property name="toolTip">
+           <string>実行ファイルを指定します。</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="_buttonContactUrlPath">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="focusPolicy">
+           <enum>Qt::NoFocus</enum>
+          </property>
+          <property name="toolTip">
+           <string>実行ファイルを指定します。</string>
+          </property>
+          <property name="text">
+           <string>選択</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="_lineEditContactUrlArg">
+          <property name="focusPolicy">
+           <enum>Qt::ClickFocus</enum>
+          </property>
+          <property name="toolTip">
+           <string>実行ファイルに渡す引数を指定します。
+%{ContactUrl}はコンタクトURLに変換されます。</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="_buttonContactUrlArg">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="focusPolicy">
+           <enum>Qt::NoFocus</enum>
+          </property>
+          <property name="toolTip">
+           <string>実行ファイルに渡す引数を指定します。
+%{ContactUrl}はコンタクトURLに変換されます。</string>
+          </property>
+          <property name="text">
+           <string>リセット</string>
           </property>
          </widget>
         </item>

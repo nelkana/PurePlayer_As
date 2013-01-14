@@ -607,7 +607,7 @@ void PurePlayer::open(const QString& path)
         openCommonProcess(_playlist->currentTrackPath());
     }
     else
-        QMessageBox::warning(this, "エラー", "指定されたファイル又はURLが正しくありません");
+        QMessageBox::warning(this, "エラー", tr("指定されたファイル又はURLが正しくありません"));
 }
 
 void PurePlayer::open(const QList<QUrl>& urls)
@@ -1475,8 +1475,19 @@ void PurePlayer::updateChannelInfo()
 
 void PurePlayer::openContactUrl()
 {
-    if( !_contactUrl.isEmpty() )
-        QDesktopServices::openUrl(_contactUrl);
+    if( !_contactUrl.isEmpty() ) {
+        if( ConfigData::data()->useContactUrlPath ) {
+            QString arg = ConfigData::data()->contactUrlArg;
+            arg.replace("%{ContactUrl}", _contactUrl);
+            bool b = QProcess::startDetached(QString("\"%1\" %2")
+                        .arg(ConfigData::data()->contactUrlPath).arg(arg));
+
+            if( !b )
+                QDesktopServices::openUrl(_contactUrl);
+        }
+        else
+            QDesktopServices::openUrl(_contactUrl);
+    }
 }
 
 //bool PurePlayer::event(QEvent* e)
