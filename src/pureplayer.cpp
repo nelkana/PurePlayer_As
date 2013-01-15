@@ -761,6 +761,7 @@ void PurePlayer::openCommonProcess(const QString& path)
 */
     LogDialog::debug("PurePlayer::openCommonProcess(): current dir " + QDir::currentPath());
 
+    setStatus(STOP);
     playCommonProcess();
 }
 
@@ -785,20 +786,17 @@ void PurePlayer::stop()
     LogDialog::debug(debugPrefix + "start-");
     setStatus(STOP);
 
-    if( _mpProcess->state() == QProcess::NotRunning ) {
-        LogDialog::debug(debugPrefix + "-end. process not running.");
-        return;
-    }
-
-    // mplayerプロセスを終了させる
-    mpCmd("quit");
-    if( !_mpProcess->waitForFinished(1000) ) {
-        LogDialog::debug(debugPrefix + "_mpProcess->terminate()", QColor(255,0,0));
-        _mpProcess->terminate();
-        if( !_mpProcess->waitForFinished(3000) ) {
-            LogDialog::debug(debugPrefix + "_mpProcess->kill()", QColor(255,0,0));
-            _mpProcess->kill();
-            _mpProcess->waitForFinished(2000);
+    if( _mpProcess->state() != QProcess::NotRunning ) {
+        // mplayerプロセスを終了させる
+        mpCmd("quit");
+        if( !_mpProcess->waitForFinished(1000) ) {
+            LogDialog::debug(debugPrefix + "_mpProcess->terminate()", QColor(255,0,0));
+            _mpProcess->terminate();
+            if( !_mpProcess->waitForFinished(3000) ) {
+                LogDialog::debug(debugPrefix + "_mpProcess->kill()", QColor(255,0,0));
+                _mpProcess->kill();
+                _mpProcess->waitForFinished(2000);
+            }
         }
     }
 
