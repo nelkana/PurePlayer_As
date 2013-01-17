@@ -45,20 +45,19 @@ public:
     RenameFileTask(const QString& file, const QString& newName, QObject* parent);
 
 protected slots:
-    void slot_timeout();
+    void timerSingleShot_timeout();
 
 private:
-    QTimer  _timer;
     QString _file;
     QString _newName;
 };
 
-class PeercastStopTask : public Task
+class StopChannelTask : public Task
 {
     Q_OBJECT;
 
 public:
-    PeercastStopTask(const QString& host, const short port, const QString& id, QObject* parent);
+    StopChannelTask(const QString& host, const short port, const QString& id, QObject* parent);
 
 protected slots:
     void nam_finished(QNetworkReply*);
@@ -67,12 +66,12 @@ private:
     QNetworkAccessManager _nam;
 };
 
-class PeercastDisconnectTask : public Task
+class DisconnectChannelTask : public Task
 {
     Q_OBJECT;
 
 public:
-    PeercastDisconnectTask(const QString& host, const short port, const QString& id,
+    DisconnectChannelTask(const QString& host, const short port, const QString& id,
                            const PurePlayer::PEERCAST_TYPE type, QObject* parent);
 
 protected:
@@ -80,11 +79,10 @@ protected:
     bool getChannelStatusPcSt(const QString& reply);
 
 protected slots:
-    void timer_timeout();
+    void timerSingleShot_timeout();
     void nam_finished(QNetworkReply*);
 
 private:
-    QTimer  _timer;
     QNetworkAccessManager _nam;
     QString _host;
     short   _port;

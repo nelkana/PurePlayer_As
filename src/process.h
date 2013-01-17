@@ -25,6 +25,7 @@ class CommonProcess : public QProcess
 
 public:
     CommonProcess(QObject* parent);
+    virtual ~CommonProcess() {}
 
 signals:
     void outputLine(const QString& line);
@@ -45,6 +46,8 @@ public:
     void start(const QString& program, const QStringList& arguments, OpenMode mode=ReadWrite);
     void receiveMplayerChildProcess();
     void command(const QString& command) { write(command.toLocal8Bit() + "\n"); }
+
+    bool terminateWaitForFinished();
 
 signals:
     void finished();

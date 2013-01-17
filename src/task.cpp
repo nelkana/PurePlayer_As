@@ -51,17 +51,13 @@ void Task::deleteObject()
 RenameFileTask::RenameFileTask(const QString& file, const QString& newName,
         QObject* parent) : Task(parent)
 {
-    _timer.setSingleShot(true);
-    _timer.setInterval(1500);
-    connect(&_timer, SIGNAL(timeout()), this, SLOT(slot_timeout()));
-
     _file = file;
     _newName = newName;
 
-    _timer.start();
+    QTimer::singleShot(1500, this, SLOT(timerSingleShot_timeout()));
 }
 
-void RenameFileTask::slot_timeout()
+void RenameFileTask::timerSingleShot_timeout()
 {
     if( QFile::exists(_file) ) {
         QString name = CommonLib::retTheFileNameNotExists(_newName);
@@ -75,7 +71,7 @@ void RenameFileTask::slot_timeout()
 }
 
 // ---------------------------------------------------------------------------------------
-PeercastStopTask::PeercastStopTask(const QString& host, const short port, const QString& id,
+StopChannelTask::StopChannelTask(const QString& host, const short port, const QString& id,
         QObject* parent) : Task(parent)
 {
     connect(&_nam, SIGNAL(finished(QNetworkReply*)),
@@ -85,14 +81,14 @@ PeercastStopTask::PeercastStopTask(const QString& host, const short port, const 
     _nam.get(QNetworkRequest(url));
 }
 
-void PeercastStopTask::nam_finished(QNetworkReply* reply)
+void StopChannelTask::nam_finished(QNetworkReply* reply)
 {
     reply->deleteLater();
     deleteObject();
 }
 
 // ---------------------------------------------------------------------------------------
-PeercastDisconnectTask::PeercastDisconnectTask(const QString& host, const short port,
+DisconnectChannelTask::DisconnectChannelTask(const QString& host, const short port,
         const QString& id, PurePlayer::PEERCAST_TYPE type, QObject* parent) : Task(parent)
 {
     _host = host;
@@ -105,13 +101,12 @@ PeercastDisconnectTask::PeercastDisconnectTask(const QString& host, const short 
     connect(&_nam, SIGNAL(finished(QNetworkReply*)),
             this,  SLOT(nam_finished(QNetworkReply*)));
 
-    _timer.setSingleShot(true);
-    _timer.setInterval(15000);
-    connect(&_timer, SIGNAL(timeout()), this, SLOT(timer_timeout()));
-    _timer.start();
+    QTimer::singleShot(15000, this, SLOT(timerSingleShot_timeout()));
+
+    qDebug("DisconnectChannelTask::DisconnectChannelTask(): peercast type %d", _peercastType);
 }
 
-void PeercastDisconnectTask::timer_timeout()
+void DisconnectChannelTask::timerSingleShot_timeout()
 {
     if( _peercastType == PurePlayer::PCT_ST ) {
         QUrl url(QString("http://%1:%2/api/1").arg(_host).arg(_port));
@@ -127,11 +122,9 @@ void PeercastDisconnectTask::timer_timeout()
         QUrl url(QString("http://%1:%2/admin?cmd=viewxml").arg(_host).arg(_port));
         _nam.get(QNetworkRequest(url));
     }
-
-//  qDebug("%d", _peercastType);
 }
 
-void PeercastDisconnectTask::nam_finished(QNetworkReply* reply)
+void DisconnectChannelTask::nam_finished(QNetworkReply* reply)
 {
     if( reply->error() == QNetworkReply::NoError ) {
         QString out = reply->readAll();
@@ -142,27 +135,29 @@ void PeercastDisconnectTask::nam_finished(QNetworkReply* reply)
         else
             result = getChannelStatusPcVp(out);
 
-//      qDebug("%d %d %d", result, _listeners, _searchingConnection);
+        qDebug("DisconnectChannelTask::nam_finished(): result: %d, listeners: %d, retry: %d", result, _listeners, _searchingConnection);
         if( result ) {
             if( _listeners == 0 )
-                new PeercastStopTask(_host, _port, _id, parent());
+                new StopChannelTask(_host, _port, _id, parent());
             else
             if( _searchingConnection ) {
-//              qDebug("--------------");
-                _timer.setInterval(5000);
-                _timer.start();
+                qDebug("--------------");
+                QTimer::singleShot(5000, this, SLOT(timerSingleShot_timeout()));
 
                 reply->deleteLater();
                 return;
             }
         }
     }
+    else {
+        qDebug("DisconnectChannelTask::nam_finished(): reply error");
+    }
 
     reply->deleteLater();
     deleteObject();
 }
 
-bool PeercastDisconnectTask::getChannelStatusPcVp(const QString& reply)
+bool DisconnectChannelTask::getChannelStatusPcVp(const QString& reply)
 {
     int overIndex = reply.indexOf("<channels_found total=");
     if( overIndex == -1 )
@@ -192,7 +187,7 @@ bool PeercastDisconnectTask::getChannelStatusPcVp(const QString& reply)
     return true;
 }
 
-bool PeercastDisconnectTask::getChannelStatusPcSt(const QString& reply)
+bool DisconnectChannelTask::getChannelStatusPcSt(const QString& reply)
 {
     QScriptEngine engine;
     QScriptValue  value;
