@@ -230,7 +230,8 @@ private:
     void updateVideoScreenGeometry();
     void visibleInterface(bool);
     void updateVisibleInterface();
-    bool whetherMuteArea(int y);
+    bool whetherMuteArea(int mouseLocalY);
+//  bool whetherMuteArea(QPoint mousePos);
     void setStatus(const STATE);
 
 #ifdef Q_OS_WIN32
@@ -310,7 +311,7 @@ private:
     bool            _alwaysShowStatusBar;
     ControlFlags    _controlFlags;
     QPoint          _mousePressLocalPos;
-    QPoint          _mousePressWindowPos;
+    QPoint          _mousePressPos;
 
     QMenu*          _menuContext;
     QMenu*          _menuReconnect;

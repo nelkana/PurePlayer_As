@@ -314,7 +314,7 @@ void PurePlayer::createToolBar()
     _toolBar->installEventFilter(this);
     // QToolBarのレイアウトの操作。
     // 余白指定が全部同じ値だと有効だが、異なる値だと全て0になる。これは不正な操作？
-    _toolBar->layout()->setContentsMargins(0,0,0,0); 
+    _toolBar->layout()->setContentsMargins(0,0,0,0);
     _toolBar->setMovable(false);
     _toolBar->setAllowedAreas(Qt::BottomToolBarArea);
     QPalette p = _toolBar->palette();
@@ -1537,6 +1537,8 @@ void PurePlayer::resizeEvent(QResizeEvent* )
 #endif
 
     updateVideoScreenGeometry();
+    _mousePressPos.setX(INT_MIN);
+    _mousePressPos.setY(INT_MIN);
 
     // サイズ情報の出力
     QString sizeInfo;
@@ -1621,7 +1623,7 @@ void PurePlayer::mousePressEvent(QMouseEvent* e)
         _mousePressLocalPos.setY(e->pos().y() + (geometry().y()-frameGeometry().y()));
 
         if( whetherMuteArea(e->y()) )
-            _mousePressWindowPos = pos();
+            _mousePressPos = e->globalPos();
         else
         if( isFullScreen() )
             setCursor(QCursor(Qt::BlankCursor));
@@ -1638,7 +1640,7 @@ void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
         _menuContext->move(x()+width()*0.2, y()+height()*0.2);
 
         if( whetherMuteArea(e->y()) ) {
-            if( _mousePressWindowPos == pos() )
+            if( _mousePressPos == e->globalPos() )
                 mute(!isMute());
         }
 
@@ -3128,7 +3130,7 @@ void PurePlayer::updateVisibleInterface()
     // ウィンドウモードへ戻ってもleaveEvent()が呼ばれない場合がある。
 }
 
-bool PurePlayer::whetherMuteArea(int y)
+bool PurePlayer::whetherMuteArea(int mouseLocalY)
 {
     int threshold;
     if( isFullScreen() )
@@ -3136,9 +3138,23 @@ bool PurePlayer::whetherMuteArea(int y)
     else
         threshold = height() - statusBar()->height();
 
-    return (y >= threshold);
+    return (mouseLocalY >= threshold);
 }
+/*
+bool PurePlayer::whetherMuteArea(QPoint mousePos)
+{
+    QRect rc;
+    if( isFullScreen() ) {
+        QPoint pos = geometry().topLeft();
+        int localY = height() * 80/100;
+        rc.setRect(pos.x(), pos.y() + localY, width(), height() - localY);
+    }
+    else
+        rc = QRect(mapToGlobal(statusBar()->pos()), statusBar()->size());
 
+    return rc.contains(mousePos);
+}
+*/
 void PurePlayer::setStatus(const STATE s)
 {
     switch( s ) {
