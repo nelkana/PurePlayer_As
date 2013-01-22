@@ -344,7 +344,7 @@ private:
     PlaylistDialog*    _playlistDialog;
     AboutDialog*       _aboutDialog;
 
-    bool _debugFlg;
+    bool _debugFlag;
     int  _debugCount;
 };
 

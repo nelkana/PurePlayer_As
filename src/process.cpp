@@ -89,6 +89,8 @@ bool MplayerProcess::terminateWaitForFinished()
     const QString debugPrefix = "MplayerProcess::terminateWaitForFinished(): ";
     LogDialog::debug(debugPrefix + "called");
 
+//  closeReadChannel(QProcess::StandardOutput);
+
     QProcess::ProcessState status = state();
     if( status == QProcess::Running ) {
         command("quit");

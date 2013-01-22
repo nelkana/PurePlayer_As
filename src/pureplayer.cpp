@@ -146,7 +146,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 
     _menuContext->move(x()+width()*0.2, y()+height()*0.2);
 
-    _debugFlg = false;
+    _debugFlag = false;
     _debugCount = 0;
 }
 
@@ -1598,7 +1598,7 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
         if( e->modifiers() & Qt::AltModifier
          && e->modifiers() & Qt::ShiftModifier )
         {
-            _debugFlg = !_debugFlg;
+            _debugFlag = !_debugFlag;
             LogDialog::debug(QString("blockCount: %1").arg(LogDialog::dialog()->blockCount()));
         }
 
@@ -1918,217 +1918,263 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
     static QRegExp rxScreenshot("^\\*\\*\\* screenshot '(.+)'");
     static QRegExp rxScreenshotError(".+ Error opening .+ for writing!");
 
-    if( rxStatus.indexIn(line) != -1 )
+    if( isStop() )
     {
-        if( _startTime == -1 ) {
-            _startTime = rxStatus.cap(1).toDouble();
-            _oldTime = _startTime;
-            LogDialog::debug(debugPrefix + QString("init startTime %1").arg(_startTime));
-        }
+        if( rxStatus.indexIn(line) != -1 )
+            return;
 
-        _currentTime = rxStatus.cap(1).toDouble();
-
-        if( _currentTime > _startTime ) {
-            if( isPeercastStream() ) {
-                double differenceTime = _currentTime - _oldTime;
-
-                // 現在の取得時間が前の取得時間から大きく飛んだ場合、経過時間を無効にする
-                // (再生開始時の古いキャッシュ再生による開始時間ズレの対応)
-                if( differenceTime > 1 ) {
-                    LogDialog::debug(debugPrefix + QString("oldElapsed %1")
-                                        .arg(_elapsedTime), QColor(255,0,0));
-
-                    _elapsedTime += _oldTime - _startTime;
-                    _startTime = _currentTime;
-
-                    LogDialog::debug(debugPrefix + QString("elapsed %1").arg(_elapsedTime), QColor(255,0,0));
-                    LogDialog::debug(debugPrefix + QString("startTime %1").arg(_startTime), QColor(255,0,0));
-                    LogDialog::debug(debugPrefix + QString("diff %1 old %2").arg(differenceTime).arg(_oldTime), QColor(255,0,0));
-                }
-
-                // 差分時間が特に大きい場合、再接続する
-                // (差分時間が大きいとフレームがしばらく停止してしまう為)
-                if( differenceTime > 10 ) {
-                    LogDialog::debug(debugPrefix + "reconnect diff", QColor(255,0,0));
-
-                    reconnectPurePlayer();
-                    //reconnect();
-                }
+        LogDialog::print(line);
+    }
+    else
+    {
+        if( rxStatus.indexIn(line) != -1 )
+        {
+            if( _startTime == -1 ) {
+                _startTime = rxStatus.cap(1).toDouble();
+                _oldTime = _startTime;
+                LogDialog::debug(debugPrefix + QString("init startTime %1").arg(_startTime));
             }
-            else {
-                // 2点間リピート処理
-                if( _repeatStartTime>=0 && _repeatEndTime>=0 ) {
-                    if( (_currentTime >= _repeatEndTime/10.0
-                        && !_controlFlags.testFlag(FLG_SEEKED_REPEAT))
-                     || _currentTime >= _repeatEndTime/10.0 + 1 )
-                    {
-                        seek(_repeatStartTime/10.0);
 
-                        _controlFlags |= FLG_SEEKED_REPEAT;
+            _currentTime = rxStatus.cap(1).toDouble();
 
-                        LogDialog::debug(debugPrefix + QString("old %1 current %2 end %3")
-                            .arg(_oldTime).arg(_currentTime).arg(_repeatEndTime/10.0));
+            if( _currentTime > _startTime ) {
+                if( isPeercastStream() ) {
+                    double differenceTime = _currentTime - _oldTime;
+
+                    // 現在の取得時間が前の取得時間から大きく飛んだ場合、経過時間を無効にする
+                    // (再生開始時の古いキャッシュ再生による開始時間ズレの対応)
+                    if( differenceTime > 1 ) {
+                        LogDialog::debug(debugPrefix + QString("oldElapsed %1")
+                                            .arg(_elapsedTime), QColor(255,0,0));
+
+                        _elapsedTime += _oldTime - _startTime;
+                        _startTime = _currentTime;
+
+                        LogDialog::debug(debugPrefix + QString("elapsed %1").arg(_elapsedTime), QColor(255,0,0));
+                        LogDialog::debug(debugPrefix + QString("startTime %1").arg(_startTime), QColor(255,0,0));
+                        LogDialog::debug(debugPrefix + QString("diff %1 old %2").arg(differenceTime).arg(_oldTime), QColor(255,0,0));
                     }
-                    else
-                    if( _currentTime < _repeatEndTime/10.0
-                     && _controlFlags.testFlag(FLG_SEEKED_REPEAT) )
-                    {
-                        _controlFlags &= ~FLG_SEEKED_REPEAT;
+
+                    // 差分時間が特に大きい場合、再接続する
+                    // (差分時間が大きいとフレームがしばらく停止してしまう為)
+                    if( differenceTime > 10 ) {
+                        LogDialog::debug(debugPrefix + "reconnect diff", QColor(255,0,0));
+
+                        reconnectPurePlayer();
+                        //reconnect();
                     }
                 }
+                else {
+                    // 2点間リピート処理
+                    if( _repeatStartTime>=0 && _repeatEndTime>=0 ) {
+                        if( (_currentTime >= _repeatEndTime/10.0
+                            && !_controlFlags.testFlag(FLG_SEEKED_REPEAT))
+                         || _currentTime >= _repeatEndTime/10.0 + 1 )
+                        {
+                            seek(_repeatStartTime/10.0);
+
+                            _controlFlags |= FLG_SEEKED_REPEAT;
+
+                            LogDialog::debug(debugPrefix + QString("old %1 current %2 end %3")
+                                .arg(_oldTime).arg(_currentTime).arg(_repeatEndTime/10.0));
+                        }
+                        else
+                        if( _currentTime < _repeatEndTime/10.0
+                         && _controlFlags.testFlag(FLG_SEEKED_REPEAT) )
+                        {
+                            _controlFlags &= ~FLG_SEEKED_REPEAT;
+                        }
+                    }
+                }
+
+                _oldTime = _currentTime;
+
+                double time = _currentTime - _startTime;
+                _timeLabel->setTime(time + _elapsedTime);
+
+                if( _isSeekable ) {
+//                  if( time != _oldTime )
+                    _timeSlider->setPosition(time);
+
+//                  _oldTime = time;
+                }
             }
 
-            _oldTime = _currentTime;
+            if( rxFrame.indexIn(line) != -1 ) {
+                _labelFrame->setText(rxFrame.cap(1));
 
-            double time = _currentTime - _startTime;
-            _timeLabel->setTime(time + _elapsedTime);
-
-            if( _isSeekable ) {
-//              if( time != _oldTime )
-                _timeSlider->setPosition(time);
-
-//              _oldTime = time;
+                uint currentFrame = rxFrame.cap(1).toInt();
+                if( currentFrame==0 || currentFrame!=_oldFrame ) {
+                    _fpsCount++;
+                    _oldFrame = currentFrame;
+                }
             }
+
+            if( _state == PAUSE ) // ポーズが解除された場合
+                setStatus(PLAY);
+
+//          if( time < 0 ) _debugFlag = true;
+            if( _debugFlag ) LogDialog::print(line + QString::number(_fpsCount));
+            return;
         }
 
-        if( rxFrame.indexIn(line) != -1 ) {
-            _labelFrame->setText(rxFrame.cap(1));
+        LogDialog::print(line);
 
-            uint currentFrame = rxFrame.cap(1).toInt();
-            if( currentFrame==0 || currentFrame!=_oldFrame ) {
-                _fpsCount++;
-                _oldFrame = currentFrame;
-            }
-        }
-
-        if( _state == PAUSE ) // ポーズが解除された場合
+        if( (line.startsWith("Starting playback...") && _noVideo)
+         || (rxVideoWH.indexIn(line) != -1) )
+        {
             setStatus(PLAY);
 
-//      if( time < 0 ) _debugFlg = true;
-        if( _debugFlg ) LogDialog::print(line + QString::number(_fpsCount));
-        return;
-    }
+            if( isMute() )
+                mute(true);
 
-    LogDialog::print(line);
-
-    if( (line.startsWith("Starting playback...") && _noVideo)
-     || (rxVideoWH.indexIn(line) != -1) )
-    {
-        setStatus(PLAY);
-
-        if( isMute() )
-            mute(true);
-
-        double roundSpeed = CommonLib::round(_speedSpinBox->value(), 1);//(int)(_speedSpinBox->value()*10+0.5) / 10.0;
-        if( roundSpeed != 1.0 ) {
-            setSpeed(_speedSpinBox->value());
-        }
-//      LogDialog::debug(QString().sprintf("%.70f", _speedSpinBox->value()));
-//      LogDialog::debug(QString().sprintf("%.70f", roundSpeed));
-
-        _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 0");
-
-        setVolume(_volume);
-        setContrast(_videoProfile.contrast, true);
-        setBrightness(_videoProfile.brightness, true);
-        setSaturation(_videoProfile.saturation, true);
-        setHue(_videoProfile.hue, true);
-        setGamma(_videoProfile.gamma, true);
-
-        _controlFlags &= ~FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 1");
-
-        // mplayerプロセスの子プロセスIDを取得する
-        _mpProcess->receiveMplayerChildProcess();
-
-        _timeLabel->setTotalTime(_videoLength);
-        _timeSlider->setLength(_videoLength);
-        _playlist->setCurrentTrackTime(_videoLength);
-        //_speedSpinBox->setRange(0, _videoLength*10);
-
-        if( _controlFlags.testFlag(FLG_OPENED_PATH) )
-        {
-            _labelFrame->setText("0");
-            _labelFps->setText("0fps");
-
-            // テキスト内容によってステータスバーの高さが変わる為、高さを固定にする
-            statusBar()->setFixedHeight(statusBar()->height());
-
-            if( _isSeekable ) {
-                _toolBar->show();
-                _actStatusBar->setEnabled(false);
+            double roundSpeed = CommonLib::round(_speedSpinBox->value(), 1);//(int)(_speedSpinBox->value()*10+0.5) / 10.0;
+            if( roundSpeed != 1.0 ) {
+                setSpeed(_speedSpinBox->value());
             }
+//          LogDialog::debug(QString().sprintf("%.70f", _speedSpinBox->value()));
+//          LogDialog::debug(QString().sprintf("%.70f", roundSpeed));
+
+            _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 0");
+
+            setVolume(_volume);
+            setContrast(_videoProfile.contrast, true);
+            setBrightness(_videoProfile.brightness, true);
+            setSaturation(_videoProfile.saturation, true);
+            setHue(_videoProfile.hue, true);
+            setGamma(_videoProfile.gamma, true);
+
+            _controlFlags &= ~FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 1");
+
+            // mplayerプロセスの子プロセスIDを取得する
+            _mpProcess->receiveMplayerChildProcess();
+
+            _timeLabel->setTotalTime(_videoLength);
+            _timeSlider->setLength(_videoLength);
+            _playlist->setCurrentTrackTime(_videoLength);
+            //_speedSpinBox->setRange(0, _videoLength*10);
+
+            if( _controlFlags.testFlag(FLG_OPENED_PATH) )
+            {
+                _labelFrame->setText("0");
+                _labelFps->setText("0fps");
+
+                // テキスト内容によってステータスバーの高さが変わる為、高さを固定にする
+                statusBar()->setFixedHeight(statusBar()->height());
+
+                if( _isSeekable ) {
+                    _toolBar->show();
+                    _actStatusBar->setEnabled(false);
+                }
+                else {
+                    _toolBar->hide();
+                    _actStatusBar->setEnabled(true);
+                }
+
+                _startTime = -1; // open()のタイミングでの初期化では、
+                                 // 前の再生のステータスラインを拾ってしまう為ここで初期化。
+                _elapsedTime = 0;
+
+                _controlFlags &= ~FLG_OPENED_PATH;
+            }
+
+            if( isPeercastStream() ) {
+                _startTime = -1;
+
+                // _reconnectControlTimeの比較を、再生開始時の開始時間から比較できる様に更新する
+                _reconnectControlTime = _elapsedTime;
+
+                if( _channelStatus == CS_SEARCH )
+                    updateChannelInfo();
+            }
+
+            // ビデオサイズの設定
+            if( _noVideo )
+                _videoSize = QSize(320, 240);
             else {
-                _toolBar->hide();
-                _actStatusBar->setEnabled(true);
+                _videoSize.setWidth(rxVideoWH.cap(1).toInt());
+                if( _videoSize.width() <= 0 ) _videoSize.setWidth(320);
+
+                _videoSize.setHeight(rxVideoWH.cap(2).toInt());
+                if( _videoSize.height() <= 0 ) _videoSize.setHeight(240);
             }
 
-            _startTime = -1; // open()のタイミングでの初期化では、
-                             // 前の再生のステータスラインを拾ってしまう為ここで初期化。
-            _elapsedTime = 0;
+            // ウィンドウリサイズ
+            if( _controlFlags.testFlag(FLG_RESIZE_WHEN_PLAYED) ) {
+                QSize size;
+                if( ConfigData::data()->openIn320x240Size )
+                    size = QSize(320, 240);
+                else
+                    size = QSize(_videoSize.width()/2, _videoSize.height()/2);
 
-            _controlFlags &= ~FLG_OPENED_PATH;
-        }
+                if( !resizeFromVideoClient(size) )
+                    updateVideoScreenGeometry();
 
-        if( isPeercastStream() ) {
-            _startTime = -1;
-
-            // _reconnectControlTimeの比較を、再生開始時の開始時間から比較できる様に更新する
-            _reconnectControlTime = _elapsedTime;
-
-            if( _channelStatus == CS_SEARCH )
-                updateChannelInfo();
-        }
-
-        // ビデオサイズの設定
-        if( _noVideo )
-            _videoSize = QSize(320, 240);
-        else {
-            _videoSize.setWidth(rxVideoWH.cap(1).toInt());
-            if( _videoSize.width() <= 0 ) _videoSize.setWidth(320);
-
-            _videoSize.setHeight(rxVideoWH.cap(2).toInt());
-            if( _videoSize.height() <= 0 ) _videoSize.setHeight(240);
-        }
-
-        // ウィンドウリサイズ
-        if( _controlFlags.testFlag(FLG_RESIZE_WHEN_PLAYED) ) {
-            QSize size;
-            if( ConfigData::data()->openIn320x240Size )
-                size = QSize(320, 240);
+                _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
+            }
             else
-                size = QSize(_videoSize.width()/2, _videoSize.height()/2);
-
-            if( !resizeFromVideoClient(size) )
                 updateVideoScreenGeometry();
 
-            _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
+            LogDialog::debug(debugPrefix + QString("videosize %1x%2").arg(_videoSize.width()).arg(_videoSize.height()));
         }
         else
-            updateVideoScreenGeometry();
-
-        LogDialog::debug(debugPrefix + QString("videosize %1x%2").arg(_videoSize.width()).arg(_videoSize.height()));
-    }
-    else
-    if( line.startsWith("ID_PAUSED") )
-        setStatus(PAUSE);
-    else
-    if( line.startsWith("Connecting to") ) {
-        if( _state != PLAY )// ネットワークストリーミングでシークした場合も受信する。一時対応
-            _infoLabel->setText(tr("接続中"));
-    }
-    else
-    if( line.startsWith("Cache size set to") ) {
-        if( _controlFlags.testFlag(FLG_RECONNECT_WHEN_PLAYED) ) { // 再接続(peercast)は接続後行う
-            reconnectPeercast();
-            _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
+        if( line.startsWith("ID_PAUSED") )
+            setStatus(PAUSE);
+        else
+        if( line.startsWith("Connecting to") ) {
+            if( _state != PLAY )// ネットワークストリーミングでシークした場合も受信する。一時対応
+                _infoLabel->setText(tr("接続中"));
         }
+        else
+        if( line.startsWith("Cache size set to") ) {
+            if( _controlFlags.testFlag(FLG_RECONNECT_WHEN_PLAYED) ) { // 再接続(peercast)は接続後行う
+                reconnectPeercast();
+                _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
+            }
 
-        updateChannelInfo();
+            updateChannelInfo();
+        }
+        else
+        if( rxCacheFill.indexIn(line) != -1 )
+            _infoLabel->setText(QString("Cache: %1%").arg(rxCacheFill.cap(1), 5));
+        else
+        if( rxLength.indexIn(line) != -1 )
+            _videoLength = rxLength.cap(1).toDouble();
+        else
+        if( rxSeekable.indexIn(line) != -1 )
+            _isSeekable = rxSeekable.cap(1).toInt();
+        else
+        if( rxTitle.indexIn(line) != -1 )
+            _infoLabel->setClipTitle(rxTitle.cap(1));
+        else
+        if( rxAuthor.indexIn(line) != -1 )
+            _infoLabel->setClipAuthor(rxAuthor.cap(1));
+        else
+        if( rxCopyright.indexIn(line) != -1 )
+            _infoLabel->setClipCopyright(rxCopyright.cap(1));
+        else
+        if( rxComments.indexIn(line) != -1 )
+            _infoLabel->setClipComments(rxComments.cap(1));
+        else
+        if( line.startsWith("Video: no video") )
+            _noVideo = true;
+        else
+        if( line.startsWith("Cache empty") || line.startsWith("Cache not filling")
+         || line.contains("Bits overconsumption:") )
+        {
+            if( isPeercastStream() ) {
+    /*          LogDialog::debug(debugPrefix + QString("time %1").arg(_timeLabel->time()));
+                LogDialog::debug(debugPrefix + QString("timea %1").arg(_currentTime));
+                LogDialog::debug(debugPrefix + QString("frame %1").arg(_currentFrame));
+    */
+                _receivedErrorCount++;
+            }
+        }
     }
-    else
-    if( line.startsWith("ID_EXIT=QUIT") )
-        ;
-    else
+
+//  if( line.startsWith("ID_EXIT=QUIT") )
+//      ;
+//  else
     if( line.startsWith("ID_EXIT=EOF") )
         _controlFlags |= FLG_EOF;
     else
@@ -2143,44 +2189,6 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
     else
     if( rxScreenshotError.indexIn(line) != -1 )
         _infoLabel->setText(tr("エラー: スクリーンショット保存"), 3000);
-    else
-    if( rxCacheFill.indexIn(line) != -1 )
-        _infoLabel->setText(QString("Cache: %1%").arg(rxCacheFill.cap(1), 5));
-    else
-    if( rxLength.indexIn(line) != -1 )
-        _videoLength = rxLength.cap(1).toDouble();
-    else
-    if( rxSeekable.indexIn(line) != -1 )
-        _isSeekable = rxSeekable.cap(1).toInt();
-    else
-    if( rxTitle.indexIn(line) != -1 )
-        _infoLabel->setClipTitle(rxTitle.cap(1));
-    else
-    if( rxAuthor.indexIn(line) != -1 )
-        _infoLabel->setClipAuthor(rxAuthor.cap(1));
-    else
-    if( rxCopyright.indexIn(line) != -1 )
-        _infoLabel->setClipCopyright(rxCopyright.cap(1));
-    else
-    if( rxComments.indexIn(line) != -1 )
-        _infoLabel->setClipComments(rxComments.cap(1));
-    else
-    if( line.startsWith("Video: no video") )
-        _noVideo = true;
-    else
-    if( line.startsWith("Cache empty") || line.startsWith("Cache not filling")
-     || line.contains("Bits overconsumption:") )
-    {
-        if( isPeercastStream() ) {
-/*          LogDialog::debug(debugPrefix + QString("time %1").arg(_timeLabel->time()));
-            LogDialog::debug(debugPrefix + QString("timea %1").arg(_currentTime));
-            LogDialog::debug(debugPrefix + QString("frame %1").arg(_currentFrame));
-*/
-//          _debugFlg = !_debugFlg;
-
-            _receivedErrorCount++;
-        }
-    }
 }
 
 void PurePlayer::recProcess_finished()
@@ -2530,7 +2538,7 @@ void PurePlayer::timerReconnect_timeout()
 
     _receivedErrorCount = 0;
 
-//  _debugFlg = !_debugFlg;
+//  _debugFlag = !_debugFlag;
 }
 
 void PurePlayer::timerFps_timeout()
