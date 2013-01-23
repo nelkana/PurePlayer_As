@@ -71,8 +71,8 @@ class DisconnectChannelTask : public Task
     Q_OBJECT;
 
 public:
-    DisconnectChannelTask(const QString& host, const short port, const QString& id,
-                           const PurePlayer::PEERCAST_TYPE type, QObject* parent);
+    DisconnectChannelTask(const QString& host, short port, const QString& id,
+                           PurePlayer::PEERCAST_TYPE type, int startSec, QObject* parent);
 
 protected:
     bool getChannelStatusPcVp(const QString& reply);
@@ -83,6 +83,9 @@ protected slots:
     void nam_finished(QNetworkReply*);
 
 private:
+    enum { MONITORING_MSEC = 15000, REPETITION_MSEC = 5000 };
+
+    QTimer  _timer;
     QNetworkAccessManager _nam;
     QString _host;
     short   _port;

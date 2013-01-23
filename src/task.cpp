@@ -88,8 +88,9 @@ void StopChannelTask::nam_finished(QNetworkReply* reply)
 }
 
 // ---------------------------------------------------------------------------------------
-DisconnectChannelTask::DisconnectChannelTask(const QString& host, const short port,
-        const QString& id, PurePlayer::PEERCAST_TYPE type, QObject* parent) : Task(parent)
+DisconnectChannelTask::DisconnectChannelTask(const QString& host, short port,
+    const QString& id, PurePlayer::PEERCAST_TYPE type, int startSec, QObject* parent)
+        : Task(parent)
 {
     _host = host;
     _port = port;
@@ -101,7 +102,10 @@ DisconnectChannelTask::DisconnectChannelTask(const QString& host, const short po
     connect(&_nam, SIGNAL(finished(QNetworkReply*)),
             this,  SLOT(nam_finished(QNetworkReply*)));
 
-    QTimer::singleShot(15000, this, SLOT(timerSingleShot_timeout()));
+    _timer.setSingleShot(true);
+    _timer.start(MONITORING_MSEC);
+
+    QTimer::singleShot(startSec * 1000, this, SLOT(timerSingleShot_timeout()));
 
     qDebug("DisconnectChannelTask::DisconnectChannelTask(): peercast type %d", _peercastType);
 }
@@ -140,9 +144,9 @@ void DisconnectChannelTask::nam_finished(QNetworkReply* reply)
             if( _listeners == 0 )
                 new StopChannelTask(_host, _port, _id, parent());
             else
-            if( _searchingConnection ) {
+            if( _searchingConnection || _timer.isActive() ) {
                 qDebug("--------------");
-                QTimer::singleShot(5000, this, SLOT(timerSingleShot_timeout()));
+                QTimer::singleShot(REPETITION_MSEC, this, SLOT(timerSingleShot_timeout()));
 
                 reply->deleteLater();
                 return;

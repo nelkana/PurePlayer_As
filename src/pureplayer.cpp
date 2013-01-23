@@ -1516,7 +1516,7 @@ void PurePlayer::closeEvent(QCloseEvent* e)
     hide();
     stopInternal();
     if( isPeercastStream() && ConfigData::data()->disconnectChannel )
-        new DisconnectChannelTask(_host, _port, _id, _peercastType, this);
+        new DisconnectChannelTask(_host, _port, _id, _peercastType, 5, this);
 
     e->accept();
 
@@ -1849,7 +1849,7 @@ void PurePlayer::mpProcess_finished()
             if( ConfigData::data()->disconnectChannel
              && _controlFlags.testFlag(FLG_EXPLICITLY_STOPPED) )
             {
-                new DisconnectChannelTask(_host, _port, _id, _peercastType, this);
+                new DisconnectChannelTask(_host, _port, _id, _peercastType, 15, this);
             }
         }
         else {
@@ -1869,7 +1869,7 @@ void PurePlayer::mpProcess_finished()
             else {
                 setStatus(STOP);
                 if( ConfigData::data()->disconnectChannel )
-                    new DisconnectChannelTask(_host, _port, _id, _peercastType, this);
+                    new DisconnectChannelTask(_host, _port, _id, _peercastType, 15, this);
             }
         }
     }
