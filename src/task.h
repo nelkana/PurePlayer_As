@@ -28,13 +28,16 @@ public:
     Task(QObject* parent);
     virtual ~Task() {}
 
-    static void waitForTasksFinished();
+    static void waitForFinished();
+    static void waitForFinished(Task*);
 
 protected:
     void deleteObject();
 
 private:
     static QList<Task*> s_tasks;
+
+    bool* _pFinished;
 };
 
 class RenameFileTask : public Task
@@ -52,12 +55,36 @@ private:
     QString _newName;
 };
 
+class GetPeercastTypeTask : public Task
+{
+    Q_OBJECT;
+
+public:
+    GetPeercastTypeTask(const QString& host, short port, PurePlayer::PEERCAST_TYPE* type, QObject* parent);
+
+protected slots:
+    void nam_finished(QNetworkReply*);
+
+protected:
+    void queryPeercastType();
+    bool whetherPcVp(const QString& reply);
+    bool whetherPcSt(const QString& reply);
+
+private:
+    QNetworkAccessManager _nam;
+    PurePlayer::PEERCAST_TYPE _attemptType;
+
+    QString _host;
+    short   _port;
+    PurePlayer::PEERCAST_TYPE* _type;
+};
+
 class StopChannelTask : public Task
 {
     Q_OBJECT;
 
 public:
-    StopChannelTask(const QString& host, const short port, const QString& id, QObject* parent);
+    StopChannelTask(const QString& host, short port, const QString& id, QObject* parent);
 
 protected slots:
     void nam_finished(QNetworkReply*);
@@ -74,13 +101,13 @@ public:
     DisconnectChannelTask(const QString& host, short port, const QString& id,
                            PurePlayer::PEERCAST_TYPE type, int startSec, QObject* parent);
 
-protected:
-    bool getChannelStatusPcVp(const QString& reply);
-    bool getChannelStatusPcSt(const QString& reply);
-
 protected slots:
     void timerSingleShot_timeout();
     void nam_finished(QNetworkReply*);
+
+protected:
+    bool getChannelStatusPcVp(const QString& reply);
+    bool getChannelStatusPcSt(const QString& reply);
 
 private:
     enum { MONITORING_MSEC = 15000, REPETITION_MSEC = 5000 };
@@ -92,7 +119,7 @@ private:
     QString _id;
     PurePlayer::PEERCAST_TYPE _peercastType;
     int     _listeners;
-    bool    _searchingConnection;
+    bool    _retryGetStatus;
 };
 
 #endif // TASK_H

@@ -154,7 +154,7 @@ PurePlayer::~PurePlayer()
 {
     delete statusBar()->style();
 
-    Task::waitForTasksFinished();
+    Task::waitForFinished();
 }
 
 void PurePlayer::createStatusBar()
@@ -1515,8 +1515,14 @@ void PurePlayer::closeEvent(QCloseEvent* e)
     saveInteractiveSettings();
     hide();
     stopInternal();
-    if( isPeercastStream() && ConfigData::data()->disconnectChannel )
+    if( isPeercastStream() && ConfigData::data()->disconnectChannel ) {
+        if( _peercastType==PCT_UNKNOWN && _attemptPeercastType.size()!=0 ) { // peercast判別未確認なら
+            Task::waitForFinished(
+                    new GetPeercastTypeTask(_host, _port, &_peercastType, this));
+        }
+
         new DisconnectChannelTask(_host, _port, _id, _peercastType, 5, this);
+    }
 
     e->accept();
 
