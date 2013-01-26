@@ -31,6 +31,7 @@ QString dayOfWeek(int day);
 QString secondTimeToString(int sec);
 QString removeSpaceBeforeAfter(QString str);
 QRect   scaleRectOnRect(const QSize& baseRect, const QSize& placeRect);
+QString convertStringForFileName(QString name);
 QString retTheFileNameNotExists(const QString& requestFileName);
 QString getOpenFileNameDialog(QWidget* parent=0, const QString& caption=QString());
 QStringList getOpenFileNamesDialog(QWidget* parent=0, const QString& caption=QString());

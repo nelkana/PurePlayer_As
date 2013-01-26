@@ -174,6 +174,24 @@ QRect CommonLib::scaleRectOnRect(const QSize& baseRect, const QSize& placeRect)
     return QRect(x,y, w,h);
 }
 
+// 与えられた文字列をファイル名用の文字列に変換して返す(無効文字は_に変換する)
+QString CommonLib::convertStringForFileName(QString name)
+{
+    const QString invalidCharWindows = "\\\\/:*?<>|\",;"; // ,;はwindowsのバージョンによる
+    const QString notRecommendedChar = "&";
+
+    name.remove(QRegExp("[\n\t]*"));
+    name.remove(QRegExp("^ *"));     // 前方の半角スペースの連続(組合せ)を削除
+    name.remove(QRegExp("[ .]*$"));  // 後方の半角スペースと.の連続(組合せ)を削除
+
+    if( name[0] == '.' )
+        name[0] = '_';
+
+    QString reg = '[' + invalidCharWindows + notRecommendedChar + ']';
+    name.replace(QRegExp(reg), "_");
+    return name;
+}
+
 // 要求したファイル名に基づいて、現在のディレクトリにおける重複しないファイル名を返す。
 // ファイルが既に有る場合、ファイル名に連番が付加される。
 QString CommonLib::retTheFileNameNotExists(const QString& requestFileName)

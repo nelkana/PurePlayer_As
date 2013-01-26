@@ -2224,11 +2224,9 @@ bool PurePlayer::updateChannelInfoPcVp(const QString& reply)
     end = reply.indexOf('<', start);
 
     _chName = reply.mid(start, end - start);
-    _chName.replace("&lt;","<").replace("&gt;",">")
-           .replace("&amp;","&").replace("&quot;","\"");
-//  QTextDocument txt;
-//  txt.setHtml(_chName);
-//  _chName = txt.toPlainText();
+    QTextDocument txt;
+    txt.setHtml(_chName);
+    _chName = txt.toPlainText();
     LogDialog::debug(debugPrefix + "name " + _chName);
 
     // コンタクトURLの取得
@@ -2411,6 +2409,7 @@ QString PurePlayer::genDateTimeSaveFileName(const QString& suffix)
     if( !suffix.isEmpty() )
         name += '.' + suffix;
 
+    name = CommonLib::convertStringForFileName(name);
     return name;
 }
 
