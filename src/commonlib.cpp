@@ -236,9 +236,16 @@ QString CommonLib::getExistingDirectoryDialog(QWidget* parent, const QString& ca
 
 bool CommonLib::isPeercastUrl(const QString& url)
 {
-    return QRegExp("(?:^http|^mms|^mmsh)://.+:\\d+/(?:stream|pls)/[A-F0-9]{32}")
-            .indexIn(url) != -1;
+    return url.contains(QRegExp("(?:^http|^mms|^mmsh)://.+:\\d+/(?:stream|pls)/[A-F0-9]{32}"));
+                                                                    // "[a-zA-Z0-9.?=:]*$"
 }
+
+bool CommonLib::isHttpUrl(const QString& url)
+{
+    // 有効文字: 英数字と-_.!~*'();/?:@&=+$,%#
+    return url.contains(QRegExp("^https?://[a-zA-Z0-9-_.!~*'();/?:@&=+$,%#]+$"));
+}
+
 /*
 QSize CommonLib::widgetFrameSize(QWidget* const w)
 {

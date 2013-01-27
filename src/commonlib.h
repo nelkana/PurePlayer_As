@@ -37,6 +37,7 @@ QString getOpenFileNameDialog(QWidget* parent=0, const QString& caption=QString(
 QStringList getOpenFileNamesDialog(QWidget* parent=0, const QString& caption=QString());
 QString getExistingDirectoryDialog(QWidget* parent=0, const QString& caption=QString());
 bool    isPeercastUrl(const QString& url);
+bool    isHttpUrl(const QString& url);
 //QSize   widgetFrameSize(QWidget* const);
 
 class EmitDeterFlag

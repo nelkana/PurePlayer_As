@@ -13,6 +13,8 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <QApplication>
+#include <QClipboard>
 #include <QDesktopServices>
 #include <QMimeData>
 #include <QFile>
@@ -679,6 +681,9 @@ QList<PlaylistModel::Track*> PlaylistModel::createTracks(const QStringList& path
     QList<Track*> tracks;
 
     foreach(QString path, paths) {
+        if( path.isEmpty() )
+            continue;
+
         QUrl url(path);
         if( url.isLocalFile() )
             path = url.toLocalFile();
@@ -846,6 +851,15 @@ void PlaylistView::actOpenMediaLocation_triggered()
     }
 }
 
+void PlaylistView::actCopyPath_triggered()
+{
+    QModelIndex index = indexAt(viewport()->mapFromGlobal(_menu->pos()));
+    if( index.isValid() ) {
+        QString path = ((PlaylistModel*)model())->trackPath(index.row());
+        QApplication::clipboard()->setText(path);
+    }
+}
+
 void PlaylistView::showEvent(QShowEvent* e)
 {
     adjustColumnSize();
@@ -919,9 +933,10 @@ void PlaylistView::createContextMenu()
     sortMenu->addAction(tr("パス降順"), this, SLOT(sortPathDescending()));
 
     _menu = new QMenu(this);
-    _actionsForFile << _menu->addAction("場所を開く", this, SLOT(actOpenMediaLocation_triggered()));
+    _actionsForFile << _menu->addAction(tr("場所を開く"), this, SLOT(actOpenMediaLocation_triggered()));
+    _actionsForFile << _menu->addAction(tr("パスをコピーする"), this, SLOT(actCopyPath_triggered()));
     _actionsForFile << _menu->addSeparator();
-    _actionsForFile << _menu->addAction("選択項目を削除", this, SLOT(removeSelectedTrack()), tr("del"));
+    _actionsForFile << _menu->addAction(tr("選択項目を削除"), this, SLOT(removeSelectedTrack()), tr("del"));
     _actionsForFile << _menu->addSeparator();
 
     _menu->addMenu(sortMenu);

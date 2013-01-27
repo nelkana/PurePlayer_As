@@ -136,6 +136,7 @@ signals:
 protected slots:
     virtual void slot_customContextMenuRequested(const QPoint&);
     void actOpenMediaLocation_triggered();
+    void actCopyPath_triggered();
 
 protected:
     void showEvent(QShowEvent*);
