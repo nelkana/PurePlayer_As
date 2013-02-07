@@ -148,6 +148,8 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 
     _debugFlag = false;
     _debugCount = 0;
+
+    qsrand(time(NULL));
 }
 
 PurePlayer::~PurePlayer()
@@ -272,14 +274,14 @@ void PurePlayer::createToolBar()
     prevButton->setIconSize(iconSize);
     prevButton->setFixedSize(buttonSize);
     prevButton->setToolTip("プレイリスト前へ");
-    connect(prevButton, SIGNAL(clicked(bool)), this, SLOT(playPrev()));
+    connect(prevButton, SIGNAL(clicked(bool)), this, SLOT(prevButton_clicked()));
 
     ControlButton* nextButton = new ControlButton(QIcon(":/icons/next.png"), "", this);
     nextButton->setFocusPolicy(Qt::NoFocus);
     nextButton->setIconSize(iconSize);
     nextButton->setFixedSize(buttonSize);
     nextButton->setToolTip("プレイリスト次へ");
-    connect(nextButton, SIGNAL(clicked(bool)), this, SLOT(playNext()));
+    connect(nextButton, SIGNAL(clicked(bool)), this, SLOT(nextButton_clicked()));
 
     _repeatABButton = new ControlButton(QIcon(":/icons/repeata.png"), "", this);
     _repeatABButton->setFocusPolicy(Qt::NoFocus);
@@ -633,12 +635,9 @@ void PurePlayer::play()
     }
 }
 
-bool PurePlayer::playPrev()
+bool PurePlayer::playPrev(bool forceLoop)
 {
-    PlaylistModel::Track* track = _playlist->currentTrack();
-
-    _playlist->downCurrentTrackIndex();
-    if( track != _playlist->currentTrack() || _playlist->loopPlay() ) {
+    if( _playlist->downCurrentTrackIndex(forceLoop) ) {
         _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
         play();
         return true;
@@ -647,12 +646,9 @@ bool PurePlayer::playPrev()
     return false;
 }
 
-bool PurePlayer::playNext()
+bool PurePlayer::playNext(bool forceLoop)
 {
-    PlaylistModel::Track* track = _playlist->currentTrack();
-
-    _playlist->upCurrentTrackIndex();
-    if( track != _playlist->currentTrack() || _playlist->loopPlay() ) {
+    if( _playlist->upCurrentTrackIndex(forceLoop) ) {
         _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
         play();
         return true;
@@ -1832,8 +1828,8 @@ PlaylistDialog* PurePlayer::playlistDialog()
     if( _playlistDialog == NULL ) {
         _playlistDialog = new PlaylistDialog(_playlist, this);
         connect(_playlistDialog, SIGNAL(playStopCurrentTrack()), this, SLOT(playlist_playStopCurrentTrack()));
-        connect(_playlistDialog, SIGNAL(playPrev()), this, SLOT(playPrev()));
-        connect(_playlistDialog, SIGNAL(playNext()), this, SLOT(playNext()));
+        connect(_playlistDialog, SIGNAL(playPrev()), this, SLOT(prevButton_clicked()));
+        connect(_playlistDialog, SIGNAL(playNext()), this, SLOT(nextButton_clicked()));
 
         QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
         _playlistDialog->move(s.value("playlist_pos", QPoint(x()+width()/2, y()+height()/2)).toPoint());
@@ -2737,6 +2733,7 @@ void PurePlayer::playCommonProcess()
                         qRgba(qBlue(_colorKey), qGreen(_colorKey), qRed(_colorKey), 0))
 #endif
 
+//  << "-nosound"
     << "-idx";
 
     if( isPeercastStream() )

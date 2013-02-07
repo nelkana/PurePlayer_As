@@ -115,7 +115,7 @@ void PlaylistDialog::buttonSort_clicked()
 
 void PlaylistDialog::view_doubleClicked(const QModelIndex& index)
 {
-    _model->setCurrentTrackIndex(index);
+    _model->setCurrentTrackIndex(index, true);
     emit playStopCurrentTrack();
 }
 
@@ -136,5 +136,6 @@ void PlaylistDialog::setModel(PlaylistModel* model)
 
     connect(_model, SIGNAL(fluctuatedIndexDigit()), _view, SLOT(adjustColumnSize()));
     connect(_buttonLoop, SIGNAL(toggled(bool)), _model, SLOT(setLoopPlay(bool)));
+    connect(_buttonRandom, SIGNAL(toggled(bool)), _model, SLOT(setRandomPlay(bool)));
 }
 

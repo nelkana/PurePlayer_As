@@ -25,7 +25,8 @@ extern const char* const MEDIA_FORMATS;
 
 double round(double value, int precision);
 int    digit(int value);
-void   msleep(unsigned long msec);
+int    rand(int min, int max);
+void   msleep(ulong msec);
 
 QString dayOfWeek(int day);
 QString secondTimeToString(int sec);

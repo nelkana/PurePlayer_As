@@ -98,12 +98,17 @@ int CommonLib::digit(int value)
 {
     int i = 0;
     while( value /= 10 )
-        i++;
+        ++i;
 
     return i + 1;
 }
 
-void CommonLib::msleep(unsigned long msec)
+int CommonLib::rand(int min, int max)
+{
+    return min + (int)((max-min + 1.0) * qrand()/(RAND_MAX + 1.0));
+}
+
+void CommonLib::msleep(ulong msec)
 {
     MyThread::msleep(msec);
 }
@@ -193,7 +198,7 @@ QString CommonLib::convertStringForFileName(QString name)
 }
 
 // 要求したファイル名に基づいて、現在のディレクトリにおける重複しないファイル名を返す。
-// ファイルが既に有る場合、ファイル名に連番が付加される。
+// ファイルが既に在る場合、ファイル名に連番が付加される。
 QString CommonLib::retTheFileNameNotExists(const QString& requestFileName)
 {
     QFileInfo file(requestFileName);
@@ -204,7 +209,7 @@ QString CommonLib::retTheFileNameNotExists(const QString& requestFileName)
 
     ulong num = 1;
     while( file.exists() || file.isSymLink() ) {
-        num++;
+        ++num;
 //      if( num > limitNum ) break;
 
         file.setFile(QString("%1_%2%3").arg(baseName).arg(num).arg(suffix));

@@ -21,6 +21,7 @@
 #include <QDir>
 #include <QUrl>
 #include <QColor>
+#include <QDebug>
 #include "playlist.h"
 #include "commonlib.h"
 
@@ -235,12 +236,14 @@ bool PlaylistModel::dropMimeData(const QMimeData* data, Qt::DropAction action,
 
         beginInsertRows(QModelIndex(), row, row + droppedTracks.size() - 1);
 
-        foreach(const Track* track, droppedTracks) {
+        foreach(Track* track, droppedTracks) {
             Track* t = new Track(*track);
             if( _currentTrack == track )
                 _currentTrack = t;
 
             _tracks.insert(row++, t);
+            if( _randomPlay )
+                _randomTracks[_randomTracks.indexOf(track)] = t;
         }
 
         endInsertRows();
@@ -308,22 +311,38 @@ bool PlaylistModel::removeRows(int row, int count, const QModelIndex& parent)
 
     beginRemoveRows(parent, row, row + count-1);
 
+    bool bRemovedCurrentTrack = false;
     for(int i=0; i < count; i++) {
-        if( _tracks[row] == _currentTrack )
-            _currentTrack = NULL;
+        Track* track = _tracks.at(row);
+        if( track == _currentTrack )
+            bRemovedCurrentTrack = true;
+        else
+        if( _randomPlay )
+            _randomTracks.removeOne(track);
 
-        delete _tracks[row];
+        delete track;
         _tracks.removeAt(row);
     }
 
     endRemoveRows();
 
-    if( _currentTrack == NULL ) {
-        if( _tracks.size() >= row+1 )
-            _currentTrack = _tracks[row];
+    if( bRemovedCurrentTrack ) {
+        QList<Track*>* tracks;
+        if( _randomPlay ) {
+            tracks = &_randomTracks;
+            row = _randomTracks.indexOf(_currentTrack);
+            _randomTracks.removeAt(row);
+        }
+        else
+            tracks = &_tracks;
+
+        if( tracks->size() >= row+1 )
+            _currentTrack = (*tracks).at(row);
         else {
             if( row-1 >= 0 )
-                _currentTrack = _tracks[row-1];
+                _currentTrack = (*tracks).at(row-1);
+            else
+                _currentTrack = NULL;
         }
 
         if( _emitFlag.toEmit() )
@@ -333,6 +352,8 @@ bool PlaylistModel::removeRows(int row, int count, const QModelIndex& parent)
     // トラック数の桁増減確認
     if( oldIndexDigit != CommonLib::digit(_tracks.size()) )
         emit fluctuatedIndexDigit();
+
+//  debug();
 
     return true;
 }
@@ -448,11 +469,26 @@ void PlaylistModel::setTracks(const QList<Track*>& tracks)
 
     qDeleteAll(_tracks);
     _tracks = tracks;
+    _randomTracks.clear();
     if( _currentTrack != NULL ) {
         _currentTrack = NULL;
         emit removedCurrentTrack();
     }
-    setCurrentTrackIndex(0);
+
+    if( _tracks.size() > 0 ) {
+        int index;
+        if( _randomPlay ) {
+            _randomTracks = _tracks;
+            for(int i=0; i < _randomTracks.size()-1; ++i)
+                qSwap(_randomTracks[i], _randomTracks[CommonLib::rand(i, _randomTracks.size()-1)]);
+
+            index = _tracks.indexOf(_randomTracks.at(0));
+        }
+        else
+            index = 0;
+
+        setCurrentTrackIndex(index);
+    }
 
     reset();
 
@@ -490,10 +526,21 @@ int PlaylistModel::appendTracks(const QStringList& paths)
     return rows;
 }
 
-void PlaylistModel::setCurrentTrackIndex(int index)
+void PlaylistModel::setCurrentTrackIndex(int index, bool specifiedUser)
 {
     if( 0 <= index && index < _tracks.size() ) {
-        _currentTrack = _tracks[index];
+        if( specifiedUser
+            && _randomPlay && _currentTrack!=NULL )
+        {
+            int to   = _randomTracks.indexOf(_currentTrack) + 1;
+            int from = _randomTracks.indexOf(_tracks.at(index));
+            if( from < to )
+                --to;
+            _randomTracks.move(from, to);
+
+//          debug();
+        }
+        _currentTrack = _tracks.at(index);
         emit dataChanged(PlaylistModel::index(index, 0), PlaylistModel::index(index, columnCount()-1));
     }
 }
@@ -508,28 +555,82 @@ int PlaylistModel::trackIndexOf(const QString& path)
     return -1;
 }
 
-void PlaylistModel::downCurrentTrackIndex()
+bool PlaylistModel::downCurrentTrackIndex(bool forceLoop)
 {
-    int i = _tracks.indexOf(_currentTrack);
-    if( i == -1 ) return;
+    if( _tracks.size() <= 1 ) return false;
 
-    i--;
-    if( i < 0 && _loopPlay )
-        i = _tracks.size() - 1;
+    int i;
+    if( _randomPlay ) {
+        i = _randomTracks.indexOf(_currentTrack);
+        Q_ASSERT( i != -1 );
+
+        --i;
+        if( i < 0 ) {
+            if( _loopPlay || forceLoop ) {
+                _randomTracks.move(_randomTracks.size()-1, 0);
+                i = 0;
+            }
+            else
+                return false;
+        }
+
+        i = _tracks.indexOf(_randomTracks[i]);
+        Q_ASSERT( i != -1 );
+    }
+    else {
+        i = _tracks.indexOf(_currentTrack);
+        Q_ASSERT( i != -1 );
+
+        --i;
+        if( i < 0 ) {
+            if( _loopPlay || forceLoop )
+                i = _tracks.size() - 1;
+            else
+                return false;
+        }
+    }
 
     setCurrentTrackIndex(i);
+    return true;
 }
 
-void PlaylistModel::upCurrentTrackIndex()
+bool PlaylistModel::upCurrentTrackIndex(bool forceLoop)
 {
-    int i = _tracks.indexOf(_currentTrack);
-    if( i == -1 ) return;
+    if( _tracks.size() <= 0 ) return false;
 
-    i++;
-    if( i >= _tracks.size() && _loopPlay )
-        i = 0;
+    int i;
+    if( _randomPlay ) {
+        i = _randomTracks.indexOf(_currentTrack);
+        Q_ASSERT( i != -1 );
+
+        ++i;
+        if( i >= _randomTracks.size() ) {
+            if( _loopPlay || forceLoop ) {
+                shuffleRandomTracks();
+                i = 0;
+            }
+            else
+                return false;
+        }
+
+        i = _tracks.indexOf(_randomTracks[i]);
+        Q_ASSERT( i != -1 );
+    }
+    else {
+        i = _tracks.indexOf(_currentTrack);
+        Q_ASSERT( i != -1 );
+
+        ++i;
+        if( i >= _tracks.size() ) {
+            if( _loopPlay || forceLoop )
+                i = 0;
+            else
+                return false;
+        }
+    }
 
     setCurrentTrackIndex(i);
+    return true;
 }
 
 QString PlaylistModel::currentTrackTitle()
@@ -574,10 +675,32 @@ void PlaylistModel::setCurrentTrackTime(int duration)
     emit dataChanged(PlaylistModel::index(i, 0), PlaylistModel::index(i, columnCount()-1));
 }
 
+void PlaylistModel::setRandomPlay(bool b)
+{
+    _randomPlay = b;
+
+    if( _tracks.size() <= 0 )
+        return;
+
+    if( b ) {
+        _randomTracks = _tracks;
+
+        qSwap(_randomTracks[0], _randomTracks[_randomTracks.indexOf(_currentTrack)]);
+
+        for(int i=1; i < _randomTracks.size()-1; ++i)
+            qSwap(_randomTracks[i], _randomTracks[CommonLib::rand(i, _randomTracks.size()-1)]);
+
+//      debug();
+    }
+    else
+        _randomTracks.clear();
+}
+
 void PlaylistModel::removeAllRows()
 {
     qDeleteAll(_tracks);
     _tracks.clear();
+    _randomTracks.clear();
     if( _currentTrack != NULL ) {
         _currentTrack = NULL;
         emit removedCurrentTrack();
@@ -586,7 +709,14 @@ void PlaylistModel::removeAllRows()
 
     reset();
 }
-
+/*
+void PlaylistModel::debug()
+{
+    for(int i=0; i < _randomTracks.size(); ++i)
+        qDebug() << _randomTracks[i]->title;;
+    qDebug() << "";
+}
+*/
 /*
 void PlaylistModel::test()
 {
@@ -626,36 +756,59 @@ int PlaylistModel::insertTracks(int row, QList<Track*>& inTracks)
 
     int oldIndexDigit = CommonLib::digit(_tracks.size()); // トラック数の桁増減確認用
 
-    for(int i=0; i < inTracks.size(); i++ ) {
+    int currentIndexOfRandomTracks = -1;
+    if( _randomPlay )
+        currentIndexOfRandomTracks = _randomTracks.indexOf(_currentTrack);
+
+    QList<Track*> newTracks;
+
+    for(int i=0; i < inTracks.size(); ++i ) {
+        Track* inTrack = inTracks.at(i);
 //      // pathの前方の空白を削除
-//      if( inTracks[i] != NULL )
-//          inTracks[i]->path.remove(QRegExp("^\\s*"));
+//      if( inTrack != NULL )
+//          inTrack->path.remove(QRegExp("^\\s*"));
 
         // 入力TrackがNULLまたはpathが空の場合、inTracksから削除
-        if( inTracks[i]==NULL || inTracks[i]->path.isEmpty() ) {
-            delete inTracks[i];
+        if( inTrack==NULL || inTrack->path.isEmpty() ) {
+            delete inTrack;
             inTracks.removeAt(i);
-            i--;
+            --i;
             continue;
         }
 
-        // 同一pathのTrackは_tracksから削除
-        int index = trackIndexOf(inTracks[i]->path);
+        // 同一pathのTrackは、_tracksからは削除して_randomTracksへは内容置き換え
+        int index = trackIndexOf(inTrack->path);
         if( index != -1 ) {
-            if( _currentTrack == _tracks[index] )
-                _currentTrack = inTracks[i];
+            Track* track = _tracks.at(index);
+            if( _currentTrack == track )
+                _currentTrack = inTrack;
 
             beginRemoveRows(QModelIndex(), index, index);
-            delete _tracks[index];
+            delete track;
             _tracks.removeAt(index);
+            if( _randomPlay )
+                _randomTracks[_randomTracks.indexOf(track)] = inTrack;
             endRemoveRows();
+
             if( index < row )
-                row--;
+                --row;
+        }
+        else {
+            if( _randomPlay )
+                newTracks << inTrack;
         }
     }
 
     if( inTracks.size() == 0 )
         return 0;
+
+    if( _randomPlay ) {
+        while( newTracks.size() ) {
+            _randomTracks.insert(
+                    CommonLib::rand(currentIndexOfRandomTracks+1, _randomTracks.size()),
+                    newTracks.takeAt(CommonLib::rand(0, newTracks.size()-1)));
+        }
+    }
 
     beginInsertRows(QModelIndex(), row, row + inTracks.size()-1);
 
@@ -666,12 +819,17 @@ int PlaylistModel::insertTracks(int row, QList<Track*>& inTracks)
 
     // 初めからトラックが1件もない場合
     if( _currentTrack == NULL ) {
-        _currentTrack = inTracks[0]; // カレントを先頭に設定する
+        if( _randomPlay )
+            _currentTrack = _randomTracks.at(0);
+        else
+            _currentTrack = _tracks.at(0);
         emit fluctuatedIndexDigit();
     }
     else
     if( oldIndexDigit != CommonLib::digit(_tracks.size()) ) // トラック数の桁増減確認
         emit fluctuatedIndexDigit();
+
+//  debug();
 
     return inTracks.size();
 }
@@ -711,6 +869,12 @@ QList<PlaylistModel::Track*> PlaylistModel::createTracks(const QStringList& path
     }
 
     return tracks;
+}
+
+void PlaylistModel::shuffleRandomTracks()
+{
+    for(int i=0; i < _randomTracks.size()-1; ++i)
+        qSwap(_randomTracks[i], _randomTracks[CommonLib::rand(i, _randomTracks.size()-1)]);
 }
 
 // --------------------------------------------------------------------------------------

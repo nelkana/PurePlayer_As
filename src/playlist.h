@@ -74,10 +74,10 @@ public:
     void    setTracks(const QList<Track*>& tracks);
     int     insertTracks(int row, const QList<QUrl>& urls);
     int     appendTracks(const QStringList& paths);
-    void    setCurrentTrackIndex(int index);
+    void    setCurrentTrackIndex(int index, bool specifiedUser=false);
     int     trackIndexOf(const QString& path);
-    void    downCurrentTrackIndex();
-    void    upCurrentTrackIndex();
+    bool    downCurrentTrackIndex(bool forceLoop=false);
+    bool    upCurrentTrackIndex(bool forceLoop=false);
     Track*  currentTrack() { return _currentTrack; }
     bool    isCurrentTrack(const QString& path) { return (_currentTrack!=NULL && path==_currentTrack->path); }
     QString currentTrackTitle();
@@ -89,11 +89,12 @@ public:
     bool    randomPlay() { return _randomPlay; }
 
 public slots:
-    void setCurrentTrackIndex(const QModelIndex& index) { if( index.isValid() ) setCurrentTrackIndex(index.row()); }
+    void setCurrentTrackIndex(const QModelIndex& index, bool specifiedUser) { if( index.isValid() ) setCurrentTrackIndex(index.row(), specifiedUser); }
     void setLoopPlay(bool b)   { _loopPlay = b; }
-    void setRandomPlay(bool b) { _randomPlay = b; }
+    void setRandomPlay(bool b);
     void removeAllRows();
 
+//  void debug();
 //  void test();
 signals:
     void removedCurrentTrack();
@@ -102,9 +103,11 @@ signals:
 protected:
     int insertTracks(int row, QList<Track*>& tracks);
     QList<Track*> createTracks(const QStringList& paths);
+    void shuffleRandomTracks();
 
 private:
     QList<Track*> _tracks;
+    QList<Track*> _randomTracks;
 
     Track* _currentTrack;
     bool   _loopPlay;

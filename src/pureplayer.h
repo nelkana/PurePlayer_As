@@ -75,8 +75,8 @@ public slots:
     void open(const QList<QUrl>& urls);
     void openFromDialog();
     void play();
-    bool playPrev();
-    bool playNext();
+    bool playPrev(bool forceLoop=false);
+    bool playNext(bool forceLoop=false);
     void stop() { _controlFlags |= FLG_EXPLICITLY_STOPPED; stopInternal(); }
     void stopPeercast();
     void pauseUnPause();
@@ -143,6 +143,8 @@ protected slots:
     void reconnectPurePlayerFromGui() { _reconnectCount=0; reconnectPurePlayer(); }
     void playlist_playStopCurrentTrack();
     void buttonPlayPauseClicked();
+    void nextButton_clicked() { playNext(true); }
+    void prevButton_clicked() { playPrev(true); }
     void exitFullScreen() { if( isFullScreen() ) fullScreenOrWindow(); }
     void restartPlay(bool keepSeekPos=false) { if(keepSeekPos && _isSeekable) _controlFlags |= FLG_SEEK_WHEN_PLAYED; stopInternal(); play(); }
 
