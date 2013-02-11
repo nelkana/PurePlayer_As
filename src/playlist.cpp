@@ -21,6 +21,7 @@
 #include <QDir>
 #include <QUrl>
 #include <QColor>
+#include <QMessageBox>
 #include <QDebug>
 #include "playlist.h"
 #include "commonlib.h"
@@ -468,7 +469,10 @@ void PlaylistModel::setTracks(const QList<Track*>& tracks)
     int oldIndexDigit = CommonLib::digit(_tracks.size()); // トラック数の桁増減確認用
 
     qDeleteAll(_tracks);
-    _tracks = tracks;
+    _tracks.clear();
+    for(int i=0; i < TRACKS_MAX; ++i)
+        _tracks << new Track(*tracks.at(i));
+
     _randomTracks.clear();
     if( _currentTrack != NULL ) {
         _currentTrack = NULL;
@@ -497,29 +501,23 @@ void PlaylistModel::setTracks(const QList<Track*>& tracks)
         emit fluctuatedIndexDigit();
 }
 
-int PlaylistModel::insertTracks(int row, const QList<QUrl>& urls)
+int PlaylistModel::appendTracks(const QList<QUrl>& urls, bool* removedTrackByMaximum)
 {
     QStringList paths;
     foreach(const QUrl& url, urls)
         paths << url.toString();
 
-    QList<Track*> tracks = createTracks(paths);
-
-    int rows = insertTracks(row, tracks);
-    if( !rows )
-        qDeleteAll(tracks);
-
-    return rows;
+    return appendTracks(paths, removedTrackByMaximum);
 }
 
-int PlaylistModel::appendTracks(const QStringList& paths)
+int PlaylistModel::appendTracks(const QStringList& paths, bool* removedTrackByMaximum)
 {
 //  path.remove(QRegExp("^\\s*"));
 //  if( path.isEmpty() ) return false;
 
     QList<Track*> tracks = createTracks(paths);
 
-    int rows = insertTracks(_tracks.size(), tracks);
+    int rows = insertTracks(_tracks.size(), tracks, removedTrackByMaximum);
     if( !rows )
         qDeleteAll(tracks);
 
@@ -749,10 +747,25 @@ void PlaylistModel::test()
         qDebug("%p %s", track, track->path.toAscii().data());
 }
 */
-int PlaylistModel::insertTracks(int row, QList<Track*>& inTracks)
+/*
+void PlaylistModel::test()
+{
+    QList<Track*> tracks;
+    for(int i=0; i < 1000; ++i) {
+        tracks << new Track(QString("/file/%1").arg(i), QString("t%1").arg(i));
+    }
+
+    setTracks(tracks);
+    qDeleteAll(tracks);
+}
+*/
+int PlaylistModel::insertTracks(int row, QList<Track*>& inTracks, bool* removedTrackByMaximum)
 {
     if( row < 0 || row > _tracks.size() )// || inTracks.isEmpty() )
         return 0;
+
+    if( removedTrackByMaximum != NULL )
+        *removedTrackByMaximum = false;
 
     int oldIndexDigit = CommonLib::digit(_tracks.size()); // トラック数の桁増減確認用
 
@@ -762,6 +775,7 @@ int PlaylistModel::insertTracks(int row, QList<Track*>& inTracks)
 
     QList<Track*> newTracks;
 
+    int emptySize = TRACKS_MAX - _tracks.size();
     for(int i=0; i < inTracks.size(); ++i ) {
         Track* inTrack = inTracks.at(i);
 //      // pathの前方の空白を削除
@@ -776,9 +790,9 @@ int PlaylistModel::insertTracks(int row, QList<Track*>& inTracks)
             continue;
         }
 
-        // 同一pathのTrackは、_tracksからは削除して_randomTracksへは内容置き換え
         int index = trackIndexOf(inTrack->path);
         if( index != -1 ) {
+            // 同一pathのTrackは、_tracksからは削除して_randomTracksへは内容置き換え
             Track* track = _tracks.at(index);
             if( _currentTrack == track )
                 _currentTrack = inTrack;
@@ -794,8 +808,20 @@ int PlaylistModel::insertTracks(int row, QList<Track*>& inTracks)
                 --row;
         }
         else {
-            if( _randomPlay )
-                newTracks << inTrack;
+            if( emptySize > 0 ) {
+                if( _randomPlay )
+                    newTracks << inTrack;
+
+                --emptySize;
+            }
+            else {
+                if( removedTrackByMaximum != NULL )
+                    *removedTrackByMaximum = true;
+
+                delete inTrack;
+                inTracks.removeAt(i);
+                --i;
+            }
         }
     }
 
@@ -1068,8 +1094,15 @@ void PlaylistView::dropEvent(QDropEvent* e)
 
     if( e->mimeData()->hasFormat("text/uri-list") ) {
         PlaylistModel* m = (PlaylistModel*)model();
-        if( m != NULL )
-            m->insertTracks(m->rowCount(), e->mimeData()->urls());
+        if( m != NULL ) {
+            bool b;
+            m->appendTracks(e->mimeData()->urls(), &b);
+            if( b ) {
+                QMessageBox::information(this, tr("確認"),
+                    tr("プレイリスト項目が最大数(%1件)に達した為、\n"
+                       "最大数を超えた項目は追加されませんでした。").arg(PlaylistModel::TRACKS_MAX));
+            }
+        }
     }
     else
         QTreeView::dropEvent(e);

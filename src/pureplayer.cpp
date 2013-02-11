@@ -599,29 +599,46 @@ void PurePlayer::createActionContextMenu()
     //setContextMenuPolicy(Qt::ActionsContextMenu);
 }
 
-void PurePlayer::open(const QString& path)
+void PurePlayer::open(const QStringList& paths)
 {
-    int rows = _playlist->appendTracks(QStringList() << path);
-    if( rows ) {
-        _playlist->setCurrentTrackIndex(_playlist->rowCount() - rows);
-
-        _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
-        openCommonProcess(_playlist->currentTrackPath());
+    bool b;
+    int rows = _playlist->appendTracks(paths, &b);
+    if( b ) {
+        QMessageBox messageBox(QMessageBox::Information, tr("確認"),
+                tr("プレイリスト項目が最大数(%1件)に達した為、\n"
+                   "最大数を超えた項目は追加されませんでした。").arg(PlaylistModel::TRACKS_MAX),
+                QMessageBox::NoButton, this);
+        if( rows ) {
+            stop();
+            messageBox.exec();
+        }
+        else {
+            messageBox.exec();
+            return;
+        }
     }
     else
-        QMessageBox::warning(this, tr("エラー"), tr("指定されたファイル又はURLが正しくありません"));
+    if( !rows ) {
+        QMessageBox::warning(this, tr("エラー"),
+            tr("指定されたパスが正しく無い為、\n"
+               "メディアデータを開く事ができませんでした。"));
+        return;
+    }
+
+    // 新たに追加したアイテム群の先頭要素をカレントインデックスとする
+    _playlist->setCurrentTrackIndex(_playlist->rowCount() - rows);
+
+    _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
+    openCommonProcess(_playlist->currentTrackPath());
 }
 
 void PurePlayer::open(const QList<QUrl>& urls)
 {
-    int rows = _playlist->insertTracks(_playlist->rowCount(), urls);
-    if( rows ) {
-        // 新たに追加したアイテム群の先頭要素をカレントインデックスとする
-        _playlist->setCurrentTrackIndex(_playlist->rowCount() - rows);
+    QStringList paths;
+    foreach(const QUrl& url, urls)
+        paths << url.toString();
 
-        _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
-        openCommonProcess(_playlist->currentTrackPath());
-    }
+    open(paths);
 }
 
 void PurePlayer::play()

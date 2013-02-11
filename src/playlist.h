@@ -43,6 +43,7 @@ public:
     };
 
     enum {
+        TRACKS_MAX   = 1000,
         COLUMN_COUNT = 3,
         COLUMN_INDEX = 0,
         COLUMN_TITLE = 1,
@@ -72,8 +73,8 @@ public:
     void        sort(int column, Qt::SortOrder order=Qt::AscendingOrder);
 
     void    setTracks(const QList<Track*>& tracks);
-    int     insertTracks(int row, const QList<QUrl>& urls);
-    int     appendTracks(const QStringList& paths);
+    int     appendTracks(const QList<QUrl>& urls, bool* removedTrackByMaximum=0);
+    int     appendTracks(const QStringList& paths, bool* removedTrackByMaximum=0);
     void    setCurrentTrackIndex(int index, bool specifiedUser=false);
     int     trackIndexOf(const QString& path);
     bool    downCurrentTrackIndex(bool forceLoop=false);
@@ -101,7 +102,7 @@ signals:
     void fluctuatedIndexDigit();
 
 protected:
-    int insertTracks(int row, QList<Track*>& tracks);
+    int insertTracks(int row, QList<Track*>& tracks, bool* removedTrackByMaximum=0);
     QList<Track*> createTracks(const QStringList& paths);
     void shuffleRandomTracks();
 
