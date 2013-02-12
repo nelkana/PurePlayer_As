@@ -1310,11 +1310,10 @@ void PurePlayer::fullScreenOrWindow()
         _videoScreen->setMouseTracking(true);
     }
 
-    // ウィンドウモードを切り替えた直後マウス入力したままで、
-    // mouseMoveEvent()によるウィンドウ移動を無効にする。
+    // ウィンドウモード切り替え直後マウス入力したままでの、
+    // マウスウィンドウ移動を無効にする。
     // (フルスクリーンからウィンドウへ切り替え直後、ウィンドウ移動で位置が飛ぶ問題対応)
-    if( QApplication::mouseButtons() | Qt::LeftButton )
-        _controlFlags |= FLG_DISABLE_MOUSEWINDOWMOVE;
+    _controlFlags |= FLG_DISABLE_MOUSEWINDOWMOVE;
 }
 
 void PurePlayer::setAlwaysShowStatusBar(bool b)
@@ -1479,7 +1478,6 @@ void PurePlayer::openContactUrl()
 //bool PurePlayer::event(QEvent* e)
 //{
 //  LogDialog::debug(tr("%1").arg(e->type()));
-
 /*
     if( e->type() == QEvent::WindowStateChange ) {
         QWindowStateChangeEvent* event = static_cast<QWindowStateChangeEvent*>(e);
@@ -1661,6 +1659,8 @@ void PurePlayer::mousePressEvent(QMouseEvent* e)
         else
         if( isFullScreen() )
             setCursor(QCursor(Qt::BlankCursor));
+
+        _controlFlags &= ~FLG_DISABLE_MOUSEWINDOWMOVE;
     }
     else
     if( e->button() == Qt::MidButton )
@@ -1677,8 +1677,6 @@ void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
             if( _mousePressPos == e->globalPos() )
                 mute(!isMute());
         }
-
-        _controlFlags &= ~FLG_DISABLE_MOUSEWINDOWMOVE;
     }
     else
     if( e->button() == Qt::RightButton ) {
@@ -3151,8 +3149,7 @@ void PurePlayer::visibleInterface(bool b)
 void PurePlayer::updateVisibleInterface()
 {
     if( isFullScreen() ) {
-        if( QCursor::pos().y() >= (QApplication::desktop()->screen()->height()*80/100) )
-//      if( QCursor::pos().y() >= (height()*80/100) )
+        if( whetherMuteArea(QCursor::pos().y()) )
             visibleInterface(true);
         else {
             if( isPlaying() )
@@ -3176,7 +3173,8 @@ bool PurePlayer::whetherMuteArea(int mouseLocalY)
 {
     int threshold;
     if( isFullScreen() )
-        threshold = height() * 80/100;
+        threshold = QApplication::desktop()->screen()->height() * 80/100;
+//      threshold = height() * 80/100;
     else
         threshold = height() - statusBar()->height();
 
