@@ -625,8 +625,18 @@ void PurePlayer::open(const QStringList& paths)
         return;
     }
 
-    // 新たに追加したアイテム群の先頭要素をカレントインデックスとする
-    _playlist->setCurrentTrackIndex(_playlist->rowCount() - rows);
+    if( _playlist->randomPlay() ) {
+        if( rows != _playlist->rowCount() ) { // プレイリストに項目が既に1件以上あった場合
+            // 追加した項目の内、どれかをカレントにする
+            // (ランダムプレイリストのカレントの次がこの項目になる様に配置する)
+            int i = CommonLib::rand(_playlist->rowCount()-rows, _playlist->rowCount()-1);
+            _playlist->setCurrentTrackIndex(i, true);
+        }
+    }
+    else {
+        // 追加した項目の内、先頭要素をカレントにする
+        _playlist->setCurrentTrackIndex(_playlist->rowCount() - rows);
+    }
 
     _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
     openCommonProcess(_playlist->currentTrackPath());
