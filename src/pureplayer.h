@@ -63,8 +63,8 @@ public:
     bool isMute()    { return _isMute; }
     bool isPlaying() { return _state == PLAY; }
     bool isStop()    { return _state == STOP; }
-    bool isAlwaysShowStatusBar() { return !isFullScreen() && (_alwaysShowStatusBar
-                                                                        || _isSeekable); }
+    bool isAlwaysShowStatusBar() { return !isFullScreen()
+                                        && (_alwaysShowStatusBar || !isPeercastStream()); }
     bool isPeercastStream() { return _port != -1; }
 
 //  void resize(const QSize&);

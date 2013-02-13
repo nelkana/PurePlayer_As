@@ -3159,7 +3159,7 @@ void PurePlayer::updateVisibleInterface()
         }
     }
     else {
-        if( _isSeekable || !isPlaying() || isAlwaysShowStatusBar() || _cursorInWindow )
+        if( !isPlaying() || isAlwaysShowStatusBar() || _cursorInWindow )
             visibleInterface(true);
         else
             visibleInterface(false);
@@ -3205,11 +3205,7 @@ void PurePlayer::setStatus(const STATE s)
         _playPauseButton->setToolTip(tr("一時停止"));
         _frameAdvanceButton->setEnabled(true);
         _screenshotButton->setEnabled(true);
-        // ステータス非表示切り替え // ウィンドウ、フルスクリーン時用で再実装の必要あり
-        if( !isFullScreen() && !isAlwaysShowStatusBar() ) {
-            if( !_cursorInWindow )
-                visibleInterface(false);
-        }
+        updateVisibleInterface();
 
         _actScreenshot->setEnabled(true);
         _actReconnectPct->setEnabled(true);
