@@ -811,7 +811,7 @@ void PurePlayer::frameAdvance()
 
 void PurePlayer::repeatAB()
 {
-    if( isPeercastStream() || !(_state==PLAY || _state==PAUSE) ) return;
+    if( isPeercastStream() || !_isSeekable || !(_state==PLAY || _state==PAUSE) ) return;
 
     if( _repeatStartTime < 0 ) {
         _repeatStartTime = _currentTime * 10;
@@ -1935,6 +1935,7 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
 {
     const QString debugPrefix = "PurePlayer::mpProcess_outputLine(): ";
     static QRegExp rxCacheFill("^Cache fill: *([0-9.]+)%");
+    static QRegExp rxGenIndex("^Generating Index: *(\\d+)");
 //  static QRegExp rxVideoW("^ID_VIDEO_WIDTH=(\\d+)");
 //  static QRegExp rxVideoH("^ID_VIDEO_HEIGHT=(\\d+)");
     static QRegExp rxVideoWH("^VO: \\[.+\\] \\d+x\\d+ => (\\d+)x(\\d+)");
@@ -1998,10 +1999,12 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
                 }
                 else {
                     // 2点間リピート処理
-                    if( _repeatStartTime>=0 && _repeatEndTime>=0 ) {
+                    if( _isSeekable
+                        && _repeatStartTime>=0 && _repeatEndTime>=0 )
+                    {
                         if( (_currentTime >= _repeatEndTime/10.0
-                            && !_controlFlags.testFlag(FLG_SEEKED_REPEAT))
-                         || _currentTime >= _repeatEndTime/10.0 + 1 )
+                                && !_controlFlags.testFlag(FLG_SEEKED_REPEAT))
+                            || _currentTime >= _repeatEndTime/10.0 + 1 )
                         {
                             seek(_repeatStartTime/10.0);
 
@@ -2012,7 +2015,7 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
                         }
                         else
                         if( _currentTime < _repeatEndTime/10.0
-                         && _controlFlags.testFlag(FLG_SEEKED_REPEAT) )
+                            && _controlFlags.testFlag(FLG_SEEKED_REPEAT) )
                         {
                             _controlFlags &= ~FLG_SEEKED_REPEAT;
                         }
@@ -2096,10 +2099,12 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
 
                 if( _isSeekable ) {
                     _toolBar->show();
+                    _repeatABButton->setEnabled(true);
                     _actStatusBar->setEnabled(false);
                 }
                 else {
                     _toolBar->hide();
+                    _repeatABButton->setEnabled(false);
                     _actStatusBar->setEnabled(true);
                 }
 
@@ -2168,7 +2173,10 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
         }
         else
         if( rxCacheFill.indexIn(line) != -1 )
-            _infoLabel->setText(QString("Cache: %1%").arg(rxCacheFill.cap(1), 5));
+            _infoLabel->setText(tr("Cache") + QString(": %1%").arg(rxCacheFill.cap(1), 5));
+        else
+        if( rxGenIndex.indexIn(line) != -1 )
+            _infoLabel->setText(tr("Index生成中") + QString(": %1%").arg(rxGenIndex.cap(1), 2));
         else
         if( rxLength.indexIn(line) != -1 )
             _videoLength = rxLength.cap(1).toDouble();
@@ -3262,7 +3270,10 @@ void PurePlayer::setStatus(const STATE s)
     case STOP:
     default:
         _state = STOP;
-        _infoLabel->setText(tr("停止"));
+        if( isPeercastStream() )
+            _infoLabel->setText(tr("停止") + QDateTime::currentDateTime().toString(" [d(ddd)h:mm]"));
+        else
+            _infoLabel->setText(tr("停止"));
         _playPauseButton->setIcon(QIcon(":/icons/play.png"));
         _playPauseButton->setToolTip(tr("再生"));
         _stopButton->setEnabled(false);
