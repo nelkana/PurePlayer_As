@@ -88,6 +88,7 @@ public slots:
     void reconnect();
     void reconnectPurePlayer() { restartPlay(); }
     void reconnectPeercast();
+    void setPlayNoSound(bool);
     void recordingStartStop();
     void mute(bool);
     void upVolume(int value=5);
@@ -310,8 +311,9 @@ private:
     ASPECT_RATIO       _aspectRatio;
     DEINTERLACE_MODE   _deinterlace;
     bool            _isMute;
-    bool            _cursorInWindow;
     bool            _alwaysShowStatusBar;
+    bool            _playNoSound;
+    bool            _cursorInWindow;
     ControlFlags    _controlFlags;
     QPoint          _mousePressLocalPos;
     QPoint          _mousePressPos;
@@ -322,6 +324,7 @@ private:
     QAction*        _actReconnect;
     QAction*        _actReconnectPlayer;
     QAction*        _actReconnectPct;
+    QAction*        _actPlayNoSound;
     QAction*        _actPlayPause;
     QAction*        _actStop;
     QAction*        _actMute;

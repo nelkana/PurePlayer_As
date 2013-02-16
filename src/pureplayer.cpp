@@ -80,6 +80,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _videoSize = QSize(320, 240);
     _noVideo = false;
     _isSeekable = false;
+    _playNoSound = false;
     _cursorInWindow = false;
     _controlFlags = FLG_NONE;
 
@@ -555,12 +556,18 @@ void PurePlayer::createActionContextMenu()
     _actReconnectPct = new QAction(tr("PeerCastのみ"), this);
     _actReconnectPct->setEnabled(false);
     connect(_actReconnectPct, SIGNAL(triggered()), this, SLOT(reconnectPeercast()));
+    _actPlayNoSound = new QAction(tr("無音で再生する"), this);
+    _actPlayNoSound->setCheckable(true);
+    _actPlayNoSound->setChecked(false);
+    connect(_actPlayNoSound, SIGNAL(triggered(bool)), this, SLOT(setPlayNoSound(bool)));
 
     _menuReconnect = new QMenu(tr("再接続"), this);
     _menuReconnect->menuAction()->setVisible(false);
     _menuReconnect->addAction(_actReconnect);
     _menuReconnect->addAction(_actReconnectPlayer);
     _menuReconnect->addAction(_actReconnectPct);
+    _menuReconnect->addSeparator();
+    _menuReconnect->addAction(_actPlayNoSound);
 
     // コンテキストメニュー
     _menuContext = new QMenu(this);
@@ -905,6 +912,18 @@ void PurePlayer::reconnectPeercast()
     _nam->get(QNetworkRequest(url));
     _controlFlags |= FLG_RECONNECTED;
     LogDialog::debug("PurePlayer::reconnectPeercast(): ");
+}
+
+void PurePlayer::setPlayNoSound(bool b)
+{
+    if( _playNoSound != b ) {
+        _playNoSound = b;
+
+        if( isPeercastStream() && !isStop() )
+            restartPlay(true);
+
+        _actPlayNoSound->setChecked(b);
+    }
 }
 
 void PurePlayer::recordingStartStop()
@@ -2766,11 +2785,14 @@ void PurePlayer::playCommonProcess()
                         qRgba(qBlue(_colorKey), qGreen(_colorKey), qRed(_colorKey), 0))
 #endif
 
-//  << "-nosound"
     << "-idx";
 
-    if( isPeercastStream() )
+    if( isPeercastStream() ) {
+        if( _playNoSound )
+            args << "-nosound";
+
         args << QString(_path).replace("/pls/", "/stream/");
+    }
     else
         args << _path;
 
