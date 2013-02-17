@@ -13,6 +13,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <time.h>
 #include <QtGui>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
@@ -1342,14 +1343,14 @@ void PurePlayer::setAlwaysShowStatusBar(bool b)
     _alwaysShowStatusBar = b;
 
     if( b ) {
-        resize(width(), height() + statusBar()->size().height());
+        resize(width(), height() + statusBar()->height());
         statusBar()->show();
     }
     else {
         if( _state!=STOP && _state!=READY )
             statusBar()->hide();
 
-        resize(width(), height() - statusBar()->size().height());
+        resize(width(), height() - statusBar()->height());
     }
 
     _actStatusBar->setChecked(b);
@@ -1387,7 +1388,21 @@ void PurePlayer::showVideoAdjustDialog()
 
 void PurePlayer::showPlaylistDialog()
 {
-    playlistDialog()->show();
+    if( _playlistDialog == NULL ) {
+        _playlistDialog = new PlaylistDialog(_playlist, this);
+        connect(_playlistDialog, SIGNAL(playStopCurrentTrack()), this, SLOT(playlist_playStopCurrentTrack()));
+        connect(_playlistDialog, SIGNAL(playPrev()), this, SLOT(prevButton_clicked()));
+        connect(_playlistDialog, SIGNAL(playNext()), this, SLOT(nextButton_clicked()));
+
+        QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
+        _playlistDialog->resize(s.value("playlist_size", _playlistDialog->size()).toSize());
+
+        _playlistDialog->move(
+                _menuContext->x() + (_menuContext->width()-_playlistDialog->width())/2,
+                _menuContext->y());
+    }
+
+    _playlistDialog->show();
 }
 
 void PurePlayer::showConfigDialog()
@@ -1867,22 +1882,6 @@ void PurePlayer::closeAllOtherDialog()
         _aboutDialog->close();
 }
 
-PlaylistDialog* PurePlayer::playlistDialog()
-{
-    if( _playlistDialog == NULL ) {
-        _playlistDialog = new PlaylistDialog(_playlist, this);
-        connect(_playlistDialog, SIGNAL(playStopCurrentTrack()), this, SLOT(playlist_playStopCurrentTrack()));
-        connect(_playlistDialog, SIGNAL(playPrev()), this, SLOT(prevButton_clicked()));
-        connect(_playlistDialog, SIGNAL(playNext()), this, SLOT(nextButton_clicked()));
-
-        QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
-        _playlistDialog->move(s.value("playlist_pos", QPoint(x()+width()/2, y()+height()/2)).toPoint());
-        _playlistDialog->resize(s.value("playlist_size", _playlistDialog->size()).toSize());
-    }
-
-    return _playlistDialog;
-}
-
 void PurePlayer::mpProcess_finished()
 {
     const QString debugPrefix = "PurePlayer::mpProcess_finished(): ";
@@ -2077,6 +2076,17 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
         if( (line.startsWith("Starting playback...") && _noVideo)
          || (rxVideoWH.indexIn(line) != -1) )
         {
+            if( _isSeekable ) {
+                _toolBar->show();
+                _repeatABButton->setEnabled(true);
+                _actStatusBar->setEnabled(false);
+            }
+            else {
+                _toolBar->hide();
+                _repeatABButton->setEnabled(false);
+                _actStatusBar->setEnabled(true);
+            }
+
             setStatus(PLAY);
 
             if( isMute() )
@@ -2115,17 +2125,6 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
 
                 // テキスト内容によってステータスバーの高さが変わる為、高さを固定にする
                 statusBar()->setFixedHeight(statusBar()->height());
-
-                if( _isSeekable ) {
-                    _toolBar->show();
-                    _repeatABButton->setEnabled(true);
-                    _actStatusBar->setEnabled(false);
-                }
-                else {
-                    _toolBar->hide();
-                    _repeatABButton->setEnabled(false);
-                    _actStatusBar->setEnabled(true);
-                }
 
                 _startTime = -1; // open()のタイミングでの初期化では、
                                  // 前の再生のステータスラインを拾ってしまう為ここで初期化。
@@ -2945,10 +2944,8 @@ void PurePlayer::saveInteractiveSettings()
     s.setValue("statusbar", _alwaysShowStatusBar);
     s.setValue("pos",       pos());
 
-    if( _playlistDialog != NULL ) {
-        s.setValue("playlist_pos", _playlistDialog->pos());
+    if( _playlistDialog != NULL )
         s.setValue("playlist_size", _playlistDialog->size());
-    }
 
     LogDialog::debug("PurePlayer::saveInteractiveSettings(): end");
 }
@@ -3115,16 +3112,18 @@ void PurePlayer::updateVideoScreenGeometry()
 //  if( !isFullScreen() && _alwaysShowStatusBar && statusBar()->isHidden() )
 //      statusBar()->show();
 
-    QSize screen(centralWidget()->size());
+    QSize screen(size());
+    if( _toolBar->isVisible() )
+        screen.rheight() -= _toolBar->height();
+    if( statusBar()->isVisible() )
+        screen.rheight() -= statusBar()->height();
 
+        // ステータスバーを表示に切り替えた直後の場合(setAlwaysShowStatusBar())
     if( !isFullScreen() && _alwaysShowStatusBar && statusBar()->isHidden() )
-    // ステータスバーを表示に切り替えた直後の場合(setAlwaysShowStatusBar())
-        screen.setHeight(screen.height() - statusBar()->size().height());
+        screen.setHeight(height() - statusBar()->height());
     else
-    if( !isAlwaysShowStatusBar() ) {
-        screen.setWidth(width());
-        screen.setHeight(height());
-    }
+    if( !isAlwaysShowStatusBar() )
+        screen = size();
 
     // ビデオ表示の位置,サイズ設定
     QRect rect;

@@ -208,7 +208,6 @@ protected:
     QString genDateTimeSaveFileName(const QString& suffix=QString());
 
     void closeAllOtherDialog();
-    PlaylistDialog* playlistDialog();
 
 private slots:
     void mpProcess_finished();
