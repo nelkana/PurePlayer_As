@@ -98,12 +98,17 @@ int CommonLib::digit(int value)
 {
     int i = 0;
     while( value /= 10 )
-        i++;
+        ++i;
 
     return i + 1;
 }
 
-void CommonLib::msleep(unsigned long msec)
+int CommonLib::rand(int min, int max)
+{
+    return min + (int)((max-min + 1.0) * qrand()/(RAND_MAX + 1.0));
+}
+
+void CommonLib::msleep(ulong msec)
 {
     MyThread::msleep(msec);
 }
@@ -174,8 +179,26 @@ QRect CommonLib::scaleRectOnRect(const QSize& baseRect, const QSize& placeRect)
     return QRect(x,y, w,h);
 }
 
+// 与えられた文字列をファイル名用の文字列に変換して返す(無効文字は_に変換する)
+QString CommonLib::convertStringForFileName(QString name)
+{
+    const QString invalidCharWindows = "\\\\/:*?<>|\",;"; // ,;はwindowsのバージョンによる
+    const QString notRecommendedChar = "&";
+
+    name.remove(QRegExp("[\n\t]*"));
+    name.remove(QRegExp("^ *"));     // 前方の半角スペースの連続(組合せ)を削除
+    name.remove(QRegExp("[ .]*$"));  // 後方の半角スペースと.の連続(組合せ)を削除
+
+    if( name[0] == '.' )
+        name[0] = '_';
+
+    QString reg = '[' + invalidCharWindows + notRecommendedChar + ']';
+    name.replace(QRegExp(reg), "_");
+    return name;
+}
+
 // 要求したファイル名に基づいて、現在のディレクトリにおける重複しないファイル名を返す。
-// ファイルが既に有る場合、ファイル名に連番が付加される。
+// ファイルが既に在る場合、ファイル名に連番が付加される。
 QString CommonLib::retTheFileNameNotExists(const QString& requestFileName)
 {
     QFileInfo file(requestFileName);
@@ -186,7 +209,7 @@ QString CommonLib::retTheFileNameNotExists(const QString& requestFileName)
 
     ulong num = 1;
     while( file.exists() || file.isSymLink() ) {
-        num++;
+        ++num;
 //      if( num > limitNum ) break;
 
         file.setFile(QString("%1_%2%3").arg(baseName).arg(num).arg(suffix));
@@ -218,9 +241,16 @@ QString CommonLib::getExistingDirectoryDialog(QWidget* parent, const QString& ca
 
 bool CommonLib::isPeercastUrl(const QString& url)
 {
-    return QRegExp("(?:^http|^mms|^mmsh)://.+:\\d+/(?:stream|pls)/[A-F0-9]{32}")
-            .indexIn(url) != -1;
+    return url.contains(QRegExp("(?:^http|^mms|^mmsh)://.+:\\d+/(?:stream|pls)/[A-F0-9]{32}"));
+                                                                    // "[a-zA-Z0-9.?=:]*$"
 }
+
+bool CommonLib::isHttpUrl(const QString& url)
+{
+    // 有効文字: 英数字と-_.!~*'();/?:@&=+$,%#
+    return url.contains(QRegExp("^https?://[a-zA-Z0-9-_.!~*'();/?:@&=+$,%#]+$"));
+}
+
 /*
 QSize CommonLib::widgetFrameSize(QWidget* const w)
 {

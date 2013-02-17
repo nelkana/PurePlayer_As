@@ -18,7 +18,7 @@
 
 #include "ui_aboutdialog.h"
 
-#define PUREPLAYER_VERSION "0.7.8"
+#define PUREPLAYER_VERSION "0.7.9"
 
 class AboutDialog : public QDialog, Ui::AboutDialog
 {
@@ -47,14 +47,13 @@ inline AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent)
         "最新版はこちら:<br>"
         "<a href=\"https://github.com/nelkana/PurePlayer_As\">https://github.com/nelkana/PurePlayer_As</a><br>"
         "<br>"
-        "Qtバージョン(コンパイル): %2<br>"
-        "Qtバージョン(使用中): %3<br>"
+        "Qtバージョン(使用中): %2<br>"
+        "Qtバージョン(コンパイル): %3<br>"
         "ライセンス: GNU GPLv3<br>"
         "<br>"
-        "連絡先:<br>"
-        "<a href=\"http://jbbs.livedoor.jp/internet/9117/\">http://jbbs.livedoor.jp/internet/9117/</a><br>"
         "Copyright (C) 2012-2013 nel<br>"
-        ).arg(PUREPLAYER_VERSION).arg(QT_VERSION_STR).arg(qVersion());
+        "<a href=\"http://jbbs.livedoor.jp/internet/9117/\">http://jbbs.livedoor.jp/internet/9117/</a><br>"
+        ).arg(PUREPLAYER_VERSION).arg(qVersion()).arg(QT_VERSION_STR);
 
     _labelText->setText(text);
 }

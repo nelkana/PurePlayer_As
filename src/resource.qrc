@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="/">
+    <file>icons/random.png</file>
     <file>icons/heart.png</file>
     <file>icons/stop.png</file>
     <file>icons/play.png</file>

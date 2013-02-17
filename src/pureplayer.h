@@ -63,21 +63,22 @@ public:
     bool isMute()    { return _isMute; }
     bool isPlaying() { return _state == PLAY; }
     bool isStop()    { return _state == STOP; }
-    bool isAlwaysShowStatusBar() { return !isFullScreen() && (_alwaysShowStatusBar
-                                                                        || _isSeekable); }
+    bool isAlwaysShowStatusBar() { return !isFullScreen()
+                                        && (_alwaysShowStatusBar || !isPeercastStream()); }
     bool isPeercastStream() { return _port != -1; }
 
 //  void resize(const QSize&);
 //  void resize(int w, int h) { resize(QSize(w, h)); }
 
 public slots:
-    void open(const QString& path);
+    void open(const QString& path) { open(QStringList() << path); }
+    void open(const QStringList& paths);
     void open(const QList<QUrl>& urls);
     void openFromDialog();
     void play();
-    bool playPrev();
-    bool playNext();
-    void stop();
+    bool playPrev(bool forceLoop=false);
+    bool playNext(bool forceLoop=false);
+    void stop() { _controlFlags |= FLG_EXPLICITLY_STOPPED; stopInternal(); }
     void stopPeercast();
     void pauseUnPause();
     void frameAdvance();
@@ -87,6 +88,7 @@ public slots:
     void reconnect();
     void reconnectPurePlayer() { restartPlay(); }
     void reconnectPeercast();
+    void setPlayNoSound(bool);
     void recordingStartStop();
     void mute(bool);
     void upVolume(int value=5);
@@ -138,13 +140,15 @@ public slots:
 
 protected slots:
     void mpCmd(const QString& command);
-    void stopFromGui()      { _controlFlags |= FLG_EXPLICITLY_STOPPED; stop(); }
+    void stopInternal();
     void reconnectFromGui() { _reconnectCount=0; reconnect(); }
     void reconnectPurePlayerFromGui() { _reconnectCount=0; reconnectPurePlayer(); }
     void playlist_playStopCurrentTrack();
     void buttonPlayPauseClicked();
+    void nextButton_clicked() { playNext(true); }
+    void prevButton_clicked() { playPrev(true); }
     void exitFullScreen() { if( isFullScreen() ) fullScreenOrWindow(); }
-    void restartPlay(bool keepSeekPos=false) { if(keepSeekPos && _isSeekable) _controlFlags |= FLG_SEEK_WHEN_PLAYED; stop(); play(); }
+    void restartPlay(bool keepSeekPos=false) { if(keepSeekPos && _isSeekable) _controlFlags |= FLG_SEEK_WHEN_PLAYED; stopInternal(); play(); }
 
     void refreshVideoProfile(bool restoreVideoValue=true, bool warning=false);
 
@@ -167,6 +171,7 @@ protected:
         FLG_RECONNECTED             = 0x00000800, // 再接続した
         FLG_EXPLICITLY_STOPPED      = 0x00001000, // 明示的に停止した
     };
+    Q_DECLARE_FLAGS(ControlFlags, CONTROL_FLAG)
 
 //  bool event(QEvent*);
     bool eventFilter(QObject*, QEvent*);
@@ -203,24 +208,23 @@ protected:
     QString genDateTimeSaveFileName(const QString& suffix=QString());
 
     void closeAllOtherDialog();
-    PlaylistDialog* playlistDialog();
 
 private slots:
-    void mpProcessFinished();
-    void mpProcessError(QProcess::ProcessError);
-    void mpProcessDebugKilledCPid();                    // debug
-    void parseMplayerOutputLine(const QString& line);
-    void recordingProcessFinished();
-    void recordingOutputLine(const QString& line);
-    void replyFinished(QNetworkReply*);
-    void actGroupAudioOutputChanged(QAction*);
-    void actGroupVolumeFactorChanged(QAction*);
-    void actGroupAspectChanged(QAction*);
-    void actGroupDeinterlaceChanged(QAction*);
-    void timerReconnectTimeout();
-    void timerFpsTimeout();
-    void appliedFromConfigDialog(bool restartMplayer);
-    void videoAdjustDialogWindowActivate() { refreshVideoProfile(false, true); }
+    void mpProcess_finished();
+    void mpProcess_error(QProcess::ProcessError);
+    void mpProcess_debugKilledCPid();                    // debug
+    void mpProcess_outputLine(const QString& line);
+    void recProcess_finished();
+    void recProcess_outputLine(const QString& line);
+    void nam_finished(QNetworkReply*);
+    void actGroupAudioOutput_changed(QAction*);
+    void actGroupVolumeFactor_changed(QAction*);
+    void actGroupAspect_changed(QAction*);
+    void actGroupDeinterlace_changed(QAction*);
+    void timerReconnect_timeout();
+    void timerFps_timeout();
+    void configDialog_applied(bool restartMplayer);
+    void videoAdjustDialog_windowActivate() { refreshVideoProfile(false, true); }
 
 private:
     void createStatusBar();
@@ -229,7 +233,8 @@ private:
     void updateVideoScreenGeometry();
     void visibleInterface(bool);
     void updateVisibleInterface();
-    bool whetherMuteArea(int y);
+    bool whetherMuteArea(int mouseLocalY);
+//  bool whetherMuteArea(QPoint mousePos);
     void setStatus(const STATE);
 
 #ifdef Q_OS_WIN32
@@ -264,7 +269,7 @@ private:
     QNetworkReply*         _replyChannelStatusPcSt;
     QVector<PEERCAST_TYPE> _attemptPeercastType;
     MplayerProcess*   _mpProcess;
-    RecordingProcess* _recordingProcess;
+    RecordingProcess* _recProcess;
 #ifdef Q_OS_WIN32
     QRgb _colorKey;
 #endif
@@ -305,18 +310,20 @@ private:
     ASPECT_RATIO       _aspectRatio;
     DEINTERLACE_MODE   _deinterlace;
     bool            _isMute;
-    bool            _cursorInWindow;
     bool            _alwaysShowStatusBar;
-    quint32         _controlFlags;
+    bool            _playNoSound;
+    bool            _cursorInWindow;
+    ControlFlags    _controlFlags;
     QPoint          _mousePressLocalPos;
-    QPoint          _mousePressWindowPos;
+    QPoint          _mousePressPos;
 
     QMenu*          _menuContext;
     QMenu*          _menuReconnect;
     QAction*        _actScreenshot;
     QAction*        _actReconnect;
-    QAction*        _actReconnectPly;
+    QAction*        _actReconnectPlayer;
     QAction*        _actReconnectPct;
+    QAction*        _actPlayNoSound;
     QAction*        _actPlayPause;
     QAction*        _actStop;
     QAction*        _actMute;
@@ -342,7 +349,7 @@ private:
     PlaylistDialog*    _playlistDialog;
     AboutDialog*       _aboutDialog;
 
-    bool _debugFlg;
+    bool _debugFlag;
     int  _debugCount;
 };
 

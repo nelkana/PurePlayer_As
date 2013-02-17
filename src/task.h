@@ -28,13 +28,16 @@ public:
     Task(QObject* parent);
     virtual ~Task() {}
 
-    static void waitForTasksFinished();
+    static void waitForFinished();
+    static void waitForFinished(Task*);
 
 protected:
     void deleteObject();
 
 private:
     static QList<Task*> s_tasks;
+
+    bool* _pFinished;
 };
 
 class RenameFileTask : public Task
@@ -45,20 +48,43 @@ public:
     RenameFileTask(const QString& file, const QString& newName, QObject* parent);
 
 protected slots:
-    void slot_timeout();
+    void timerSingleShot_timeout();
 
 private:
-    QTimer  _timer;
     QString _file;
     QString _newName;
 };
 
-class PeercastStopTask : public Task
+class GetPeercastTypeTask : public Task
 {
     Q_OBJECT;
 
 public:
-    PeercastStopTask(const QString& host, const short port, const QString& id, QObject* parent);
+    GetPeercastTypeTask(const QString& host, short port, PurePlayer::PEERCAST_TYPE* type, QObject* parent);
+
+protected slots:
+    void nam_finished(QNetworkReply*);
+
+protected:
+    void queryPeercastType();
+    bool whetherPcVp(const QString& reply);
+    bool whetherPcSt(const QString& reply);
+
+private:
+    QNetworkAccessManager _nam;
+    PurePlayer::PEERCAST_TYPE _attemptType;
+
+    QString _host;
+    short   _port;
+    PurePlayer::PEERCAST_TYPE* _type;
+};
+
+class StopChannelTask : public Task
+{
+    Q_OBJECT;
+
+public:
+    StopChannelTask(const QString& host, short port, const QString& id, QObject* parent);
 
 protected slots:
     void nam_finished(QNetworkReply*);
@@ -67,23 +93,25 @@ private:
     QNetworkAccessManager _nam;
 };
 
-class PeercastDisconnectTask : public Task
+class DisconnectChannelTask : public Task
 {
     Q_OBJECT;
 
 public:
-    PeercastDisconnectTask(const QString& host, const short port, const QString& id,
-                           const PurePlayer::PEERCAST_TYPE type, QObject* parent);
+    DisconnectChannelTask(const QString& host, short port, const QString& id,
+                           PurePlayer::PEERCAST_TYPE type, int startSec, QObject* parent);
+
+protected slots:
+    void timerSingleShot_timeout();
+    void nam_finished(QNetworkReply*);
 
 protected:
     bool getChannelStatusPcVp(const QString& reply);
     bool getChannelStatusPcSt(const QString& reply);
 
-protected slots:
-    void timer_timeout();
-    void nam_finished(QNetworkReply*);
-
 private:
+    enum { MONITORING_MSEC = 15000, REPETITION_MSEC = 5000 };
+
     QTimer  _timer;
     QNetworkAccessManager _nam;
     QString _host;
@@ -91,7 +119,7 @@ private:
     QString _id;
     PurePlayer::PEERCAST_TYPE _peercastType;
     int     _listeners;
-    bool    _searchingConnection;
+    bool    _retryGetStatus;
 };
 
 #endif // TASK_H

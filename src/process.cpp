@@ -65,6 +65,7 @@ MplayerProcess::MplayerProcess(QObject* parent) : CommonProcess(parent)
 void MplayerProcess::receiveMplayerChildProcess()
 {
 #if defined(Q_OS_LINUX) || defined(Q_OS_MAC)
+    const QString debugPrefix = "MplayerProcess::receiveMplayerChildProcess(): ";
     // mplayerプロセスの子プロセスIDを取得する。mplayerバグ対策用
     QProcess p;
 //  p.start("pgrep", QStringList() << "-P" << QString("%1").arg(pid()));
@@ -78,16 +79,48 @@ void MplayerProcess::receiveMplayerChildProcess()
     else
         _mplayerCPid = 0;
 
-    LogDialog::debug("MplayerProcess::receiveMplayerChildProcess(): pid " +
-                                                        QString("%1 ").arg(pid()));
-    LogDialog::debug("MplayerProcess::receiveMplayerChildProcess(): cpid " +
-                                                        QString("%1 ").arg(_mplayerCPid));
+    LogDialog::debug(debugPrefix + QString("pid %1").arg(pid()));
+    LogDialog::debug(debugPrefix + QString("cpid %1").arg(_mplayerCPid));
 #endif
+}
+
+bool MplayerProcess::terminateWaitForFinished()
+{
+    const QString debugPrefix = "MplayerProcess::terminateWaitForFinished(): ";
+    LogDialog::debug(debugPrefix + "called");
+
+//  closeReadChannel(QProcess::StandardOutput);
+
+    QProcess::ProcessState status = state();
+    if( status == QProcess::Running ) {
+        command("quit");
+        if( waitForFinished(1000) )
+            return true;
+    }
+    else
+    if( status == QProcess::NotRunning ) {
+        LogDialog::debug(debugPrefix + "process not running");
+        return false;
+    }
+    else
+        LogDialog::debug(debugPrefix + "process starting", QColor(0,255,0));
+
+    LogDialog::debug(debugPrefix + "terminate()", QColor(255,0,0));
+    terminate();
+    bool ret = waitForFinished(3000);
+    if( !ret ) {
+        LogDialog::debug(debugPrefix + "kill()", QColor(255,0,0));
+        kill();
+        ret = waitForFinished(2000);
+    }
+
+    return ret;
 }
 
 void MplayerProcess::slot_finished(int /*exitCode*/, QProcess::ExitStatus /*exitStatus*/)
 {
-//  LogDialog::debug(QString("MplayerProcess::slot_finished(): start-"));
+    const QString debugPrefix = "MplayerProcess::slot_finished(): ";
+//  LogDialog::debug(debugPrefix + "start-"));
 
 #if defined(Q_OS_LINUX) || defined(Q_OS_MAC)
     // mplayer子プロセスが残ってる場合終了させる
@@ -98,13 +131,13 @@ void MplayerProcess::slot_finished(int /*exitCode*/, QProcess::ExitStatus /*exit
                                                     .arg(_mplayerCPid).arg(_path));
         if( p.waitForFinished() ) {
             QString s = p.readAllStandardOutput();
-            LogDialog::debug("MplayerProcess::slot_finished(): ps cpid " + s);
+            LogDialog::debug(debugPrefix + "ps cpid " + s);
 
             if( !s.isEmpty() ) { // 子プロセスが存在しているなら
                 p.start("kill", QStringList() << QString("%1").arg(_mplayerCPid));
                 p.waitForFinished();
-                LogDialog::debug("MplayerProcess::slot_finished(): terminated cpid " +
-                                       QString("%1").arg(_mplayerCPid), QColor(255,0,0));
+                LogDialog::debug(debugPrefix + QString("terminated cpid %1")
+                                                    .arg(_mplayerCPid), QColor(255,0,0));
 
 #ifndef QT_NO_DEBUG_OUTPUT
                 emit debugKilledCPid();
@@ -119,7 +152,7 @@ void MplayerProcess::slot_finished(int /*exitCode*/, QProcess::ExitStatus /*exit
 
     emit finished();
 
-//  LogDialog::debug(QString("MplayerProcess::slot_finished(): -end"));
+//  LogDialog::debug(debugPrefix + "-end"));
 }
 
 // ---------------------------------------------------------------------------------------

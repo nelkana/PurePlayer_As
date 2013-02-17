@@ -43,6 +43,7 @@ public:
     };
 
     enum {
+        TRACKS_MAX   = 1000,
         COLUMN_COUNT = 3,
         COLUMN_INDEX = 0,
         COLUMN_TITLE = 1,
@@ -72,12 +73,12 @@ public:
     void        sort(int column, Qt::SortOrder order=Qt::AscendingOrder);
 
     void    setTracks(const QList<Track*>& tracks);
-    int     insertTracks(int row, const QList<QUrl>& urls);
-    int     appendTracks(const QStringList& paths);
-    void    setCurrentTrackIndex(int index);
+    int     appendTracks(const QList<QUrl>& urls, bool* removedTrackByMaximum=0);
+    int     appendTracks(const QStringList& paths, bool* removedTrackByMaximum=0);
+    void    setCurrentTrackIndex(int index, bool specifiedUser=false);
     int     trackIndexOf(const QString& path);
-    void    downCurrentTrackIndex();
-    void    upCurrentTrackIndex();
+    bool    downCurrentTrackIndex(bool forceLoop=false);
+    bool    upCurrentTrackIndex(bool forceLoop=false);
     Track*  currentTrack() { return _currentTrack; }
     bool    isCurrentTrack(const QString& path) { return (_currentTrack!=NULL && path==_currentTrack->path); }
     QString currentTrackTitle();
@@ -89,22 +90,25 @@ public:
     bool    randomPlay() { return _randomPlay; }
 
 public slots:
-    void setCurrentTrackIndex(const QModelIndex& index) { if( index.isValid() ) setCurrentTrackIndex(index.row()); }
+    void setCurrentTrackIndex(const QModelIndex& index, bool specifiedUser) { if( index.isValid() ) setCurrentTrackIndex(index.row(), specifiedUser); }
     void setLoopPlay(bool b)   { _loopPlay = b; }
-    void setRandomPlay(bool b) { _randomPlay = b; }
+    void setRandomPlay(bool b);
     void removeAllRows();
 
+//  void debug();
 //  void test();
 signals:
     void removedCurrentTrack();
     void fluctuatedIndexDigit();
 
 protected:
-    int insertTracks(int row, QList<Track*>& tracks);
+    int insertTracks(int row, QList<Track*>& tracks, bool* removedTrackByMaximum=0);
     QList<Track*> createTracks(const QStringList& paths);
+    void shuffleRandomTracks();
 
 private:
     QList<Track*> _tracks;
+    QList<Track*> _randomTracks;
 
     Track* _currentTrack;
     bool   _loopPlay;
@@ -136,6 +140,7 @@ signals:
 protected slots:
     virtual void slot_customContextMenuRequested(const QPoint&);
     void actOpenMediaLocation_triggered();
+    void actCopyPath_triggered();
 
 protected:
     void showEvent(QShowEvent*);
