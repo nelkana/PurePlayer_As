@@ -4,11 +4,12 @@ DESTDIR = ..
 DEPENDPATH += .
 INCLUDEPATH += .
 QT += network script
-CONFIG += release
-#CONFIG += debug
+#CONFIG += release
+CONFIG += debug
 
 HEADERS += \
     pureplayer.h \
+    peercast.h \
     process.h \
     controlbutton.h \
     speedspinbox.h \
@@ -32,6 +33,7 @@ HEADERS += \
 SOURCES += \
     main.cpp \
     pureplayer.cpp \
+    peercast.cpp \
     process.cpp \
     speedspinbox.cpp \
     timeslider.cpp \

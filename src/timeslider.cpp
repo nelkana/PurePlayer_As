@@ -150,7 +150,7 @@ void TimeSlider::timerRequestSeekTimeout()
             _timerRequestSeek.stop();
         }
         else
-            _movedPos++;
+            ++_movedPos;
     }
 
     if( _movedPos >= 0 ) {

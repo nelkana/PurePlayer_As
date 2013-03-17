@@ -23,6 +23,7 @@
 #include <QTimer>
 #include <QLabel>
 #include "videosettings.h"
+#include "peercast.h"
 
 class QWidget;
 class QActionGroup;
@@ -52,20 +53,19 @@ class PurePlayer : public QMainWindow
     Q_OBJECT
 
 public:
-    enum ASPECT_RATIO { RATIO_VIDEO, RATIO_4_3, RATIO_16_9, RATIO_16_10, NO_KEEP };
+    enum ASPECT_RATIO { AR_VIDEO, AR_4_3, AR_16_9, AR_16_10, AR_NO_KEEP };
     enum DEINTERLACE_MODE { DI_NO_DEINTERLACE, DI_YADIF, DI_YADIF_DOUBLE, DI_LINEAR_BLEND };
     enum AUDIO_OUTPUT_MODE { AO_STEREO, AO_MONAURAL, AO_LEFT, AO_RIGHT };
     enum VOLUME_FACTOR_MODE { VF_ONE_THIRD, VF_NORMAL, VF_DOUBLE, VF_TRIPLE };
-    enum PEERCAST_TYPE { PCT_UNKNOWN, PCT_VP, PCT_ST };
 
     PurePlayer(QWidget* parent = 0);
     virtual ~PurePlayer();
     bool isMute()    { return _isMute; }
-    bool isPlaying() { return _state == PLAY; }
-    bool isStop()    { return _state == STOP; }
+    bool isPlaying() { return _state == ST_PLAY; }
+    bool isStop()    { return _state == ST_STOP; }
     bool isAlwaysShowStatusBar() { return !isFullScreen()
                                         && (_alwaysShowStatusBar || !isPeercastStream()); }
-    bool isPeercastStream() { return _port != -1; }
+    bool isPeercastStream() { return _peercast.port() != 0; }
 
 //  void resize(const QSize&);
 //  void resize(int w, int h) { resize(QSize(w, h)); }
@@ -104,10 +104,8 @@ public slots:
     void setGamma(int value, bool alwaysSet=false);
     void setDeinterlace(DEINTERLACE_MODE);
     void screenshot();
-    void resizeReduce()           { resizeFromCurrent(-300); }
-    void resizeIncrease()         { resizeFromCurrent(+300); }
-//  void resizeSlightlyReduce()   { resizePercentageFromCurrent(-10); }
-//  void resizeSlightlyIncrease() { resizePercentageFromCurrent(+10); }
+    void resizeReduce()     { resizeFromCurrent(-300); }
+    void resizeIncrease()   { resizeFromCurrent(+300); }
     void resize320x240()    { resizeFromVideoClient(QSize(320,240)); }
     void resize1280x720()   { resizeFromVideoClient(QSize(1280,720)); }
     void resize25Percent()  { resizeFromVideoClient(calcPercentageVideoSize(25)); }
@@ -135,7 +133,7 @@ public slots:
     void showLogDialog();
     void showAboutDialog();
 
-    void updateChannelInfo();
+    void updateChannelInfo() { _peercast.getChannelInfo(); }
     void openContactUrl();
 
 protected slots:
@@ -153,23 +151,23 @@ protected slots:
     void refreshVideoProfile(bool restoreVideoValue=true, bool warning=false);
 
 protected:
-    enum STATE { STOP, PAUSE, READY, PLAY };
-    enum CHANNEL_STATUS { CS_UNKNOWN, CS_CONNECT, CS_RECEIVE, CS_SEARCH, CS_ERROR };
+    enum STATE { ST_STOP, ST_PAUSE, ST_READY, ST_PLAY };
     enum CONTROL_FLAG {
-        FLG_NONE                    = 0x00000000,
-        FLG_HIDE_DISPLAY_MESSAGE    = 0x00000001, // ディスプレイメッセージを非表示
-        FLG_SEEKED_REPEAT           = 0x00000002, // ABリピートでseek()した
-        FLG_WHEEL_RESIZED           = 0x00000004, // ホイールリサイズした
-        FLG_EOF                     = 0x00000008, // 再生が最後まで到達した
-        FLG_OPENED_PATH             = 0x00000010, // パスを開いた
-        FLG_RESIZE_WHEN_PLAYED      = 0x00000020, // 再生した時リサイズする
-        FLG_MUTE_WHEN_MOUSE_RELEASE = 0x00000040, // マウスリリースした時にミュートする
-        FLG_DISABLE_MOUSEWINDOWMOVE = 0x00000080, // マウスによるウィンドウ移動を無効にする
-        FLG_SEEK_WHEN_PLAYED        = 0x00000100, // 再生した時、前回の位置へシークする
-        FLG_RECONNECT_WHEN_PLAYED   = 0x00000200, // 再生した時、再接続(peercast)する
-        FLG_MAXIMIZED_BEFORE_FULLSCREEN = 0x00000400, // フルスクリーンの前は最大化
-        FLG_RECONNECTED             = 0x00000800, // 再接続した
-        FLG_EXPLICITLY_STOPPED      = 0x00001000, // 明示的に停止した
+        FLG_NONE                        = 0,
+        FLG_CURSOR_IN_WINDOW            = 1,       // ウィンドウの中にカーソル
+        FLG_HIDE_DISPLAY_MESSAGE        = 1 << 1,  // ディスプレイメッセージを非表示
+        FLG_SEEKED_REPEAT               = 1 << 2,  // ABリピートでseek()した
+        FLG_WHEEL_RESIZED               = 1 << 3,  // ホイールリサイズした
+        FLG_EOF                         = 1 << 4,  // 再生が最後まで到達した
+        FLG_OPENED_PATH                 = 1 << 5,  // パスを開いた
+        FLG_RESIZE_WHEN_PLAYED          = 1 << 6,  // 再生した時リサイズする
+        FLG_MUTE_WHEN_MOUSE_RELEASE     = 1 << 7,  // マウスリリースした時にミュートする
+        FLG_DISABLE_MOUSEWINDOWMOVE     = 1 << 8,  // マウスによるウィンドウ移動を無効にする
+        FLG_SEEK_WHEN_PLAYED            = 1 << 9,  // 再生した時、前回の位置へシークする
+        FLG_RECONNECT_WHEN_PLAYED       = 1 << 10, // 再生した時、再接続(peercast)する
+        FLG_MAXIMIZED_BEFORE_FULLSCREEN = 1 << 11, // フルスクリーンの前は最大化
+        FLG_RECONNECTED                 = 1 << 12, // 再接続した
+        FLG_EXPLICITLY_STOPPED          = 1 << 13, // 明示的に停止した
     };
     Q_DECLARE_FLAGS(ControlFlags, CONTROL_FLAG)
 
@@ -187,7 +185,6 @@ protected:
     void leaveEvent(QEvent*);
     void dragEnterEvent(QDragEnterEvent*);
     void dropEvent(QDropEvent*);
-//  void paintEvent(QPaintEvent*);
 
     void middleClickResize();
     void setCurrentDirectory();
@@ -201,9 +198,6 @@ protected:
     QSize calcPercentageVideoSize(const QSize& videoSize, const int percentage);
     QSize calcPercentageVideoSize(const int percentage);
 
-    bool updateChannelInfoPcVp(const QString& reply);
-    bool updateChannelInfoPcSt(const QString& reply);
-    bool updateChannelStatusPcSt(const QString& reply);
     void reflectChannelInfo();
     QString genDateTimeSaveFileName(const QString& suffix=QString());
 
@@ -216,7 +210,7 @@ private slots:
     void mpProcess_outputLine(const QString& line);
     void recProcess_finished();
     void recProcess_outputLine(const QString& line);
-    void nam_finished(QNetworkReply*);
+    void peercast_gotChannelInfo(const ChannelInfo&);
     void actGroupAudioOutput_changed(QAction*);
     void actGroupVolumeFactor_changed(QAction*);
     void actGroupAspect_changed(QAction*);
@@ -243,52 +237,23 @@ private:
 #endif
 
 private:
-    STATE           _state;
-    PEERCAST_TYPE   _peercastType;
-    QWidget*        _videoScreen;
-    QToolBar*       _toolBar;
-    ControlButton*  _playPauseButton;
-    ControlButton*  _stopButton;
-    ControlButton*  _frameAdvanceButton;
-    ControlButton*  _repeatABButton;
-    ControlButton*  _loopButton;
-    ControlButton*  _screenshotButton;
-    TimeSlider*     _timeSlider;
-    SpeedSpinBox*   _speedSpinBox;
-    TimeLabel*      _timeLabel;
-    QLabel*         _labelFrame;
-    QLabel*         _labelFps;
-    QLabel*         _labelVolume;
-    InfoLabel*      _infoLabel;
-    QWidget*        _statusbarSpaceL;
-    QWidget*        _statusbarSpaceR;
-
-    QNetworkAccessManager* _nam;
-    QNetworkReply*         _replyChannelInfoPcVp;
-    QNetworkReply*         _replyChannelInfoPcSt;
-    QNetworkReply*         _replyChannelStatusPcSt;
-    QVector<PEERCAST_TYPE> _attemptPeercastType;
     MplayerProcess*   _mpProcess;
     RecordingProcess* _recProcess;
 #ifdef Q_OS_WIN32
     QRgb _colorKey;
 #endif
 
+    STATE           _state;
     QString         _path;
 
-    QString         _host;
-    short           _port;
-    QString         _id;
-    QString         _rootIp;
-    QString         _chName;
-    QString         _contactUrl;
-    QString         _connectedIP;
-    CHANNEL_STATUS  _channelStatus;
+    ChannelInfo _channelInfo;
+    Peercast _peercast;
 
     QSize           _videoSize;
     double          _videoLength;
     bool            _noVideo;
     bool            _isSeekable;
+
     double          _currentTime;
     double          _startTime;
     double          _oldTime;
@@ -312,13 +277,37 @@ private:
     bool            _isMute;
     bool            _alwaysShowStatusBar;
     bool            _playNoSound;
-    bool            _cursorInWindow;
     ControlFlags    _controlFlags;
     QPoint          _mousePressLocalPos;
     QPoint          _mousePressPos;
 
+    QTimer          _timerReconnect;
+    quint16         _receivedErrorCount;
+    qint8           _reconnectCount;
+    int             _reconnectControlTime;
+
+    PlaylistModel*  _playlist;
+
+    QWidget*        _videoScreen;
+    QToolBar*       _toolBar;
+    ControlButton*  _playPauseButton;
+    ControlButton*  _stopButton;
+    ControlButton*  _frameAdvanceButton;
+    ControlButton*  _repeatABButton;
+    ControlButton*  _loopButton;
+    ControlButton*  _screenshotButton;
+    TimeSlider*     _timeSlider;
+    SpeedSpinBox*   _speedSpinBox;
+    TimeLabel*      _timeLabel;
+    QLabel*         _labelFrame;
+    QLabel*         _labelFps;
+    QLabel*         _labelVolume;
+    InfoLabel*      _infoLabel;
+    QWidget*        _statusbarSpaceL;
+    QWidget*        _statusbarSpaceR;
     QMenu*          _menuContext;
     QMenu*          _menuReconnect;
+
     QAction*        _actScreenshot;
     QAction*        _actReconnect;
     QAction*        _actReconnectPlayer;
@@ -335,13 +324,6 @@ private:
     QActionGroup*   _actGroupAudioVolume;
     QActionGroup*   _actGroupAspect;
     QActionGroup*   _actGroupDeinterlace;
-
-    QTimer          _timerReconnect;
-    quint16         _receivedErrorCount;
-    qint8           _reconnectCount;
-    int             _reconnectControlTime;
-
-    PlaylistModel*  _playlist;
 
     OpenDialog*        _openDialog;
     VideoAdjustDialog* _videoAdjustDialog;

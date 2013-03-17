@@ -44,7 +44,7 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
     if( p.waitForFinished() ) {
         QStringList out = QString(p.readAllStandardOutput()).split("\n");
 
-        for(int i=0; i < out.size(); i++) {
+        for(int i=0; i < out.size(); ++i) {
             if( rx.indexIn(out[i]) != -1 )
                 _comboBoxVo->addItem(rx.cap(1));
         }
@@ -55,7 +55,7 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
     if( p.waitForFinished() ) {
         QStringList out = QString(p.readAllStandardOutput()).split("\n");
 
-        for(int i=0; i < out.size(); i++) {
+        for(int i=0; i < out.size(); ++i) {
             if( rx.indexIn(out[i]) != -1 )
                 _comboBoxAo->addItem(rx.cap(1));
         }

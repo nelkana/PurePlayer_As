@@ -259,10 +259,10 @@ bool PlaylistModel::dropMimeData(const QMimeData* data, Qt::DropAction action,
         int from, to;
 
         to = row - 1;
-        for(int i=0; i < rowList.size(); i++) {
+        for(int i=0; i < rowList.size(); ++i) {
             from = rowList[i];
             if( from > to )
-                to++;
+                ++to;
             else
                 from -= i;
 
@@ -291,7 +291,7 @@ bool PlaylistModel::insertRows(int row, int count, const QModelIndex& )
 {
     if( row < 0 || row > _tracks.size() ) return false;
 
-    for(int i=0; i < count; i++)
+    for(int i=0; i < count; ++i)
         _tracks.insert(row, Track());
 
     return true;
@@ -313,7 +313,7 @@ bool PlaylistModel::removeRows(int row, int count, const QModelIndex& parent)
     beginRemoveRows(parent, row, row + count-1);
 
     bool bRemovedCurrentTrack = false;
-    for(int i=0; i < count; i++) {
+    for(int i=0; i < count; ++i) {
         Track* track = _tracks.at(row);
         if( track == _currentTrack )
             bRemovedCurrentTrack = true;
@@ -440,13 +440,13 @@ void PlaylistModel::sort(int column, Qt::SortOrder order)
 
     emit layoutAboutToBeChanged();
 
-    for(int i=0; i < _tracks.size(); i++)
+    for(int i=0; i < _tracks.size(); ++i)
         _tracks[i]->index = i;
 
     qSort(_tracks.begin(), _tracks.end(), TrackLessThan(column, order));
 
     QVector<int> toIndexes(_tracks.size());
-    for(int i=0; i < _tracks.size(); i++)
+    for(int i=0; i < _tracks.size(); ++i)
         toIndexes[_tracks[i]->index] = i;
 
     QModelIndexList from = persistentIndexList();
@@ -460,7 +460,7 @@ void PlaylistModel::sort(int column, Qt::SortOrder order)
     emit layoutChanged();
 
 //  qDebug("PlaylistModel::sort():");
-//  for(int i=0; i < from.size(); i++)
+//  for(int i=0; i < from.size(); ++i)
 //      qDebug("from: %d to: %d column: %d", from[i].row(), to[i].row(), from[i].column());
 }
 
@@ -545,7 +545,7 @@ void PlaylistModel::setCurrentTrackIndex(int index, bool specifiedUser)
 
 int PlaylistModel::trackIndexOf(const QString& path)
 {
-    for(int i=0; i < _tracks.size(); i++) {
+    for(int i=0; i < _tracks.size(); ++i) {
         if( _tracks[i]->path == path )
             return i;
     }
@@ -776,7 +776,7 @@ int PlaylistModel::insertTracks(int row, QList<Track*>& inTracks, bool* removedT
     QList<Track*> newTracks;
 
     int emptySize = TRACKS_MAX - _tracks.size();
-    for(int i=0; i < inTracks.size(); ++i ) {
+    for(int i=0; i < inTracks.size(); ++i) {
         Track* inTrack = inTracks.at(i);
 //      // pathの前方の空白を削除
 //      if( inTrack != NULL )
