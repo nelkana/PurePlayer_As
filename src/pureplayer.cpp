@@ -2250,12 +2250,6 @@ void PurePlayer::peercast_gotChannelInfo(const ChannelInfo& chInfo)
     _channelInfo.contactUrl = chInfo.contactUrl;
     _channelInfo.status     = chInfo.status;
     reflectChannelInfo();
-
-    // このコードは削除する
-    if( _peercast.type() == Peercast::TYPE_ST ) {
-        if( _channelInfo.status == ChannelInfo::ST_ERROR )
-            stopPeercast();
-    }
 }
 
 void PurePlayer::actGroupAudioOutput_changed(QAction* action)
