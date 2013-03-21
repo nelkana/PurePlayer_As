@@ -83,6 +83,8 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _isSeekable = false;
     _playNoSound = false;
     _controlFlags = FLG_NONE;
+    _timerBlockCursorHide.setSingleShot(true);
+    _timerBlockCursorHide.setInterval(500);
 
     connect(&_peercast, SIGNAL(gotChannelInfo(const ChannelInfo&)),
             this,       SLOT(peercast_gotChannelInfo(const ChannelInfo&)));
@@ -583,6 +585,10 @@ void PurePlayer::createActionContextMenu()
     _menuContext->addAction(actConfig);
     _menuContext->addAction(actLog);
     _menuContext->addAction(actAbout);
+
+#ifdef Q_OS_WIN32
+    connect(_menuContext, SIGNAL(aboutToHide()), this, SLOT(menuContext_aboutToHide()));
+#endif
 
     // ショートカットキー単体登録
     QShortcut* fullscreen = new QShortcut(tr("f"), this);
@@ -1270,15 +1276,10 @@ void PurePlayer::fullScreenOrWindow()
         if( !_isSeekable )
             _actStatusBar->setEnabled(true);
 
-        updateVisibleInterface();
+        hideMouseCursor(false);
 #ifdef Q_OS_WIN32
         updateVideoScreenGeometry(); // windowsではshowNormal()で即リサイズされる為。
 #endif // Q_OS_WIN32
-
-        setMouseTracking(false);
-        centralWidget()->setMouseTracking(false);
-        _videoScreen->setMouseTracking(false);
-        setCursor(QCursor(Qt::ArrowCursor));
     }
     else {
         if( isMaximized() )
@@ -1304,11 +1305,7 @@ void PurePlayer::fullScreenOrWindow()
         _statusbarSpaceR->show();
         _actStatusBar->setEnabled(false);
 
-        updateVisibleInterface();
-
-        setMouseTracking(true);
-        centralWidget()->setMouseTracking(true);
-        _videoScreen->setMouseTracking(true);
+        hideMouseCursor(false);
     }
 
     // ウィンドウモード切り替え直後マウス入力したままでの、
@@ -1450,32 +1447,15 @@ void PurePlayer::openContactUrl()
     }
 }
 
-//bool PurePlayer::event(QEvent* e)
-//{
+bool PurePlayer::event(QEvent* e)
+{
 //  LogDialog::debug(tr("%1").arg(e->type()));
-/*
-    if( e->type() == QEvent::WindowStateChange ) {
-        QWindowStateChangeEvent* event = static_cast<QWindowStateChangeEvent*>(e);
-        if( windowState() == Qt::WindowMaximized ) {
-            LogDialog::debug(QString("PurePlayer::event(): before"));
-//          showNormal();
-            //showFullScreen();
-            LogDialog::debug(QString("PurePlayer::event(): after"));
-//          return true;
-        }
-
-        LogDialog::debug(QString("PurePlayer::event(): %1 %2")
-                .arg(windowState()).arg(event->oldState()));
+    if( e->type() == QEvent::WindowActivate ) {
+        _timerBlockCursorHide.start();
     }
-    else
-    if( e->type() == QEvent::Resize )
-        LogDialog::debug(QString("PurePlayer::event(): resize"));
 
-//  if( e->type() == QEvent::StatusTip )
-//      return true;
-*/
-//  return QMainWindow::event(e);
-//}
+    return QMainWindow::event(e);
+}
 
 bool PurePlayer::eventFilter(QObject* o, QEvent* e)
 {
@@ -1588,12 +1568,11 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
     }
     case Qt::Key_X:
     {
-        updateChannelInfo();
         break;
     }
     case Qt::Key_N:
     {
-        recordingStartStop();
+//      recordingStartStop();
         break;
     }
     case Qt::Key_V:
@@ -1621,14 +1600,10 @@ void PurePlayer::mousePressEvent(QMouseEvent* e)
 //                      e->pos().x(),e->pos().y(), e->globalPos().x(),e->globalPos().y()));
 
     if( e->button() == Qt::LeftButton ) {
+        _mousePressPos = e->globalPos();
+
         _mousePressLocalPos.setX(e->pos().x() + (geometry().x()-frameGeometry().x()));
         _mousePressLocalPos.setY(e->pos().y() + (geometry().y()-frameGeometry().y()));
-
-        if( whetherMuteArea(e->y()) )
-            _mousePressPos = e->globalPos();
-        else
-        if( isFullScreen() )
-            setCursor(QCursor(Qt::BlankCursor));
 
         _controlFlags &= ~FLG_DISABLE_MOUSEWINDOWMOVE;
     }
@@ -1643,9 +1618,35 @@ void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
     if( e->button() == Qt::LeftButton ) {
         _menuContext->move(x()+width()*0.2, y()+height()*0.2);
 
-        if( whetherMuteArea(e->y()) ) {
-            if( _mousePressPos == e->globalPos() )
-                mute(!isMute());
+        if( isFullScreen() ) {
+            if( _mousePressPos == e->globalPos() ) {
+                if( whetherMuteArea(e->y()) )
+                    mute(!isMute());
+                else
+                {
+#ifdef Q_OS_WIN32
+                    if( !_timerBlockCursorHide.isActive() )
+#endif // Q_OS_WIN32
+                    hideMouseCursor(true);
+                }
+            }
+
+#ifdef Q_OS_WIN32
+            _timerBlockCursorHide.stop();
+#endif // Q_OS_WIN32
+        }
+        else {
+            if( _mousePressPos == e->globalPos() ) {
+                if( whetherMuteArea(e->y()) )
+                    mute(!isMute());
+                else
+                if( centralWidget()->rect().contains(e->pos()) ) {
+                    if( !_timerBlockCursorHide.isActive() )
+                        hideMouseCursor(true);
+                }
+            }
+
+            _timerBlockCursorHide.stop();
         }
     }
     else
@@ -1653,6 +1654,9 @@ void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
         if( !_controlFlags.testFlag(FLG_WHEEL_RESIZED)
          && geometry().contains(e->globalPos()) )
         {
+#ifdef Q_OS_WIN32
+            hideMouseCursor(false);
+#endif // Q_OS_WIN32
             _menuContext->popup(e->globalPos());
         }
 
@@ -1675,17 +1679,22 @@ void PurePlayer::mouseDoubleClickEvent(QMouseEvent* e)
 void PurePlayer::mouseMoveEvent(QMouseEvent* e)
 {
 //  LogDialog::debug("mouse move");
-
     if( isFullScreen() ) {
-        setCursor(QCursor(Qt::ArrowCursor));
-        updateVisibleInterface();
+        if( isHideMouseCursor() )
+            hideMouseCursor(false);
+        else
+            updateShowInterface();
     }
-    else
-    if( !isMaximized() ) {
-        if( e->buttons() & Qt::LeftButton ) {
-            if( !_controlFlags.testFlag(FLG_DISABLE_MOUSEWINDOWMOVE) )
-                move(e->globalPos() - _mousePressLocalPos);
+    else {
+        if( !isMaximized() ) {
+            if( e->buttons() & Qt::LeftButton ) {
+                if( !_controlFlags.testFlag(FLG_DISABLE_MOUSEWINDOWMOVE) )
+                    move(e->globalPos() - _mousePressLocalPos);
+            }
         }
+
+        if( isHideMouseCursor() )
+            hideMouseCursor(false);
     }
 }
 
@@ -1703,10 +1712,10 @@ void PurePlayer::wheelEvent(QWheelEvent* e)
         int volume;
         QPoint localPoint = statusBar()->mapFromGlobal(e->globalPos());
         QRect  labelRect  = _labelVolume->geometry();
-/*      LogDialog::debug(QString().sprintf("(%d %d %d %d) (%d %d)",
-                    labelRect.x(),labelRect.y(), labelRect.right(),labelRect.bottom(),
-                    localPoint.x(), localPoint.y()));
-*/
+//      LogDialog::debug(QString().sprintf("(%d %d %d %d) (%d %d)",
+//                  labelRect.x(),labelRect.y(), labelRect.right(),labelRect.bottom(),
+//                  localPoint.x(), localPoint.y()));
+
         if( labelRect.contains(localPoint) )
             volume = 1;
         else
@@ -1723,14 +1732,14 @@ void PurePlayer::enterEvent(QEvent*)
 {
 //  LogDialog::debug("enter");
     _controlFlags |= FLG_CURSOR_IN_WINDOW;
-    updateVisibleInterface();
+    updateShowInterface();
 }
 
 void PurePlayer::leaveEvent(QEvent*)
 {
 //  LogDialog::debug("leave");
     _controlFlags &= ~FLG_CURSOR_IN_WINDOW;
-    updateVisibleInterface();
+    updateShowInterface();
 }
 
 void PurePlayer::dragEnterEvent(QDragEnterEvent* e)
@@ -1751,6 +1760,28 @@ void PurePlayer::dropEvent(QDropEvent* e)
     }
     else
         QMainWindow::dropEvent(e);
+}
+
+void PurePlayer::setMouseTrackingClient(bool b)
+{
+    setMouseTracking(b);
+    centralWidget()->setMouseTracking(b);
+    _videoScreen->setMouseTracking(b);
+}
+
+void PurePlayer::hideMouseCursor(bool b)
+{
+    if( isFullScreen() )
+        setMouseTrackingClient(true);
+    else
+        setMouseTrackingClient(b);
+
+    if( b )
+        centralWidget()->setCursor(QCursor(Qt::BlankCursor));
+    else
+        centralWidget()->unsetCursor();
+
+    updateShowInterface();
 }
 
 void PurePlayer::middleClickResize()
@@ -2780,6 +2811,14 @@ QSize PurePlayer::calcPercentageVideoSize(const int percentage)
 }
 
 #ifdef Q_OS_WIN32
+void PurePlayer::menuContext_aboutToHide()
+{
+    // windowsではコンテキストメニュー表示時、クライアント領域をクリックすると
+    // mousePressEvent()が発生する。
+    // その為、マウスカーソル非表示処理が行われない様にブロックする。
+    _timerBlockCursorHide.start();
+}
+
 void PurePlayer::initColorKey()
 {
     QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
@@ -2866,7 +2905,7 @@ void PurePlayer::updateVideoScreenGeometry()
             rect.x(),rect.y(),rect.width(),rect.height()));
 }
 
-void PurePlayer::visibleInterface(bool b)
+void PurePlayer::showInterface(bool b)
 {
     if( b ) {
         statusBar()->show();
@@ -2879,23 +2918,30 @@ void PurePlayer::visibleInterface(bool b)
     }
 }
 
-void PurePlayer::updateVisibleInterface()
+void PurePlayer::updateShowInterface()
 {
     if( isFullScreen() ) {
         if( whetherMuteArea(QCursor::pos().y()) )
-            visibleInterface(true);
+            showInterface(true);
         else {
             if( isPlaying() )
-                visibleInterface(false);
+                showInterface(false);
             else
-                visibleInterface(true);
+                showInterface(true);
         }
     }
     else {
-        if( !isPlaying() || isAlwaysShowStatusBar() || _controlFlags.testFlag(FLG_CURSOR_IN_WINDOW) )
-            visibleInterface(true);
+        if( !isPlaying()
+         || isAlwaysShowStatusBar()
+         || (_controlFlags.testFlag(FLG_CURSOR_IN_WINDOW)
+            && !isHideMouseCursor()) )
+        {
+            showInterface(true);
+        }
         else
-            visibleInterface(false);
+        {
+            showInterface(false);
+        }
     }
 
     // フルスクリーンでもウィンドウ外に出てしまう場合(画面上下)がある為、
@@ -2938,7 +2984,7 @@ void PurePlayer::setStatus(const STATE s)
         _playPauseButton->setToolTip(tr("一時停止"));
         _frameAdvanceButton->setEnabled(true);
         _screenshotButton->setEnabled(true);
-        updateVisibleInterface();
+        updateShowInterface();
 
         _actScreenshot->setEnabled(true);
         _actReconnectPct->setEnabled(true);
@@ -2978,7 +3024,7 @@ void PurePlayer::setStatus(const STATE s)
         _state = s;
         _infoLabel->setText(tr("準備中"));
         _stopButton->setEnabled(true);
-        visibleInterface(true);
+        showInterface(true);
 
         _actReconnectPct->setEnabled(true);
         _actPlayPause->setEnabled(false);
@@ -3006,7 +3052,7 @@ void PurePlayer::setStatus(const STATE s)
         _screenshotButton->setEnabled(false);
         _timeSlider->setSliderDown(false);
         _timeSlider->setPosition(0);
-        visibleInterface(true);
+        showInterface(true);
 
         _actScreenshot->setEnabled(false);
         if( _playlist->rowCount() > 0 ) {

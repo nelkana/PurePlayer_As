@@ -171,7 +171,7 @@ protected:
     };
     Q_DECLARE_FLAGS(ControlFlags, CONTROL_FLAG)
 
-//  bool event(QEvent*);
+    bool event(QEvent*);
     bool eventFilter(QObject*, QEvent*);
     void closeEvent(QCloseEvent*);
     void resizeEvent(QResizeEvent*);
@@ -186,6 +186,9 @@ protected:
     void dragEnterEvent(QDragEnterEvent*);
     void dropEvent(QDropEvent*);
 
+    void setMouseTrackingClient(bool);
+    void hideMouseCursor(bool);
+    bool isHideMouseCursor() { return centralWidget()->cursor().shape() == Qt::BlankCursor; }
     void middleClickResize();
     void setCurrentDirectory();
     void openCommonProcess(const QString& path);
@@ -220,13 +223,17 @@ private slots:
     void configDialog_applied(bool restartMplayer);
     void videoAdjustDialog_windowActivate() { refreshVideoProfile(false, true); }
 
+#ifdef Q_OS_WIN32
+    void menuContext_aboutToHide();
+#endif
+
 private:
     void createStatusBar();
     void createToolBar();
     void createActionContextMenu();
     void updateVideoScreenGeometry();
-    void visibleInterface(bool);
-    void updateVisibleInterface();
+    void showInterface(bool);
+    void updateShowInterface();
     bool whetherMuteArea(int mouseLocalY);
 //  bool whetherMuteArea(QPoint mousePos);
     void setStatus(const STATE);
@@ -280,6 +287,7 @@ private:
     ControlFlags    _controlFlags;
     QPoint          _mousePressLocalPos;
     QPoint          _mousePressPos;
+    QTimer          _timerBlockCursorHide;
 
     QTimer          _timerReconnect;
     quint16         _receivedErrorCount;
