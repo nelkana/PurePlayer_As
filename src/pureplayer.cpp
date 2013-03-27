@@ -403,7 +403,7 @@ void PurePlayer::createActionContextMenu()
     QAction* actLog = new QAction(tr("ログ"), this);
     connect(actLog, SIGNAL(triggered()), this, SLOT(showLogDialog()));
 
-    QAction* actAbout = new QAction(tr("PurePlayer*について"), this);
+    QAction* actAbout = new QAction(tr("プレイヤーについて"), this);
     connect(actAbout, SIGNAL(triggered()), this, SLOT(showAboutDialog()));
 
     // 音声出力メニュー
@@ -1654,9 +1654,9 @@ void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
         if( !_controlFlags.testFlag(FLG_WHEEL_RESIZED)
          && geometry().contains(e->globalPos()) )
         {
-#ifdef Q_OS_WIN32
-            hideMouseCursor(false);
-#endif // Q_OS_WIN32
+            if( isHideMouseCursor() )
+                hideMouseCursor(false);
+
             _menuContext->popup(e->globalPos());
         }
 
@@ -2093,12 +2093,10 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
          || (rxVideoWH.indexIn(line) != -1) )
         {
             if( _isSeekable ) {
-                _toolBar->show();
                 _repeatABButton->setEnabled(true);
                 _actStatusBar->setEnabled(false);
             }
             else {
-                _toolBar->hide();
                 _repeatABButton->setEnabled(false);
                 _actStatusBar->setEnabled(true);
             }
@@ -2668,13 +2666,7 @@ void PurePlayer::saveInteractiveSettings()
 {
     QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
 
-    int volume;
-    if( _volume > ConfigData::data()->volumeMax )
-        volume = ConfigData::data()->volumeMax;
-    else
-        volume = _volume;
-
-    s.setValue("volume",    volume);
+    s.setValue("volume",    _volume);
     s.setValue("mute",      _isMute);
     s.setValue("statusbar", _alwaysShowStatusBar);
     s.setValue("pos",       pos());
@@ -2689,8 +2681,12 @@ void PurePlayer::loadInteractiveSettings()
 {
     QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
 
+    int volume = s.value("volume", 30).toInt();
+    if( volume > ConfigData::data()->volumeMax )
+        volume = ConfigData::data()->volumeMax;
+
+    setVolume(volume);
     mute(s.value("mute", false).toBool());
-    setVolume(s.value("volume", 30).toInt());
     setAlwaysShowStatusBar(s.value("statusbar", true).toBool());
     move(s.value("pos", QPoint(0,0)).toPoint());
 
@@ -2911,6 +2907,8 @@ void PurePlayer::showInterface(bool b)
         statusBar()->show();
         if( _isSeekable )
             _toolBar->show();
+        else
+            _toolBar->hide();
     }
     else {
         statusBar()->hide();

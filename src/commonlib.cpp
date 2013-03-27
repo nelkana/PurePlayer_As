@@ -205,7 +205,7 @@ QString CommonLib::retTheFileNameNotExists(const QString& requestFileName)
     QString baseName = file.completeBaseName();
     QString suffix   = file.suffix();
     if( !suffix.isEmpty() )
-        suffix = "." + suffix;
+        suffix = '.' + suffix;
 
     ulong num = 1;
     while( file.exists() || file.isSymLink() ) {
