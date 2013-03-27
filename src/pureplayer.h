@@ -117,7 +117,7 @@ public slots:
     bool resizeFromVideoClient(QSize size);
     void resizePercentageFromCurrent(int percentage);
     void resizeFromCurrent(int amount);
-    void fullScreenOrWindow();
+    void toggleFullScreenOrWindow();
     void setAlwaysShowStatusBar(bool);
 
     void saveVideoProfileToDefault();
@@ -145,7 +145,7 @@ protected slots:
     void buttonPlayPauseClicked();
     void nextButton_clicked() { playNext(true); }
     void prevButton_clicked() { playPrev(true); }
-    void exitFullScreen() { if( isFullScreen() ) fullScreenOrWindow(); }
+    void exitFullScreen() { if( isFullScreen() ) toggleFullScreenOrWindow(); }
     void restartPlay(bool keepSeekPos=false) { if(keepSeekPos && _isSeekable) _controlFlags |= FLG_SEEK_WHEN_PLAYED; stopInternal(); play(); }
 
     void refreshVideoProfile(bool restoreVideoValue=true, bool warning=false);

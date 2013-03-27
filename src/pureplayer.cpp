@@ -593,7 +593,7 @@ void PurePlayer::createActionContextMenu()
     // ショートカットキー単体登録
     QShortcut* fullscreen = new QShortcut(tr("f"), this);
     fullscreen->setAutoRepeat(false);
-    connect(fullscreen, SIGNAL(activated()), this, SLOT(fullScreenOrWindow()));
+    connect(fullscreen, SIGNAL(activated()), this, SLOT(toggleFullScreenOrWindow()));
     QShortcut* close = new QShortcut(tr("q"), this);
     connect(close, SIGNAL(activated()), this, SLOT(close()));
     QShortcut* exitfullscreen = new QShortcut(tr("esc"), this);
@@ -1257,7 +1257,7 @@ void PurePlayer::resizeFromCurrent(int amount)
     resizePercentageFromCurrent(percentage);
 }
 
-void PurePlayer::fullScreenOrWindow()
+void PurePlayer::toggleFullScreenOrWindow()
 {
     if( isFullScreen() ) {
         if( _controlFlags.testFlag(FLG_MAXIMIZED_BEFORE_FULLSCREEN) )
@@ -1278,7 +1278,7 @@ void PurePlayer::fullScreenOrWindow()
 
         hideMouseCursor(false);
 #ifdef Q_OS_WIN32
-        updateVideoScreenGeometry(); // windowsではshowNormal()で即リサイズされる為。
+        updateVideoScreenGeometry(); // windowsではshowNormal()内でresizeEvent()が発生する為
 #endif // Q_OS_WIN32
     }
     else {
@@ -1306,6 +1306,9 @@ void PurePlayer::fullScreenOrWindow()
         _actStatusBar->setEnabled(false);
 
         hideMouseCursor(false);
+#ifdef Q_OS_WIN32
+        updateVideoScreenGeometry(); //
+#endif // Q_OS_WIN32
     }
 
     // ウィンドウモード切り替え直後マウス入力したままでの、
@@ -1669,7 +1672,7 @@ void PurePlayer::mouseDoubleClickEvent(QMouseEvent* e)
 //  LogDialog::debug("mouse doubleclick");
     if( e->buttons() & Qt::LeftButton ) {
         if( !whetherMuteArea(e->y()) )
-            fullScreenOrWindow();
+            toggleFullScreenOrWindow();
     }
     else
     if( e->buttons() & Qt::MidButton )
