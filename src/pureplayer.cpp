@@ -79,6 +79,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _aspectRatio = AR_VIDEO;
     _deinterlace = DI_NO_DEINTERLACE;
     _videoSize = QSize(320, 240);
+    _alwaysShowStatusBar = false;
     _noVideo = false;
     _isSeekable = false;
     _playNoSound = false;
@@ -135,8 +136,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     loadInteractiveSettings();
 
     setStatus(ST_STOP);
-    resizeFromVideoClient(_videoSize);
-
+    resize(QSize(320,260));
     _menuContext->move(x()+width()*0.2, y()+height()*0.2);
 
     _debugFlag = false;
@@ -389,6 +389,7 @@ void PurePlayer::createActionContextMenu()
     _actStatusBar = new QAction(tr("ステータスを常に表示"), this);
     _actStatusBar->setCheckable(true);
     _actStatusBar->setChecked(false);
+    _actStatusBar->setVisible(false);
     connect(_actStatusBar, SIGNAL(triggered(bool)), this, SLOT(setAlwaysShowStatusBar(bool)));
 
     QAction* actVideoAdjust = new QAction(tr("ビデオ調整"), this);
@@ -807,7 +808,8 @@ void PurePlayer::frameAdvance()
 
 void PurePlayer::repeatAB()
 {
-    if( isPeercastStream() || !_isSeekable || !(_state==ST_PLAY || _state==ST_PAUSE) ) return;
+    if( isPeercastStream() || !_isSeekable || !(_state==ST_PLAY || _state==ST_PAUSE) )
+        return;
 
     if( _repeatStartTime < 0 ) {
         _repeatStartTime = _currentTime * 10;
@@ -1206,7 +1208,7 @@ bool PurePlayer::resizeFromVideoClient(QSize size)
     if( isAlwaysShowStatusBar() )
         size.rheight() += statusBar()->height();
 
-    if( _isSeekable )
+    if( !isPeercastStream() )
         size.rheight() += _toolBar->height();
 
     if( size == QMainWindow::size() )
@@ -1273,8 +1275,7 @@ void PurePlayer::toggleFullScreenOrWindow()
         _statusbarSpaceL->hide();
         _statusbarSpaceR->hide();
 
-        if( !_isSeekable )
-            _actStatusBar->setEnabled(true);
+        _actStatusBar->setEnabled(true);
 
         hideMouseCursor(false);
 #ifdef Q_OS_WIN32
@@ -1311,27 +1312,27 @@ void PurePlayer::toggleFullScreenOrWindow()
 #endif // Q_OS_WIN32
     }
 
-    // ウィンドウモード切り替え直後マウス入力したままでの、
-    // マウスウィンドウ移動を無効にする。
+    // ウィンドウモードを切り替えた時の、
+    // マウス入力したままでのマウスウィンドウ移動を無効にする。
     // (フルスクリーンからウィンドウへ切り替え直後、ウィンドウ移動で位置が飛ぶ問題対応)
     _controlFlags |= FLG_DISABLE_MOUSEWINDOWMOVE;
 }
 
 void PurePlayer::setAlwaysShowStatusBar(bool b)
 {
-    if( _isSeekable ) return;
+    if( _alwaysShowStatusBar == b ) return;
 
     _alwaysShowStatusBar = b;
 
-    if( b ) {
-        resize(width(), height() + statusBar()->height());
-        statusBar()->show();
-    }
-    else {
-        if( _state!=ST_STOP && _state!=ST_READY )
-            statusBar()->hide();
-
-        resize(width(), height() - statusBar()->height());
+    if( isPeercastStream() ) {
+        if( b ) {
+            resize(width(), height() + statusBar()->height());
+            updateShowInterface();
+        }
+        else {
+            updateShowInterface();
+            resize(width(), height() - statusBar()->height());
+        }
     }
 
     _actStatusBar->setChecked(b);
@@ -1490,7 +1491,24 @@ bool PurePlayer::eventFilter(QObject* o, QEvent* e)
 
     return QMainWindow::eventFilter(o, e);
 }
+/*
+void PurePlayer::showEvent(QShowEvent* e)
+{
+    QMainWindow::showEvent(e);
 
+    if( !_controlFlags.testFlag(FLG_SHOW_FUNC_CALLED) ) {
+        QSize size(_videoSize.width(),
+                   _videoSize.height() - _toolBar->height());
+        if( !_alwaysShowStatusBar )
+            size.rheight() -= statusBar()->height();
+
+        resizeFromVideoClient(size);
+        _menuContext->move(x()+width()*0.2, y()+height()*0.2);
+
+        _controlFlags |= FLG_SHOW_FUNC_CALLED;
+    }
+}
+*/
 void PurePlayer::closeEvent(QCloseEvent* e)
 {
     LogDialog::debug("PurePlayer::closeEvent(): start-");
@@ -2095,15 +2113,6 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
         if( (line.startsWith("Starting playback...") && _noVideo)
          || (rxVideoWH.indexIn(line) != -1) )
         {
-            if( _isSeekable ) {
-                _repeatABButton->setEnabled(true);
-                _actStatusBar->setEnabled(false);
-            }
-            else {
-                _repeatABButton->setEnabled(false);
-                _actStatusBar->setEnabled(true);
-            }
-
             setStatus(ST_PLAY);
 
             if( isMute() )
@@ -2131,9 +2140,17 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
             _mpProcess->receiveMplayerChildProcess();
 
             _timeLabel->setTotalTime(_videoLength);
-            _timeSlider->setLength(_videoLength);
             _playlist->setCurrentTrackTime(_videoLength);
             //_speedSpinBox->setRange(0, _videoLength*10);
+
+            if( _isSeekable ) {
+                _timeSlider->setLength(_videoLength);
+                _repeatABButton->setEnabled(true);
+            }
+            else {
+                _timeSlider->setEnabled(false);
+                _repeatABButton->setEnabled(false);
+            }
 
             if( _controlFlags.testFlag(FLG_OPENED_PATH) )
             {
@@ -2746,8 +2763,8 @@ QSize PurePlayer::correctToValidVideoSize(QSize toSize, const QSize& videoSize)
     if( isAlwaysShowStatusBar() )
         maxH -= statusBar()->height();
 
-    if( _isSeekable )
-        maxH -=_toolBar->height();
+    if( !isPeercastStream() )
+        maxH -= _toolBar->height();
 
     // 最小サイズを求める
     int minW = minimumSizeHint().width();
@@ -2855,9 +2872,9 @@ void PurePlayer::updateVideoScreenGeometry()
 //      statusBar()->show();
 
     QSize screen(size());
-    if( _toolBar->isVisible() )
+    if( !isPeercastStream() )
         screen.rheight() -= _toolBar->height();
-    if( statusBar()->isVisible() )
+    if( isAlwaysShowStatusBar() )
         screen.rheight() -= statusBar()->height();
 
         // ステータスバーを表示に切り替えた直後の場合(setAlwaysShowStatusBar())
@@ -2908,10 +2925,10 @@ void PurePlayer::showInterface(bool b)
 {
     if( b ) {
         statusBar()->show();
-        if( _isSeekable )
-            _toolBar->show();
-        else
+        if( isPeercastStream() )
             _toolBar->hide();
+        else
+            _toolBar->show();
     }
     else {
         statusBar()->hide();
@@ -3051,6 +3068,7 @@ void PurePlayer::setStatus(const STATE s)
         _stopButton->setEnabled(false);
         _frameAdvanceButton->setEnabled(false);
         _screenshotButton->setEnabled(false);
+        _timeSlider->setEnabled(true);
         _timeSlider->setSliderDown(false);
         _timeSlider->setPosition(0);
         showInterface(true);
