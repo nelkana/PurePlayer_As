@@ -624,8 +624,9 @@ void PurePlayer::open(const QStringList& paths)
     else
     if( !rows ) {
         QMessageBox::warning(this, tr("エラー"),
-            tr("指定されたパスが正しく無い為、\n"
-               "メディアデータを開く事ができませんでした。"));
+            tr("指定されたパスが正しく無い、\n"
+               "またはメディアデータが見つからない為、\n"
+               "開く事ができませんでした。"));
         return;
     }
 

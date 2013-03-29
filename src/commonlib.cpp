@@ -77,7 +77,10 @@ const char* const CommonLib::MEDIA_FORMATS =
     // Bink Video
     //" *.bik"
     // Flash Video
-    " *.flv *.f4v *.f4p *.f4a *.f4b";
+    " *.flv *.f4v *.f4p *.f4a *.f4b"
+
+    // WAVE format(RIFF Waveform Audio Format)
+    " *.wav";
 
 class MyThread : public QThread
 {
