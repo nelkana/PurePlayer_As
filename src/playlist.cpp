@@ -52,6 +52,7 @@ PlaylistModel::PlaylistModel(QObject* parent) : QAbstractTableModel(parent)
 {
     setSupportedDragActions(Qt::MoveAction);
 
+    _currentDirectory = QDir::current().absolutePath();
     _currentTrack = NULL;
     _loopPlay     = false;
     _randomPlay   = false;
@@ -871,6 +872,12 @@ QList<PlaylistModel::Track*> PlaylistModel::createTracks(const QStringList& path
         QUrl url(path);
         if( url.isLocalFile() )
             path = url.toLocalFile();
+        else
+        if( QDir::isRelativePath(path) ) {
+            url.setUrl(path);
+            if( url.scheme().isEmpty() )
+                path = _currentDirectory + '/' + path;
+        }
 
         QDir dir(path);
         if( dir.exists() ) {

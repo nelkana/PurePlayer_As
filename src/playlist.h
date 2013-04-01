@@ -72,6 +72,7 @@ public:
     void        removeRows(QModelIndexList&);
     void        sort(int column, Qt::SortOrder order=Qt::AscendingOrder);
 
+    void    setCurrentDirectory(const QString& path) { _currentDirectory = path; }
     void    setTracks(const QList<Track*>& tracks);
     int     appendTracks(const QList<QUrl>& urls, bool* removedTrackByMaximum=0);
     int     appendTracks(const QStringList& paths, bool* removedTrackByMaximum=0);
@@ -110,9 +111,10 @@ private:
     QList<Track*> _tracks;
     QList<Track*> _randomTracks;
 
-    Track* _currentTrack;
-    bool   _loopPlay;
-    bool   _randomPlay;
+    QString _currentDirectory;
+    Track*  _currentTrack;
+    bool    _loopPlay;
+    bool    _randomPlay;
 
     CommonLib::EmitDeterFlag _emitFlag;
 };
