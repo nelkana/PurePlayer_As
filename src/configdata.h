@@ -28,7 +28,6 @@ public:
         QString aoName;
         bool    openIn320x240Size;
         bool    useSoftWareVideoEq;
-        bool    screenshot; // debug
         int     volumeMax;
         int     cacheStreamSize;
         bool    useScreenshotPath;

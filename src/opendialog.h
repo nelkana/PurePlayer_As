@@ -16,6 +16,7 @@
 #ifndef OPENDIALOG_H
 #define OPENDIALOG_H
 
+#include <QKeyEvent>
 #include "ui_opendialog.h"
 #include "commonlib.h"
 
@@ -39,6 +40,7 @@ signals:
 
 protected:
     void showEvent(QShowEvent*);
+    void keyPressEvent(QKeyEvent*);
 };
 
 inline OpenDialog::OpenDialog(QWidget* parent) : QDialog(parent)
@@ -62,6 +64,14 @@ inline void OpenDialog::showEvent(QShowEvent* )
 {
     adjustSize();
     setFixedHeight(height());
+}
+
+inline void OpenDialog::keyPressEvent(QKeyEvent* e)
+{
+    if( e->key() == Qt::Key_Return ) {
+        if( _lineEdit->hasFocus() )
+            open();
+    }
 }
 
 #endif // OPENDIALOG_H

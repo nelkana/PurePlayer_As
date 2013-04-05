@@ -50,6 +50,15 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
         }
     }
 
+    QString voToolTip = tr("使用するビデオドライバになります。\n初期設定は「%1」になります。");
+#if defined(Q_WS_X11)
+    _comboBoxVo->setToolTip(voToolTip.arg("xv"));
+#elif defined(Q_OS_WIN32)
+    _comboBoxVo->setToolTip(voToolTip.arg("directx"));
+#else
+    _comboBoxVo->setToolTip(voToolTip.arg(tr("指定無し")));
+#endif
+
     _comboBoxAo->addItem(tr("指定無し"));
     p.start("mplayer", QStringList() << "-ao" << "help");
     if( p.waitForFinished() ) {
@@ -60,6 +69,8 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
                 _comboBoxAo->addItem(rx.cap(1));
         }
     }
+
+    _comboBoxAo->setToolTip(tr("使用するオーディオドライバになります。\n初期設定は「指定無し」になります。"));
 
 #ifdef Q_OS_LINUX
 
@@ -77,7 +88,6 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
     _groupBoxScreenshotPath->setFocusPolicy(Qt::NoFocus); // qtデザイナでは効果無し、ここで指定
     _groupBoxMplayerPath->setFocusPolicy(Qt::NoFocus);
     _groupBoxContactUrlPath->setFocusPolicy(Qt::NoFocus);
-    _checkBoxScreenshot->setVisible(false); // debug
 
     QPalette palette = _groupBoxScreenshotPath->palette();
     QColor colorText = palette.color(QPalette::Text);
@@ -143,7 +153,6 @@ void ConfigDialog::setData(ConfigData::Data* data)
     _spinBoxVolumeMax->setValue(_data->volumeMax);
     _checkBox320x240->setChecked(_data->openIn320x240Size);
     _checkBoxSoftVideoEq->setChecked(_data->useSoftWareVideoEq);
-    _checkBoxScreenshot->setChecked(_data->screenshot);
     _checkBoxDisconnectChannel->setChecked(_data->disconnectChannel);
     _groupBoxScreenshotPath->setChecked(_data->useScreenshotPath);
     _lineEditScreenshotPath->setText(_data->screenshotPath);
@@ -191,10 +200,6 @@ void ConfigDialog::apply()
 
     _data->useSoftWareVideoEq = _checkBoxSoftVideoEq->isChecked();
 
-    if( _checkBoxScreenshot->isChecked() != _data->screenshot )
-        restart = true;
-
-    _data->screenshot = _checkBoxScreenshot->isChecked();
     _data->disconnectChannel = _checkBoxDisconnectChannel->isChecked();
 
     _data->volumeMax = _spinBoxVolumeMax->value();

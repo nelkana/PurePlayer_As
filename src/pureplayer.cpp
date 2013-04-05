@@ -128,8 +128,6 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     createActionContextMenu();
     createToolBar();
     ConfigData::loadData();
-//  _actScreenshot->setVisible(ConfigData::data()->screenshot);
-//  _screenshotButton->setVisible(ConfigData::data()->screenshot);
     _state = ST_STOP;
     _videoSettingsModifiedId = 0;
     refreshVideoProfile();
@@ -1186,16 +1184,13 @@ void PurePlayer::setDeinterlace(DEINTERLACE_MODE mode)
 
 void PurePlayer::screenshot()
 {
-//  if( ConfigData::data()->screenshot ) {
-        if( _state == ST_PLAY )
-            mpCmd("screenshot 0");
-        else
-        if( _state == ST_PAUSE ) {
-            mpCmd("pausing_keep_force screenshot 0");
-            frameAdvance();
-        }
-//  }
-//  LogDialog::debug("PurePlayer::screenshot():");
+    if( _state == ST_PLAY )
+        mpCmd("screenshot 0");
+    else
+    if( _state == ST_PAUSE ) {
+        mpCmd("pausing_keep_force screenshot 0");
+        frameAdvance();
+    }
 }
 
 // ビデオクライアントサイズを指定してウィンドウをリサイズする
@@ -1702,9 +1697,9 @@ void PurePlayer::mouseMoveEvent(QMouseEvent* e)
 {
 //  LogDialog::debug("mouse move");
     if( isFullScreen() ) {
-        if( isHideMouseCursor() )
+        if( isHideMouseCursor() && _mousePressPos!=e->globalPos() )
             hideMouseCursor(false);
-        else
+
             updateShowInterface();
     }
     else {
@@ -2381,9 +2376,6 @@ void PurePlayer::configDialog_applied(bool restartMplayer)
     ConfigData::saveData();
 
     if( restartMplayer ) {
-//      _actScreenshot->setVisible(ConfigData::data()->screenshot);
-//      _screenshotButton->setVisible(ConfigData::data()->screenshot);
-
         setCurrentDirectory();
 
         if( !isStop() )
@@ -2479,8 +2471,7 @@ void PurePlayer::playCommonProcess()
     if( _deinterlace == DI_LINEAR_BLEND )
         args << "-vf-add" << "pp=lb";
 
-//  if( ConfigData::data()->screenshot )
-        args << "-vf-add" << "screenshot";
+    args << "-vf-add" << "screenshot";
 
     switch( _audioOutput ) {
     case AO_MONAURAL: args << "-af-add" << "extrastereo=0"; break;

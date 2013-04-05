@@ -32,7 +32,6 @@ void ConfigData::saveData()
     s.setValue("volumeMax", s_data.volumeMax);
     s.setValue("openIn320x240Size",  s_data.openIn320x240Size);
     s.setValue("useSoftWareVideoEq", s_data.useSoftWareVideoEq);
-    s.setValue("screenshot" , s_data.screenshot);
     s.setValue("useScreenshotPath", s_data.useScreenshotPath);
     s.setValue("screenshotPath", s_data.screenshotPath);
     s.setValue("useMplayerPath", s_data.useMplayerPath);
@@ -65,7 +64,6 @@ void ConfigData::loadData()
     s_data.volumeMax = s.value("volumeMax", 100).toInt();
     s_data.openIn320x240Size = s.value("openIn320x240Size", true).toBool();
     s_data.useSoftWareVideoEq = s.value("useSoftWareVideoEq", true).toBool();
-    s_data.screenshot = s.value("screenshot", false).toBool();
     s_data.useScreenshotPath = s.value("useScreenshotPath", false).toBool();
     s_data.screenshotPath = s.value("screenshotPath", QDir::homePath()).toString();
     s_data.useMplayerPath = s.value("useMplayerPath", false).toBool();
