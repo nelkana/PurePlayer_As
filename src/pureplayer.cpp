@@ -633,13 +633,16 @@ void PurePlayer::open(const QStringList& paths)
             // 追加した項目の内、どれかをカレントにする
             // (ランダムプレイリストのカレントの次がこの項目になる様に配置する)
             int i = CommonLib::rand(_playlist->rowCount()-rows, _playlist->rowCount()-1);
-            _playlist->setCurrentTrackIndex(i, true);
+            _playlist->setCurrentTrackRow(i, true);
         }
     }
     else {
         // 追加した項目の内、先頭要素をカレントにする
-        _playlist->setCurrentTrackIndex(_playlist->rowCount() - rows);
+        _playlist->setCurrentTrackRow(_playlist->rowCount() - rows);
     }
+
+    if( _playlistDialog != NULL )
+        _playlistDialog->scrollToCurrentTrackHidden();
 
     _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
     openCommonProcess(_playlist->currentTrackPath());
@@ -667,9 +670,13 @@ void PurePlayer::play()
 
 bool PurePlayer::playPrev(bool forceLoop)
 {
-    if( _playlist->downCurrentTrackIndex(forceLoop) ) {
+    if( _playlist->downCurrentTrackRow(forceLoop) ) {
         _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
         play();
+
+        if( _playlistDialog != NULL )
+            _playlistDialog->scrollToCurrentTrackHidden();
+
         return true;
     }
 
@@ -678,9 +685,13 @@ bool PurePlayer::playPrev(bool forceLoop)
 
 bool PurePlayer::playNext(bool forceLoop)
 {
-    if( _playlist->upCurrentTrackIndex(forceLoop) ) {
+    if( _playlist->upCurrentTrackRow(forceLoop) ) {
         _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
         play();
+
+        if( _playlistDialog != NULL )
+            _playlistDialog->scrollToCurrentTrackHidden();
+
         return true;
     }
 

@@ -72,27 +72,27 @@ public:
     void        removeRows(QModelIndexList&);
     void        sort(int column, Qt::SortOrder order=Qt::AscendingOrder);
 
-    void    setCurrentDirectory(const QString& path) { _currentDirectory = path; }
-    void    setTracks(const QList<Track*>& tracks);
-    int     appendTracks(const QList<QUrl>& urls, bool* removedTrackByMaximum=0);
-    int     appendTracks(const QStringList& paths, bool* removedTrackByMaximum=0);
-    void    setCurrentTrackIndex(int index, bool specifiedUser=false);
-    int     trackIndexOf(const QString& path);
-    bool    downCurrentTrackIndex(bool forceLoop=false);
-    bool    upCurrentTrackIndex(bool forceLoop=false);
-    Track*  currentTrack() { return _currentTrack; }
-    bool    isCurrentTrack(const QString& path) { return (_currentTrack!=NULL && path==_currentTrack->path); }
-    QString currentTrackTitle();
-    QString currentTrackPath();
-    QString trackPath(int row);
-    void    setCurrentTrackTitle(const QString& title);
-    void    setCurrentTrackTime(int sec);
-    bool    loopPlay()   { return _loopPlay; }
-    bool    randomPlay() { return _randomPlay; }
+    void        setCurrentDirectory(const QString& path) { _currentDirectory = path; }
+    void        setTracks(const QList<Track*>& tracks);
+    int         appendTracks(const QList<QUrl>& urls, bool* removedTrackByMaximum=0);
+    int         appendTracks(const QStringList& paths, bool* removedTrackByMaximum=0);
+    void        setCurrentTrackRow(int row, bool specifiedUser=false);
+    int         trackRowOf(const QString& path);
+    bool        downCurrentTrackRow(bool forceLoop=false);
+    bool        upCurrentTrackRow(bool forceLoop=false);
+    QModelIndex currentTrackIndex();
+    bool        isCurrentTrack(const QString& path) { return (_currentTrack!=NULL && path==_currentTrack->path); }
+    QString     currentTrackTitle();
+    QString     currentTrackPath();
+    QString     trackPath(int row);
+    void        setCurrentTrackTitle(const QString& title);
+    void        setCurrentTrackTime(int sec);
+    bool        loopPlay()   { return _loopPlay; }
+    bool        randomPlay() { return _randomPlay; }
 
 public slots:
-    void setCurrentTrackIndex(const QModelIndex& index, bool specifiedUser) { if( index.isValid() ) setCurrentTrackIndex(index.row(), specifiedUser); }
-    void setLoopPlay(bool b)   { _loopPlay = b; }
+    void setCurrentTrackRow(const QModelIndex& index, bool specifiedUser) { if( index.isValid() ) setCurrentTrackRow(index.row(), specifiedUser); }
+    void setLoopPlay(bool b) { _loopPlay = b; }
     void setRandomPlay(bool b);
     void removeAllRows();
 
@@ -125,6 +125,8 @@ class PlaylistView : public QTreeView
 
 public:
     explicit PlaylistView(QWidget* parent);
+
+    bool isVisibleItem(const QModelIndex& index);
 
 public slots:
     void adjustColumnSize();

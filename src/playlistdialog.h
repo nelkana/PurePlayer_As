@@ -26,6 +26,8 @@ class PlaylistDialog : public QDialog, Ui::PlaylistDialog
 public:
     explicit PlaylistDialog(PlaylistModel* model, QWidget* parent);
 
+    void scrollToCurrentTrackHidden();
+
 signals:
     void playStopCurrentTrack();
     void playPrev();
