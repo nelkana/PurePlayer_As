@@ -30,6 +30,7 @@ void ConfigData::saveData()
     s.setValue("aoName",    s_data.aoName);
     s.setValue("cacheStreamSize", s_data.cacheStreamSize);
     s.setValue("volumeMax", s_data.volumeMax);
+    s.setValue("reverseWheelSeek", s_data.reverseWheelSeek);
     s.setValue("openIn320x240Size",  s_data.openIn320x240Size);
     s.setValue("useSoftWareVideoEq", s_data.useSoftWareVideoEq);
     s.setValue("useScreenshotPath", s_data.useScreenshotPath);
@@ -59,9 +60,10 @@ void ConfigData::loadData()
 #endif
     }
 
-    s_data.aoName    = s.value("aoName", "").toString();
+    s_data.aoName = s.value("aoName", "").toString();
     s_data.cacheStreamSize = s.value("cacheStreamSize", 1000).toInt();
     s_data.volumeMax = s.value("volumeMax", 100).toInt();
+    s_data.reverseWheelSeek = s.value("reverseWheelSeek", false).toBool();
     s_data.openIn320x240Size = s.value("openIn320x240Size", true).toBool();
     s_data.useSoftWareVideoEq = s.value("useSoftWareVideoEq", true).toBool();
     s_data.useScreenshotPath = s.value("useScreenshotPath", false).toBool();

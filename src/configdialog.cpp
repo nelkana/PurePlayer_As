@@ -151,6 +151,7 @@ void ConfigDialog::setData(ConfigData::Data* data)
 
     _spinBoxCacheStream->setValue(_data->cacheStreamSize);
     _spinBoxVolumeMax->setValue(_data->volumeMax);
+    _checkBoxReverseWheelSeek->setChecked(_data->reverseWheelSeek);
     _checkBox320x240->setChecked(_data->openIn320x240Size);
     _checkBoxSoftVideoEq->setChecked(_data->useSoftWareVideoEq);
     _checkBoxDisconnectChannel->setChecked(_data->disconnectChannel);
@@ -190,11 +191,6 @@ void ConfigDialog::apply()
 
     _data->aoName = driverName;
 
-    if( _spinBoxCacheStream->value() != _data->cacheStreamSize )
-        restart = true;
-
-    _data->openIn320x240Size = _checkBox320x240->isChecked();
-
     if( _checkBoxSoftVideoEq->isChecked() != _data->useSoftWareVideoEq )
         restart = true;
 
@@ -202,7 +198,13 @@ void ConfigDialog::apply()
 
     _data->disconnectChannel = _checkBoxDisconnectChannel->isChecked();
 
+    _data->openIn320x240Size = _checkBox320x240->isChecked();
+    _data->reverseWheelSeek = _checkBoxReverseWheelSeek->isChecked();
     _data->volumeMax = _spinBoxVolumeMax->value();
+
+    if( _spinBoxCacheStream->value() != _data->cacheStreamSize )
+        restart = true;
+
     _data->cacheStreamSize = _spinBoxCacheStream->value();
 
     if( _groupBoxScreenshotPath->isChecked() != _data->useScreenshotPath )

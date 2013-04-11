@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>376</width>
-    <height>391</height>
+    <height>412</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -161,6 +161,19 @@
          </property>
          <property name="text">
           <string>動画を開く時、320x240サイズ固定で開く</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="_checkBoxReverseWheelSeek">
+         <property name="focusPolicy">
+          <enum>Qt::NoFocus</enum>
+         </property>
+         <property name="toolTip">
+          <string>タイムスライダー上でのマウスホイールシークを逆向きに行います。</string>
+         </property>
+         <property name="text">
+          <string>マウスホイールシークを逆向きにする</string>
          </property>
         </widget>
        </item>

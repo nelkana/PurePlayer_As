@@ -126,8 +126,8 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 
     createStatusBar();
     createActionContextMenu();
-    createToolBar();
     ConfigData::loadData();
+    createToolBar();
     _state = ST_STOP;
     _videoSettingsModifiedId = 0;
     refreshVideoProfile();
@@ -294,6 +294,7 @@ void PurePlayer::createToolBar()
     _timeSlider = new TimeSlider(this);
     _timeSlider->installEventFilter(this);
     _timeSlider->setFocusPolicy(Qt::NoFocus);
+    _timeSlider->setReverseWheelSeek(ConfigData::data()->reverseWheelSeek);
     connect(_timeSlider, SIGNAL(requestSeek(double, bool)), this, SLOT(seek(double, bool)));
 
     _speedSpinBox = new SpeedSpinBox(this);
@@ -2385,6 +2386,7 @@ void PurePlayer::timerFps_timeout()
 void PurePlayer::configDialog_applied(bool restartMplayer)
 {
     ConfigData::saveData();
+    _timeSlider->setReverseWheelSeek(ConfigData::data()->reverseWheelSeek);
 
     if( restartMplayer ) {
         setCurrentDirectory();

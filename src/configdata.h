@@ -26,8 +26,9 @@ public:
     struct Data {
         QString voName;
         QString aoName;
-        bool    openIn320x240Size;
         bool    useSoftWareVideoEq;
+        bool    openIn320x240Size;
+        bool    reverseWheelSeek;
         int     volumeMax;
         int     cacheStreamSize;
         bool    useScreenshotPath;
