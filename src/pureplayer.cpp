@@ -79,6 +79,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _aspectRatio = AR_VIDEO;
     _deinterlace = DI_NO_DEINTERLACE;
     _videoSize = QSize(320, 240);
+    _isMute = false;
     _alwaysShowStatusBar = false;
     _noVideo = false;
     _isSeekable = false;
