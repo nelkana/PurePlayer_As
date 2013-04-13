@@ -30,6 +30,7 @@ public:
         bool    openIn320x240Size;
         bool    reverseWheelSeek;
         int     volumeMax;
+        bool    useCacheSize;
         int     cacheStreamSize;
         bool    useScreenshotPath;
         QString screenshotPath;

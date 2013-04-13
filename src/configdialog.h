@@ -43,6 +43,7 @@ protected:
 
 private slots:
     void checkBoxSoftVideoEq_clicked(bool checked);
+    void groupBoxCache_toggled(bool) { _cacheStreamSpinBox->deselect(); }
     void buttonContactUrlArg_clicked();
 
 private:

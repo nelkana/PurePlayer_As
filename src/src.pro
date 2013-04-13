@@ -23,6 +23,7 @@ HEADERS += \
     task.h \
     \
     logdialog.h \
+    commonspinbox.h \
     configdialog.h \
     opendialog.h \
     videoadjustdialog.h \

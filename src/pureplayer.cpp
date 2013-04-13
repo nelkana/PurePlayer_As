@@ -2504,10 +2504,8 @@ void PurePlayer::playCommonProcess()
     default          : args << "110";
     }
 
-    if( _path.left(8).contains("://") )
+    if( ConfigData::data()->useCacheSize && !QUrl(_path).scheme().isEmpty() )
         args << "-cache" << QString::number(ConfigData::data()->cacheStreamSize);
-    else
-        args << "-nocache";
 
     if( _controlFlags.testFlag(FLG_SEEK_WHEN_PLAYED) ) {
         args << "-ss" << QString::number(_timeLabel->time());
