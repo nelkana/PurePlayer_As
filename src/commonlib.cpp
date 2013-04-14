@@ -77,7 +77,10 @@ const char* const CommonLib::MEDIA_FORMATS =
     // Bink Video
     //" *.bik"
     // Flash Video
-    " *.flv *.f4v *.f4p *.f4a *.f4b";
+    " *.flv *.f4v *.f4p *.f4a *.f4b"
+
+    // WAVE format(RIFF Waveform Audio Format)
+    " *.wav";
 
 class MyThread : public QThread
 {
@@ -205,7 +208,7 @@ QString CommonLib::retTheFileNameNotExists(const QString& requestFileName)
     QString baseName = file.completeBaseName();
     QString suffix   = file.suffix();
     if( !suffix.isEmpty() )
-        suffix = "." + suffix;
+        suffix = '.' + suffix;
 
     ulong num = 1;
     while( file.exists() || file.isSymLink() ) {

@@ -39,6 +39,8 @@ TimeSlider::TimeSlider(QWidget* parent) : QSlider(parent)
     _timerUnableSetPosition.setSingleShot(true);
     connect(&_timerUnableSetPosition, SIGNAL(timeout()),
             this,                     SLOT(timerUnableSetPositionTimeout()));
+
+    _reverseWheelSeek = false;
 }
 
 void TimeSlider::setPosition(double sec)
@@ -96,10 +98,16 @@ void TimeSlider::mouseMoveEvent(QMouseEvent* e)
 
 void TimeSlider::wheelEvent(QWheelEvent* e)
 {
+    int pos;
     if( e->delta() < 0 )
-        emit requestSeek(-3, true);
+        pos = -3;
     else
-        emit requestSeek(+3, true);
+        pos = +3;
+
+    if( _reverseWheelSeek )
+        pos *= -1;
+
+    emit requestSeek(pos, true);
 }
 
 bool TimeSlider::pointOutsideHandle(const QPoint& pos)
@@ -150,7 +158,7 @@ void TimeSlider::timerRequestSeekTimeout()
             _timerRequestSeek.stop();
         }
         else
-            _movedPos++;
+            ++_movedPos;
     }
 
     if( _movedPos >= 0 ) {

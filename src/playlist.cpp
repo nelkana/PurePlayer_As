@@ -52,6 +52,7 @@ PlaylistModel::PlaylistModel(QObject* parent) : QAbstractTableModel(parent)
 {
     setSupportedDragActions(Qt::MoveAction);
 
+    _currentDirectory = QDir::current().absolutePath();
     _currentTrack = NULL;
     _loopPlay     = false;
     _randomPlay   = false;
@@ -259,10 +260,10 @@ bool PlaylistModel::dropMimeData(const QMimeData* data, Qt::DropAction action,
         int from, to;
 
         to = row - 1;
-        for(int i=0; i < rowList.size(); i++) {
+        for(int i=0; i < rowList.size(); ++i) {
             from = rowList[i];
             if( from > to )
-                to++;
+                ++to;
             else
                 from -= i;
 
@@ -282,7 +283,7 @@ bool PlaylistModel::dropMimeData(const QMimeData* data, Qt::DropAction action,
 
 QModelIndex PlaylistModel::index(int row, int column, const QModelIndex& ) const
 {
-    if( row < 0 || row >= _tracks.size() ) return QModelIndex();
+    if( row < 0 || row >= _tracks.size() ) return QModelIndex(); // カラム判定してない
 
     return createIndex(row, column, _tracks[row]);
 }
@@ -291,7 +292,7 @@ bool PlaylistModel::insertRows(int row, int count, const QModelIndex& )
 {
     if( row < 0 || row > _tracks.size() ) return false;
 
-    for(int i=0; i < count; i++)
+    for(int i=0; i < count; ++i)
         _tracks.insert(row, Track());
 
     return true;
@@ -313,7 +314,7 @@ bool PlaylistModel::removeRows(int row, int count, const QModelIndex& parent)
     beginRemoveRows(parent, row, row + count-1);
 
     bool bRemovedCurrentTrack = false;
-    for(int i=0; i < count; i++) {
+    for(int i=0; i < count; ++i) {
         Track* track = _tracks.at(row);
         if( track == _currentTrack )
             bRemovedCurrentTrack = true;
@@ -440,13 +441,13 @@ void PlaylistModel::sort(int column, Qt::SortOrder order)
 
     emit layoutAboutToBeChanged();
 
-    for(int i=0; i < _tracks.size(); i++)
+    for(int i=0; i < _tracks.size(); ++i)
         _tracks[i]->index = i;
 
     qSort(_tracks.begin(), _tracks.end(), TrackLessThan(column, order));
 
     QVector<int> toIndexes(_tracks.size());
-    for(int i=0; i < _tracks.size(); i++)
+    for(int i=0; i < _tracks.size(); ++i)
         toIndexes[_tracks[i]->index] = i;
 
     QModelIndexList from = persistentIndexList();
@@ -460,7 +461,7 @@ void PlaylistModel::sort(int column, Qt::SortOrder order)
     emit layoutChanged();
 
 //  qDebug("PlaylistModel::sort():");
-//  for(int i=0; i < from.size(); i++)
+//  for(int i=0; i < from.size(); ++i)
 //      qDebug("from: %d to: %d column: %d", from[i].row(), to[i].row(), from[i].column());
 }
 
@@ -491,7 +492,7 @@ void PlaylistModel::setTracks(const QList<Track*>& tracks)
         else
             index = 0;
 
-        setCurrentTrackIndex(index);
+        setCurrentTrackRow(index);
     }
 
     reset();
@@ -524,28 +525,28 @@ int PlaylistModel::appendTracks(const QStringList& paths, bool* removedTrackByMa
     return rows;
 }
 
-void PlaylistModel::setCurrentTrackIndex(int index, bool specifiedUser)
+void PlaylistModel::setCurrentTrackRow(int row, bool specifiedUser)
 {
-    if( 0 <= index && index < _tracks.size() ) {
+    if( 0 <= row && row < _tracks.size() ) {
         if( specifiedUser
             && _randomPlay && _currentTrack!=NULL )
         {
             int to   = _randomTracks.indexOf(_currentTrack) + 1;
-            int from = _randomTracks.indexOf(_tracks.at(index));
+            int from = _randomTracks.indexOf(_tracks.at(row));
             if( from < to )
                 --to;
             _randomTracks.move(from, to);
 
 //          debug();
         }
-        _currentTrack = _tracks.at(index);
-        emit dataChanged(PlaylistModel::index(index, 0), PlaylistModel::index(index, columnCount()-1));
+        _currentTrack = _tracks.at(row);
+        emit dataChanged(PlaylistModel::index(row, 0), PlaylistModel::index(row, columnCount()-1));
     }
 }
 
-int PlaylistModel::trackIndexOf(const QString& path)
+int PlaylistModel::trackRowOf(const QString& path)
 {
-    for(int i=0; i < _tracks.size(); i++) {
+    for(int i=0; i < _tracks.size(); ++i) {
         if( _tracks[i]->path == path )
             return i;
     }
@@ -553,7 +554,7 @@ int PlaylistModel::trackIndexOf(const QString& path)
     return -1;
 }
 
-bool PlaylistModel::downCurrentTrackIndex(bool forceLoop)
+bool PlaylistModel::downCurrentTrackRow(bool forceLoop)
 {
     if( _tracks.size() <= 1 ) return false;
 
@@ -588,11 +589,11 @@ bool PlaylistModel::downCurrentTrackIndex(bool forceLoop)
         }
     }
 
-    setCurrentTrackIndex(i);
+    setCurrentTrackRow(i);
     return true;
 }
 
-bool PlaylistModel::upCurrentTrackIndex(bool forceLoop)
+bool PlaylistModel::upCurrentTrackRow(bool forceLoop)
 {
     if( _tracks.size() <= 0 ) return false;
 
@@ -627,8 +628,18 @@ bool PlaylistModel::upCurrentTrackIndex(bool forceLoop)
         }
     }
 
-    setCurrentTrackIndex(i);
+    setCurrentTrackRow(i);
     return true;
+}
+
+QModelIndex PlaylistModel::currentTrackIndex()
+{
+    if( _tracks.size() <= 0 ) return QModelIndex();
+
+    int row = _tracks.indexOf(_currentTrack);
+    Q_ASSERT( row != -1 );
+
+    return createIndex(row, 0, _tracks[row]);
 }
 
 QString PlaylistModel::currentTrackTitle()
@@ -776,7 +787,7 @@ int PlaylistModel::insertTracks(int row, QList<Track*>& inTracks, bool* removedT
     QList<Track*> newTracks;
 
     int emptySize = TRACKS_MAX - _tracks.size();
-    for(int i=0; i < inTracks.size(); ++i ) {
+    for(int i=0; i < inTracks.size(); ++i) {
         Track* inTrack = inTracks.at(i);
 //      // pathの前方の空白を削除
 //      if( inTrack != NULL )
@@ -790,7 +801,7 @@ int PlaylistModel::insertTracks(int row, QList<Track*>& inTracks, bool* removedT
             continue;
         }
 
-        int index = trackIndexOf(inTrack->path);
+        int index = trackRowOf(inTrack->path);
         if( index != -1 ) {
             // 同一pathのTrackは、_tracksからは削除して_randomTracksへは内容置き換え
             Track* track = _tracks.at(index);
@@ -871,6 +882,12 @@ QList<PlaylistModel::Track*> PlaylistModel::createTracks(const QStringList& path
         QUrl url(path);
         if( url.isLocalFile() )
             path = url.toLocalFile();
+        else
+        if( QDir::isRelativePath(path) ) {
+            url.setUrl(path);
+            if( url.scheme().isEmpty() )
+                path = _currentDirectory + '/' + path;
+        }
 
         QDir dir(path);
         if( dir.exists() ) {
@@ -955,6 +972,17 @@ PlaylistView::PlaylistView(QWidget* parent) : QTreeView(parent)
     }
 
     createContextMenu();
+}
+
+bool PlaylistView::isVisibleItem(const QModelIndex& index)
+{
+    if( index.isValid() ) {
+        QRect rect = visualRect(index);
+        return (0 <= rect.bottom() && rect.top() <= viewport()->height()-1
+            && 0 <= rect.right() && rect.left() <= viewport()->width()-1);
+    }
+    else
+        return false;
 }
 
 void PlaylistView::adjustColumnSize()

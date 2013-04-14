@@ -26,10 +26,11 @@ public:
     struct Data {
         QString voName;
         QString aoName;
-        bool    openIn320x240Size;
         bool    useSoftWareVideoEq;
-        bool    screenshot; // debug
+        bool    openIn320x240Size;
+        bool    reverseWheelSeek;
         int     volumeMax;
+        bool    useCacheSize;
         int     cacheStreamSize;
         bool    useScreenshotPath;
         QString screenshotPath;

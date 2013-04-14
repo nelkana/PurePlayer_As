@@ -67,18 +67,18 @@ void InfoLabel::timerClipInfoTimeout()
     QString data[N] = {_clipinfo.title, _clipinfo.author, _clipinfo.copyright,
                        _clipinfo.comments};
 
-    for(int i=0; i < N; i++) {
+    for(int i=0; i < N; ++i) {
         if( !data[_clipinfoSeq].isEmpty() ) {
             setText(type[_clipinfoSeq] + data[_clipinfoSeq]);
 
-            _clipinfoSeq++;
+            ++_clipinfoSeq;
             if( _clipinfoSeq >= N )
                 _clipinfoSeq = 0;
 
             break;
         }
 
-        _clipinfoSeq++;
+        ++_clipinfoSeq;
         if( _clipinfoSeq >= N )
             _clipinfoSeq = 0;
     }

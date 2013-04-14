@@ -6,462 +6,498 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>382</width>
-    <height>460</height>
+    <width>376</width>
+    <height>436</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>設定</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout" name="verticalLayout_3">
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <layout class="QGridLayout" name="gridLayout">
-       <item row="0" column="0">
-        <widget class="QLabel" name="_label">
-         <property name="text">
-          <string>ビデオドライバ</string>
-         </property>
-        </widget>
+    <widget class="QTabWidget" name="_tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tab">
+      <attribute name="title">
+       <string>一般</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <layout class="QGridLayout" name="gridLayout">
+           <item row="0" column="0">
+            <widget class="QLabel" name="_label">
+             <property name="text">
+              <string>ビデオドライバ</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="_label_2">
+             <property name="text">
+              <string>オーディオドライバ</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <widget class="QComboBox" name="_comboBoxVo">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>150</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="focusPolicy">
+              <enum>Qt::NoFocus</enum>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2">
+            <widget class="QComboBox" name="_comboBoxAo">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="focusPolicy">
+              <enum>Qt::NoFocus</enum>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <spacer name="horizontalSpacer_4">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_3">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
        </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="_label_2">
-         <property name="text">
-          <string>オーディオドライバ</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="2">
-        <widget class="QComboBox" name="_comboBoxVo">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>0</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>150</width>
-           <height>16777215</height>
-          </size>
-         </property>
+       <item>
+        <widget class="QCheckBox" name="_checkBoxSoftVideoEq">
          <property name="focusPolicy">
           <enum>Qt::NoFocus</enum>
          </property>
+         <property name="toolTip">
+          <string>ビデオ調整が反映されない場合に効果があります。</string>
+         </property>
+         <property name="text">
+          <string>ビデオ調整にソフトウェアビデオイコライザーを使用する</string>
+         </property>
+         <property name="autoExclusive">
+          <bool>false</bool>
+         </property>
         </widget>
        </item>
-       <item row="1" column="2">
-        <widget class="QComboBox" name="_comboBoxAo">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>0</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>16777215</width>
-           <height>16777215</height>
-          </size>
-         </property>
+       <item>
+        <widget class="QCheckBox" name="_checkBox320x240">
          <property name="focusPolicy">
           <enum>Qt::NoFocus</enum>
          </property>
-        </widget>
-       </item>
-       <item row="0" column="1">
-        <spacer name="horizontalSpacer_4">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <spacer name="horizontalSpacer_3">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-    </layout>
-   </item>
-   <item>
-    <spacer name="verticalSpacer_3">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>2</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item>
-    <layout class="QVBoxLayout" name="verticalLayout_2">
-     <item>
-      <widget class="QCheckBox" name="_checkBoxSoftVideoEq">
-       <property name="focusPolicy">
-        <enum>Qt::NoFocus</enum>
-       </property>
-       <property name="toolTip">
-        <string>ビデオ調整が反映されない場合に効果があります。</string>
-       </property>
-       <property name="text">
-        <string>ビデオ調整にソフトウェアビデオイコライザーを使用する</string>
-       </property>
-       <property name="autoExclusive">
-        <bool>false</bool>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QCheckBox" name="_checkBox320x240">
-       <property name="focusPolicy">
-        <enum>Qt::NoFocus</enum>
-       </property>
-       <property name="toolTip">
-        <string>無効の場合は、50%サイズで開きます。</string>
-       </property>
-       <property name="text">
-        <string>動画を開く時、320x240サイズ固定で開く</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QCheckBox" name="_checkBoxScreenshot">
-       <property name="focusPolicy">
-        <enum>Qt::NoFocus</enum>
-       </property>
-       <property name="toolTip">
-        <string>画像保存先は動画ファイルと同じディレクトリ、またはホームディレクトリになります。</string>
-       </property>
-       <property name="text">
-        <string>スクリーンショット機能を有効にする</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QCheckBox" name="_checkBoxDisconnectChannel">
-       <property name="focusPolicy">
-        <enum>Qt::NoFocus</enum>
-       </property>
-       <property name="toolTip">
-        <string>配信の再生が停止した時、数秒後チャンネルの切断を行います。</string>
-       </property>
-       <property name="text">
-        <string>配信の再生が停止した時、チャンネルを切断する</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_2">
-       <item>
-        <widget class="QLabel" name="_label_4">
          <property name="toolTip">
-          <string>プレイヤーを閉じた時の保存音量最大値になります。</string>
+          <string>無効の場合は、50%サイズで開きます。</string>
          </property>
          <property name="text">
-          <string>保存される音量の最大値</string>
+          <string>動画を開く時、320x240サイズ固定で開く</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QSpinBox" name="_spinBoxVolumeMax">
+        <widget class="QCheckBox" name="_checkBoxReverseWheelSeek">
          <property name="focusPolicy">
-          <enum>Qt::ClickFocus</enum>
+          <enum>Qt::NoFocus</enum>
          </property>
-         <property name="maximum">
-          <number>100</number>
-         </property>
-         <property name="singleStep">
-          <number>5</number>
-         </property>
-         <property name="value">
-          <number>100</number>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer_5">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_3">
-       <item>
-        <widget class="QLabel" name="_label_3">
          <property name="toolTip">
-          <string>ネットワークストリーミングのキャッシュになります。</string>
+          <string>タイムスライダー上でのマウスホイールシークを逆向きに行います。</string>
          </property>
          <property name="text">
-          <string>ストリームキャッシュサイズ(KB)</string>
+          <string>マウスホイールシークを逆向きにする</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QSpinBox" name="_spinBoxCacheStream">
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <item>
+          <widget class="QLabel" name="_label_4">
+           <property name="text">
+            <string>保存される音量の最大値</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="_spinBoxVolumeMax">
+           <property name="focusPolicy">
+            <enum>Qt::ClickFocus</enum>
+           </property>
+           <property name="toolTip">
+            <string>プレイヤーを閉じた時の保存音量の最大値になります。</string>
+           </property>
+           <property name="maximum">
+            <number>100</number>
+           </property>
+           <property name="singleStep">
+            <number>5</number>
+           </property>
+           <property name="value">
+            <number>100</number>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_5">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="_groupBoxCacheSize">
+         <property name="toolTip">
+          <string>無効の場合は、自動でキャッシュサイズが決定されます。
+通常は無効の状態での使用をお勧めします。</string>
+         </property>
+         <property name="title">
+          <string>キャッシュサイズを指定する</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <property name="spacing">
+           <number>4</number>
+          </property>
+          <property name="margin">
+           <number>4</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="_label_3">
+            <property name="text">
+             <string>ネットワークストリーム(KBytes)</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="CommonSpinBox" name="_cacheStreamSpinBox">
+            <property name="focusPolicy">
+             <enum>Qt::ClickFocus</enum>
+            </property>
+            <property name="toolTip">
+             <string>ネットワークストリーミングのキャッシュになります。
+再生が途切れる場合はサイズを大きくする事で改善が期待できます。</string>
+            </property>
+            <property name="minimum">
+             <number>100</number>
+            </property>
+            <property name="maximum">
+             <number>50000</number>
+            </property>
+            <property name="singleStep">
+             <number>100</number>
+            </property>
+            <property name="value">
+             <number>3000</number>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="_groupBoxScreenshotPath">
+         <property name="toolTip">
+          <string>無効の場合は、保存先は動画ファイルと同じディレクトリ、またはホームディレクトリになります。</string>
+         </property>
+         <property name="title">
+          <string>スクリーンショットの保存先を指定する</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_6">
+          <property name="spacing">
+           <number>4</number>
+          </property>
+          <property name="margin">
+           <number>4</number>
+          </property>
+          <item>
+           <widget class="QLineEdit" name="_lineEditScreenshotPath">
+            <property name="focusPolicy">
+             <enum>Qt::ClickFocus</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="_buttonScreenshotPath">
+            <property name="focusPolicy">
+             <enum>Qt::NoFocus</enum>
+            </property>
+            <property name="text">
+             <string>選択</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="_groupBoxMplayerPath">
+         <property name="toolTip">
+          <string>無効の場合は、単にmplayerとして起動が行われます。</string>
+         </property>
+         <property name="inputMethodHints">
+          <set>Qt::ImhNone</set>
+         </property>
+         <property name="title">
+          <string>使用するMPlayerを指定する</string>
+         </property>
+         <property name="flat">
+          <bool>false</bool>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_5">
+          <property name="spacing">
+           <number>4</number>
+          </property>
+          <property name="margin">
+           <number>4</number>
+          </property>
+          <item>
+           <widget class="QLineEdit" name="_lineEditMplayerPath">
+            <property name="focusPolicy">
+             <enum>Qt::ClickFocus</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="_buttonMplayerPath">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="baseSize">
+             <size>
+              <width>0</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="focusPolicy">
+             <enum>Qt::NoFocus</enum>
+            </property>
+            <property name="text">
+             <string>選択</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_2">
+      <attribute name="title">
+       <string>PeerCast</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="QCheckBox" name="_checkBoxDisconnectChannel">
          <property name="focusPolicy">
-          <enum>Qt::ClickFocus</enum>
+          <enum>Qt::NoFocus</enum>
          </property>
-         <property name="maximum">
-          <number>3000</number>
+         <property name="toolTip">
+          <string>配信の再生が停止した時、数秒後チャンネルの切断を行います。</string>
          </property>
-         <property name="singleStep">
-          <number>50</number>
-         </property>
-         <property name="value">
-          <number>1000</number>
+         <property name="text">
+          <string>配信の再生が停止した時、チャンネルを切断する</string>
          </property>
         </widget>
        </item>
        <item>
-        <spacer name="horizontalSpacer">
+        <widget class="QGroupBox" name="_groupBoxContactUrlPath">
+         <property name="focusPolicy">
+          <enum>Qt::NoFocus</enum>
+         </property>
+         <property name="toolTip">
+          <string>無効の場合またはプログラムが起動できなかった場合は、既定のブラウザで開きます。</string>
+         </property>
+         <property name="title">
+          <string>コンタクトURLを開くプログラムを指定する</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_7">
+          <property name="spacing">
+           <number>4</number>
+          </property>
+          <property name="margin">
+           <number>4</number>
+          </property>
+          <item>
+           <widget class="QLineEdit" name="_lineEditContactUrlPath">
+            <property name="focusPolicy">
+             <enum>Qt::ClickFocus</enum>
+            </property>
+            <property name="toolTip">
+             <string>実行ファイルを指定します。</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="_buttonContactUrlPath">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="focusPolicy">
+             <enum>Qt::NoFocus</enum>
+            </property>
+            <property name="toolTip">
+             <string>実行ファイルを指定します。</string>
+            </property>
+            <property name="text">
+             <string>選択</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="_lineEditContactUrlArg">
+            <property name="focusPolicy">
+             <enum>Qt::ClickFocus</enum>
+            </property>
+            <property name="toolTip">
+             <string>実行ファイルに渡す引数を指定します。
+%{ContactUrl}はコンタクトURLに変換されます。</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="_buttonContactUrlArg">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="focusPolicy">
+             <enum>Qt::NoFocus</enum>
+            </property>
+            <property name="toolTip">
+             <string>実行ファイルに渡す引数を指定します。
+%{ContactUrl}はコンタクトURLに変換されます。</string>
+            </property>
+            <property name="text">
+             <string>リセット</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer">
          <property name="orientation">
-          <enum>Qt::Horizontal</enum>
+          <enum>Qt::Vertical</enum>
          </property>
          <property name="sizeHint" stdset="0">
           <size>
-           <width>40</width>
-           <height>20</height>
+           <width>20</width>
+           <height>40</height>
           </size>
          </property>
         </spacer>
        </item>
       </layout>
-     </item>
-     <item>
-      <widget class="QGroupBox" name="_groupBoxScreenshotPath">
-       <property name="focusPolicy">
-        <enum>Qt::NoFocus</enum>
-       </property>
-       <property name="toolTip">
-        <string>無効の場合は、保存先は動画ファイルと同じディレクトリ、またはホームディレクトリになります。</string>
-       </property>
-       <property name="title">
-        <string>スクリーンショットの保存先を指定する</string>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <property name="checked">
-        <bool>false</bool>
-       </property>
-       <layout class="QHBoxLayout" name="horizontalLayout_6">
-        <property name="spacing">
-         <number>4</number>
-        </property>
-        <property name="margin">
-         <number>4</number>
-        </property>
-        <item>
-         <widget class="QLineEdit" name="_lineEditScreenshotPath">
-          <property name="focusPolicy">
-           <enum>Qt::ClickFocus</enum>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="_buttonScreenshotPath">
-          <property name="focusPolicy">
-           <enum>Qt::NoFocus</enum>
-          </property>
-          <property name="text">
-           <string>選択</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-     </item>
-     <item>
-      <widget class="QGroupBox" name="_groupBoxMplayerPath">
-       <property name="focusPolicy">
-        <enum>Qt::NoFocus</enum>
-       </property>
-       <property name="toolTip">
-        <string>無効の場合は、単にmplayerとして起動が行われます。</string>
-       </property>
-       <property name="inputMethodHints">
-        <set>Qt::ImhNone</set>
-       </property>
-       <property name="title">
-        <string>使用するMPlayerを指定する</string>
-       </property>
-       <property name="flat">
-        <bool>false</bool>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <property name="checked">
-        <bool>false</bool>
-       </property>
-       <layout class="QHBoxLayout" name="horizontalLayout_5">
-        <property name="spacing">
-         <number>4</number>
-        </property>
-        <property name="margin">
-         <number>4</number>
-        </property>
-        <item>
-         <widget class="QLineEdit" name="_lineEditMplayerPath">
-          <property name="focusPolicy">
-           <enum>Qt::ClickFocus</enum>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="_buttonMplayerPath">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="baseSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="focusPolicy">
-           <enum>Qt::NoFocus</enum>
-          </property>
-          <property name="text">
-           <string>選択</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-     </item>
-     <item>
-      <widget class="QGroupBox" name="_groupBoxContactUrlPath">
-       <property name="focusPolicy">
-        <enum>Qt::NoFocus</enum>
-       </property>
-       <property name="toolTip">
-        <string>無効の場合またはプログラムが起動できなかった場合は、既定のブラウザで開きます。</string>
-       </property>
-       <property name="title">
-        <string>コンタクトURLを開くプログラムを指定する</string>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <property name="checked">
-        <bool>false</bool>
-       </property>
-       <layout class="QHBoxLayout" name="horizontalLayout_7">
-        <property name="spacing">
-         <number>4</number>
-        </property>
-        <property name="margin">
-         <number>4</number>
-        </property>
-        <item>
-         <widget class="QLineEdit" name="_lineEditContactUrlPath">
-          <property name="focusPolicy">
-           <enum>Qt::ClickFocus</enum>
-          </property>
-          <property name="toolTip">
-           <string>実行ファイルを指定します。</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="_buttonContactUrlPath">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="focusPolicy">
-           <enum>Qt::NoFocus</enum>
-          </property>
-          <property name="toolTip">
-           <string>実行ファイルを指定します。</string>
-          </property>
-          <property name="text">
-           <string>選択</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLineEdit" name="_lineEditContactUrlArg">
-          <property name="focusPolicy">
-           <enum>Qt::ClickFocus</enum>
-          </property>
-          <property name="toolTip">
-           <string>実行ファイルに渡す引数を指定します。
-%{ContactUrl}はコンタクトURLに変換されます。</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="_buttonContactUrlArg">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="focusPolicy">
-           <enum>Qt::NoFocus</enum>
-          </property>
-          <property name="toolTip">
-           <string>実行ファイルに渡す引数を指定します。
-%{ContactUrl}はコンタクトURLに変換されます。</string>
-          </property>
-          <property name="text">
-           <string>リセット</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-     </item>
-    </layout>
+     </widget>
+    </widget>
    </item>
    <item>
     <spacer name="verticalSpacer_2">
@@ -469,12 +505,12 @@
       <enum>Qt::Vertical</enum>
      </property>
      <property name="sizeType">
-      <enum>QSizePolicy::Fixed</enum>
+      <enum>QSizePolicy::Expanding</enum>
      </property>
      <property name="sizeHint" stdset="0">
       <size>
        <width>20</width>
-       <height>10</height>
+       <height>0</height>
       </size>
      </property>
     </spacer>
@@ -511,6 +547,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CommonSpinBox</class>
+   <extends>QSpinBox</extends>
+   <header>commonspinbox.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

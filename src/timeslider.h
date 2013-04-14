@@ -28,14 +28,15 @@ public:
 
     void setLength(double sec) { setRange(0, sec*10); }
     void setPosition(double sec);
+    void setReverseWheelSeek(bool b) { _reverseWheelSeek = b; }
 
 signals:
     void requestSeek(double pos, bool relative);
 
 protected:
     bool event(QEvent*);
-//    void mousePressEvent(QMouseEvent*);
-//    void mouseMoveEvent(QMouseEvent*);
+//  void mousePressEvent(QMouseEvent*);
+//  void mouseMoveEvent(QMouseEvent*);
     void wheelEvent(QWheelEvent*);
     bool pointOutsideHandle(const QPoint&);
 
@@ -47,6 +48,7 @@ private slots:
     void timerUnableSetPositionTimeout();
 
 private:
+    bool   _reverseWheelSeek;
     QTimer _timerRequestSeek;
     QTimer _timerUnableSetPosition;
     int    _movedPos;

@@ -43,9 +43,10 @@ int main(int argc, char** argv)
 #endif
 
     PurePlayer* main = new PurePlayer();
-    main->show();
     if( argc >= 2 )
         main->open(argv[1]);
+
+    main->show();
 
     int ret = app.exec();
     delete main;

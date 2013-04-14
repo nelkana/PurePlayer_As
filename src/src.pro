@@ -9,6 +9,7 @@ CONFIG += release
 
 HEADERS += \
     pureplayer.h \
+    peercast.h \
     process.h \
     controlbutton.h \
     speedspinbox.h \
@@ -22,6 +23,7 @@ HEADERS += \
     task.h \
     \
     logdialog.h \
+    commonspinbox.h \
     configdialog.h \
     opendialog.h \
     videoadjustdialog.h \
@@ -32,6 +34,7 @@ HEADERS += \
 SOURCES += \
     main.cpp \
     pureplayer.cpp \
+    peercast.cpp \
     process.cpp \
     speedspinbox.cpp \
     timeslider.cpp \

@@ -61,7 +61,7 @@ void VideoSettings::loadProfiles()
 //      s.remove(profile);
 
     // プロファイルの読み込み
-    for(int i=0; i < profilesOrder.size(); i++) {
+    for(int i=0; i < profilesOrder.size(); ++i) {
         s.beginGroup(profilesOrder[i]);
 
         VideoProfile v;
@@ -96,7 +96,7 @@ void VideoSettings::loadProfiles()
     else {
         // デフォルトプロファイルが存在しないなら、デフォルトプロファイルを0番にする
         int i;
-        for(i=0; i < s_profiles.size(); i++) {
+        for(i=0; i < s_profiles.size(); ++i) {
             if( s_profiles[i].name == s_defaultProfile )
                 break;
         }
@@ -124,7 +124,7 @@ bool VideoSettings::checkReload()
 
 void VideoSettings::updateProfile(const VideoProfile& profile)
 {
-    for(int i=0; i < s_profiles.size(); i++) {
+    for(int i=0; i < s_profiles.size(); ++i) {
         if( s_profiles[i].name == profile.name ) {
             // メモリの該当プロファイルの内容を更新
             s_profiles[i] = profile;
@@ -197,7 +197,7 @@ bool VideoSettings::appendProfile(const VideoProfile& profile)
 
 void VideoSettings::saveDefaultProfile(const QString& name)
 {
-    for(int i=0; i < s_profiles.size(); i++) {
+    for(int i=0; i < s_profiles.size(); ++i) {
         if( name == s_profiles[i].name ) {
             QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "VideoSettings");
 
@@ -224,7 +224,7 @@ void VideoSettings::removeProfile(const QString& name)
     s->endGroup();
 
     int i;
-    for(i=0; i < s_profiles.size(); i++) {
+    for(i=0; i < s_profiles.size(); ++i) {
         if( s_profiles[i].name == name )
             break;
     }
@@ -265,7 +265,7 @@ void VideoSettings::removeProfile(const QString& name)
 
 VideoSettings::VideoProfile VideoSettings::profile(const QString& name)
 {
-    for(int i=0; i < s_profiles.size(); i++) {
+    for(int i=0; i < s_profiles.size(); ++i) {
         if( s_profiles[i].name == name )
             return s_profiles[i];
     }
@@ -284,7 +284,7 @@ VideoSettings::VideoProfile VideoSettings::profile(int index)
 QStringList VideoSettings::profileNames()
 {
     QStringList names;
-    for(int i=0; i < s_profiles.size(); i++)
+    for(int i=0; i < s_profiles.size(); ++i)
         names << s_profiles[i].name;
 
     return names;
@@ -330,7 +330,7 @@ void VideoSettings::convertPrevSettingsVer0_6_1ToSettingsVer0_7_0()
 
         // 重複プロファイルがあるか探す
         int i;
-        for(i=0; i < profilesOrder.size(); i++) {
+        for(i=0; i < profilesOrder.size(); ++i) {
             if( profilesOrder[i] == p.name )
                 break;
         }
@@ -372,7 +372,7 @@ void VideoSettings::saveModifiedIdFile(QSettings& s)
 void VideoSettings::saveProfilesOrder(QSettings& s)
 {
     QStringList order;
-    for(int i=0; i < s_profiles.size(); i++)
+    for(int i=0; i < s_profiles.size(); ++i)
         order << s_profiles[i].name;
 
     s.setValue("profilesOrder", order);
@@ -383,7 +383,7 @@ void VideoSettings::saveProfilesOrder(QSettings& s)
 
 void VideoSettings::advanceModifiedId()
 {
-    s_modifiedId++;
+    ++s_modifiedId;
     if( s_modifiedId == 0 )
         s_modifiedId = 1;
 

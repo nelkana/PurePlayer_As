@@ -145,7 +145,7 @@ void VideoAdjustDialog::buttonCreateClicked()
 
         // 既に同じ名前のプロファイルが存在するか探す
         int i;
-        for(i=0; i < _comboBoxProfile->count(); i++) {
+        for(i=0; i < _comboBoxProfile->count(); ++i) {
             if( name == _comboBoxProfile->itemText(i) )
                 break;
         }

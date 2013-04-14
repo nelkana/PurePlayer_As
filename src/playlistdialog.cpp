@@ -31,6 +31,7 @@ PlaylistDialog::PlaylistDialog(PlaylistModel* model, QWidget* parent) : QDialog(
     connect(_buttonSort,   SIGNAL(clicked()), this, SLOT(buttonSort_clicked()));
 
     _view = new PlaylistView(this);
+//  _view->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     _verticalLayout->insertWidget(0, _view);
     connect(_view, SIGNAL(doubleClicked(const QModelIndex&)),
             this,  SLOT(view_doubleClicked(const QModelIndex&)));
@@ -39,6 +40,15 @@ PlaylistDialog::PlaylistDialog(PlaylistModel* model, QWidget* parent) : QDialog(
 
     _model = NULL;
     setModel(model);
+}
+
+void PlaylistDialog::scrollToCurrentTrackHidden()
+{
+    QModelIndex index = _model->currentTrackIndex();
+    if( index.isValid() ) {
+        if( !_view->isVisibleItem(index) )
+            _view->scrollTo(index, QAbstractItemView::PositionAtCenter);
+    }
 }
 
 void PlaylistDialog::addFiles()
@@ -115,7 +125,7 @@ void PlaylistDialog::buttonSort_clicked()
 
 void PlaylistDialog::view_doubleClicked(const QModelIndex& index)
 {
-    _model->setCurrentTrackIndex(index, true);
+    _model->setCurrentTrackRow(index, true);
     emit playStopCurrentTrack();
 }
 

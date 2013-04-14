@@ -20,7 +20,7 @@
    <enum>Qt::NoFocus</enum>
   </property>
   <property name="windowTitle">
-   <string>PurePlayer*について</string>
+   <string>プレイヤーについて</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <property name="spacing">

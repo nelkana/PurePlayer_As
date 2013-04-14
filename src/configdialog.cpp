@@ -44,22 +44,33 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
     if( p.waitForFinished() ) {
         QStringList out = QString(p.readAllStandardOutput()).split("\n");
 
-        for(int i=0; i < out.size(); i++) {
+        for(int i=0; i < out.size(); ++i) {
             if( rx.indexIn(out[i]) != -1 )
                 _comboBoxVo->addItem(rx.cap(1));
         }
     }
+
+    QString voToolTip = tr("使用するビデオドライバになります。\n初期設定は「%1」になります。");
+#if defined(Q_WS_X11)
+    _comboBoxVo->setToolTip(voToolTip.arg("xv"));
+#elif defined(Q_OS_WIN32)
+    _comboBoxVo->setToolTip(voToolTip.arg("directx"));
+#else
+    _comboBoxVo->setToolTip(voToolTip.arg(tr("指定無し")));
+#endif
 
     _comboBoxAo->addItem(tr("指定無し"));
     p.start("mplayer", QStringList() << "-ao" << "help");
     if( p.waitForFinished() ) {
         QStringList out = QString(p.readAllStandardOutput()).split("\n");
 
-        for(int i=0; i < out.size(); i++) {
+        for(int i=0; i < out.size(); ++i) {
             if( rx.indexIn(out[i]) != -1 )
                 _comboBoxAo->addItem(rx.cap(1));
         }
     }
+
+    _comboBoxAo->setToolTip(tr("使用するオーディオドライバになります。\n初期設定は「指定無し」になります。"));
 
 #ifdef Q_OS_LINUX
 
@@ -74,20 +85,24 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
     _checkBoxSoftVideoEq->setEnabled(false);
 #endif // Q_OS_LINUX
 
-    _groupBoxScreenshotPath->setFocusPolicy(Qt::NoFocus); // qtデザイナでは効果無し、ここで指定
+    _groupBoxCacheSize->setFocusPolicy(Qt::NoFocus);    // qtデザイナでは効果無し、ここで指定
+    connect(_groupBoxCacheSize, SIGNAL(toggled(bool)),
+            this,               SLOT(groupBoxCache_toggled(bool)));
+    _groupBoxScreenshotPath->setFocusPolicy(Qt::NoFocus);
     _groupBoxMplayerPath->setFocusPolicy(Qt::NoFocus);
     _groupBoxContactUrlPath->setFocusPolicy(Qt::NoFocus);
-    _checkBoxScreenshot->setVisible(false); // debug
 
-    QPalette palette = _groupBoxScreenshotPath->palette();
+    QPalette palette = _groupBoxCacheSize->palette();
     QColor colorText = palette.color(QPalette::Text);
     palette.setColor(QPalette::Active, QPalette::Text, palette.color(QPalette::WindowText));
     palette.setColor(QPalette::Inactive, QPalette::Text, palette.color(QPalette::WindowText));
+    _groupBoxCacheSize->setPalette(palette);
     _groupBoxScreenshotPath->setPalette(palette);
     _groupBoxMplayerPath->setPalette(palette);
     _groupBoxContactUrlPath->setPalette(palette);
     palette.setColor(QPalette::Active, QPalette::Text, colorText);
     palette.setColor(QPalette::Inactive, QPalette::Text, colorText);
+    _cacheStreamSpinBox->setPalette(palette);
     _lineEditScreenshotPath->setPalette(palette);
     _lineEditMplayerPath->setPalette(palette);
     _lineEditContactUrlPath->setPalette(palette);
@@ -139,11 +154,12 @@ void ConfigDialog::setData(ConfigData::Data* data)
 
     _comboBoxAo->setCurrentIndex(index);
 
-    _spinBoxCacheStream->setValue(_data->cacheStreamSize);
-    _spinBoxVolumeMax->setValue(_data->volumeMax);
-    _checkBox320x240->setChecked(_data->openIn320x240Size);
     _checkBoxSoftVideoEq->setChecked(_data->useSoftWareVideoEq);
-    _checkBoxScreenshot->setChecked(_data->screenshot);
+    _checkBox320x240->setChecked(_data->openIn320x240Size);
+    _checkBoxReverseWheelSeek->setChecked(_data->reverseWheelSeek);
+    _spinBoxVolumeMax->setValue(_data->volumeMax);
+    _groupBoxCacheSize->setChecked(_data->useCacheSize);
+    _cacheStreamSpinBox->setValue(_data->cacheStreamSize);
     _checkBoxDisconnectChannel->setChecked(_data->disconnectChannel);
     _groupBoxScreenshotPath->setChecked(_data->useScreenshotPath);
     _lineEditScreenshotPath->setText(_data->screenshotPath);
@@ -181,24 +197,27 @@ void ConfigDialog::apply()
 
     _data->aoName = driverName;
 
-    if( _spinBoxCacheStream->value() != _data->cacheStreamSize )
-        restart = true;
-
-    _data->openIn320x240Size = _checkBox320x240->isChecked();
-
     if( _checkBoxSoftVideoEq->isChecked() != _data->useSoftWareVideoEq )
         restart = true;
 
     _data->useSoftWareVideoEq = _checkBoxSoftVideoEq->isChecked();
 
-    if( _checkBoxScreenshot->isChecked() != _data->screenshot )
+    _data->openIn320x240Size = _checkBox320x240->isChecked();
+    _data->reverseWheelSeek = _checkBoxReverseWheelSeek->isChecked();
+    _data->volumeMax = _spinBoxVolumeMax->value();
+
+    if( _groupBoxCacheSize->isChecked() != _data->useCacheSize )
         restart = true;
 
-    _data->screenshot = _checkBoxScreenshot->isChecked();
-    _data->disconnectChannel = _checkBoxDisconnectChannel->isChecked();
+    _data->useCacheSize = _groupBoxCacheSize->isChecked();
 
-    _data->volumeMax = _spinBoxVolumeMax->value();
-    _data->cacheStreamSize = _spinBoxCacheStream->value();
+    if( _groupBoxCacheSize->isChecked()
+     && _cacheStreamSpinBox->value() != _data->cacheStreamSize )
+    {
+        restart = true;
+    }
+
+    _data->cacheStreamSize = _cacheStreamSpinBox->value();
 
     if( _groupBoxScreenshotPath->isChecked() != _data->useScreenshotPath )
         restart = true;
@@ -226,6 +245,7 @@ void ConfigDialog::apply()
 
     _data->mplayerPath = _lineEditMplayerPath->text();
 
+    _data->disconnectChannel = _checkBoxDisconnectChannel->isChecked();
     _data->useContactUrlPath = _groupBoxContactUrlPath->isChecked();
     _data->contactUrlPath = _lineEditContactUrlPath->text();
     _data->contactUrlArg = _lineEditContactUrlArg->text();
@@ -264,7 +284,7 @@ void ConfigDialog::showEvent(QShowEvent*)
 {
 //  adjustSize();
     setFixedSize(size());
-    _spinBoxCacheStream->clearFocus();
+    _cacheStreamSpinBox->clearFocus();
     _spinBoxVolumeMax->clearFocus();
     _lineEditScreenshotPath->clearFocus();
     _lineEditMplayerPath->clearFocus();

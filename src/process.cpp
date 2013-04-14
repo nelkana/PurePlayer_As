@@ -49,7 +49,7 @@ void CommonProcess::slot_readyReadStandardOutput()
 
     lines.removeLast();
 
-    for(int i=0; i < lines.size(); i++)
+    for(int i=0; i < lines.size(); ++i)
         emit outputLine(lines[i]);
 }
 
