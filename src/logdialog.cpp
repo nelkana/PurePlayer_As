@@ -15,6 +15,7 @@
 */
 #include <QKeyEvent>
 #include "logdialog.h"
+#include "windowcontroller.h"
 
 LogDialog* LogDialog::s_logDialog;
 QWidget*   LogDialog::s_parent;
@@ -38,6 +39,15 @@ LogDialog::LogDialog(QWidget* parent) : QDialog(parent)
 LogDialog::~LogDialog()
 {
 //  qDebug("LogDialog::~LogDialog():");
+}
+
+void LogDialog::initDialog(QWidget* parent)
+{
+    delete s_logDialog;
+    s_logDialog = new LogDialog();
+    s_logDialog->installEventFilter(new WindowController(s_logDialog));
+
+    s_parent = parent;
 }
 
 void LogDialog::printOut(const QString& text, const QColor& color)
@@ -88,5 +98,4 @@ void LogDialog::keyPressEvent(QKeyEvent* e)
             emit requestCommand(_lineEditCommand->text());
     }
 }
-
 

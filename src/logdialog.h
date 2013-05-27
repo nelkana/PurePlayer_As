@@ -68,14 +68,6 @@ private:
     bool _outputTerminal;
 };
 
-inline void LogDialog::initDialog(QWidget* parent)
-{
-    delete s_logDialog;
-    s_logDialog = new LogDialog();
-
-    s_parent = parent;
-}
-
 inline LogDialog* LogDialog::dialog()
 {
     if( s_logDialog == NULL )

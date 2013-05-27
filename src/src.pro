@@ -4,8 +4,8 @@ DESTDIR = ..
 DEPENDPATH += .
 INCLUDEPATH += .
 QT += network script
-CONFIG += release
-#CONFIG += debug
+#CONFIG += release
+CONFIG += debug
 
 HEADERS += \
     pureplayer.h \
@@ -21,6 +21,7 @@ HEADERS += \
     playlist.h \
     commonlib.h \
     task.h \
+    windowcontroller.h \
     \
     logdialog.h \
     commonspinbox.h \
@@ -45,6 +46,7 @@ SOURCES += \
     playlist.cpp \
     commonlib.cpp \
     task.cpp \
+    windowcontroller.cpp \
     \
     logdialog.cpp \
     configdialog.cpp \

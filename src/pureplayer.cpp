@@ -34,6 +34,7 @@
 #include "playlistdialog.h"
 #include "commonlib.h"
 #include "task.h"
+#include "windowcontroller.h"
 #include "speedspinbox.h"
 #include "aboutdialog.h"
 
@@ -783,6 +784,7 @@ void PurePlayer::openFromDialog()
 {
     if( _openDialog == NULL ) {
         _openDialog = new OpenDialog(this);
+        _openDialog->installEventFilter(new WindowController(_openDialog));
         connect(_openDialog, SIGNAL(openPath(const QString)), this, SLOT(open(const QString)));
     }
 
@@ -1351,6 +1353,7 @@ void PurePlayer::showVideoAdjustDialog()
 {
     if( _videoAdjustDialog == NULL ) {
         _videoAdjustDialog = new VideoAdjustDialog(this);
+        _videoAdjustDialog->installEventFilter(new WindowController(_videoAdjustDialog));
         connect(_videoAdjustDialog, SIGNAL(windowActivate()), this, SLOT(videoAdjustDialog_windowActivate()));
         connect(_videoAdjustDialog, SIGNAL(requestSave()), this, SLOT(updateVideoProfile()));
         connect(_videoAdjustDialog, SIGNAL(requestLoad()), this, SLOT(restoreVideoProfile()));
@@ -1381,6 +1384,7 @@ void PurePlayer::showPlaylistDialog()
 {
     if( _playlistDialog == NULL ) {
         _playlistDialog = new PlaylistDialog(_playlist, this);
+        _playlistDialog->installEventFilter(new WindowController(_playlistDialog));
         connect(_playlistDialog, SIGNAL(playStopCurrentTrack()), this, SLOT(playlist_playStopCurrentTrack()));
         connect(_playlistDialog, SIGNAL(playPrev()), this, SLOT(prevButton_clicked()));
         connect(_playlistDialog, SIGNAL(playNext()), this, SLOT(nextButton_clicked()));
@@ -1401,6 +1405,7 @@ void PurePlayer::showConfigDialog()
     int addX = 0;
     if( _configDialog == NULL ) {
         _configDialog = new ConfigDialog(this);
+        _configDialog->installEventFilter(new WindowController(_configDialog));
         connect(_configDialog, SIGNAL(applied(bool)),
                 this,          SLOT(configDialog_applied(bool)));
 
@@ -1429,6 +1434,7 @@ void PurePlayer::showAboutDialog()
 {
     if( _aboutDialog == NULL ) {
         _aboutDialog = new AboutDialog(this);
+        _aboutDialog->installEventFilter(new WindowController(_aboutDialog));
     }
 
     _aboutDialog->move(_menuContext->x()

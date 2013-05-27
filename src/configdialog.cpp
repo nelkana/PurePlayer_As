@@ -279,7 +279,28 @@ void ConfigDialog::setContactUrlPathFromDialog()
     if( !path.isEmpty() )
         _lineEditContactUrlPath->setText(path);
 }
+/*
+#include <QMouseEvent>
+bool ConfigDialog::eventFilter(QObject* o, QEvent* e)
+{
+    if( o == _tabWidget ) {
+        if( e->type() == QEvent::MouseButtonPress
+         || e->type() == QEvent::MouseMove
+         || e->type() == QEvent::MouseButtonRelease )
+        {
+            QMouseEvent* ev = static_cast<QMouseEvent*>(e);
+            QMouseEvent event(ev->type(),
+                              _tabWidget->mapTo(this, ev->pos()),
+                              _tabWidget->mapToGlobal(ev->pos()),
+                              ev->button(), ev->buttons(), ev->modifiers());
 
+            _wc->mouseEventProcess(this, &event);
+        }
+    }
+
+    return QDialog::eventFilter(o, e);
+}
+*/
 void ConfigDialog::showEvent(QShowEvent*)
 {
 //  adjustSize();
