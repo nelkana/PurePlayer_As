@@ -65,8 +65,10 @@ FORMS += \
 
 RESOURCES += resource.qrc
 
-win32:debug {
-    CONFIG += console
+win32 {
+    CONFIG(debug, debug|release) {
+        CONFIG += console
+    }
 }
 
 CONFIG(release, debug|release) {
