@@ -42,6 +42,8 @@ protected:
 //  bool eventFilter(QObject* o, QEvent* e);
     void showEvent(QShowEvent*);
 
+    void resetComboBoxVoAoItem();
+
 private slots:
     void checkBoxSoftVideoEq_clicked(bool checked);
     void groupBoxCache_toggled(bool) { _cacheStreamSpinBox->deselect(); }
