@@ -23,6 +23,7 @@
 
 WindowController::WindowController(QObject* parent) : QObject(parent)
 {
+    _pressPosFromWindowTopLeft = QPoint(INT_MIN, INT_MIN);
     _pressedEdgeFlags = PE_NO_PRESS;
     _resizeEnabled = false;
     _useRubberBand = false;
