@@ -26,8 +26,7 @@ ClipWindow::ClipWindow(QWidget* parent) : QWidget(parent)
 {
     setAttribute(Qt::WA_TranslucentBackground);
 
-//  setWindowFlags(windowFlags()|Qt::ToolTip|Qt::FramelessWindowHint);
-    setWindowFlags(windowFlags()|Qt::Tool|Qt::FramelessWindowHint);
+    setWindowFlags(Qt::Tool|Qt::FramelessWindowHint);
     setMouseTracking(true);
 
     _wc = new WindowController(this);
