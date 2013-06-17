@@ -2647,34 +2647,41 @@ void PurePlayer::playCommonProcess()
 
     QStringList args;
 
-    if( isClipping() )
-    {
-        if( !ConfigData::data()->voNameForClipping.isEmpty() ) {
+    QString driver;
+    if( isClipping() ) {
+        driver = ConfigData::data()->voNameForClipping;
+        if( !driver.isEmpty() ) {
 #ifdef Q_WS_X11
-        if( ConfigData::data()->voNameForClipping == "x11" )
-            args << "-vo" << "x11,";
-        else
-            args << "-vo" << ConfigData::data()->voNameForClipping + ",x11,";
+            if( driver == "x11" )
+                driver += ",";
+            else
+                driver += ",x11,";
 #else
-        args << "-vo" << ConfigData::data()->voNameForClipping + ",";
+            driver += ",";
 #endif
         }
     }
-    else
-    {
-        if( !ConfigData::data()->voName.isEmpty() ) {
+    else {
+        driver = ConfigData::data()->voName;
+        if( !driver.isEmpty() ) {
 #ifdef Q_WS_X11
-            if( ConfigData::data()->voName == "x11" )
-                args << "-vo" << "x11,";
+            if( driver == "xv" )
+                driver += ",x11,";
             else
-                args << "-vo" << ConfigData::data()->voName + ",x11,";
+            if( driver == "x11" )
+                driver += ",xv,";
+            else
+                driver += ",xv,x11,";
 #else
-            args << "-vo" << ConfigData::data()->voName + ",";
+            driver += ",";
 #endif
         }
 
         _controlFlags &= ~FLG_NO_CHANGE_VDRIVER_WHEN_CLIPPING;
     }
+
+    if( !driver.isEmpty() )
+        args << "-vo" << driver;
 
     if( !ConfigData::data()->aoName.isEmpty() )
         args << "-ao" << ConfigData::data()->aoName + ",";
