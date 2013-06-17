@@ -26,8 +26,9 @@ void ConfigData::saveData()
 {
     QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
 
-    s.setValue("voName",    s_data.voName);
-    s.setValue("aoName",    s_data.aoName);
+    s.setValue("voName", s_data.voName);
+    s.setValue("voNameForClipping", s_data.voNameForClipping);
+    s.setValue("aoName", s_data.aoName);
     s.setValue("useSoftWareVideoEq", s_data.useSoftWareVideoEq);
     s.setValue("openIn320x240Size",  s_data.openIn320x240Size);
     s.setValue("reverseWheelSeek", s_data.reverseWheelSeek);
@@ -49,7 +50,6 @@ void ConfigData::loadData()
     QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
 
     s_data.voName = s.value("voName", "0").toString();
-
     if( s_data.voName == "0" ) {
 #if defined(Q_WS_X11)
         s_data.voName = "xv";
@@ -58,6 +58,17 @@ void ConfigData::loadData()
         s_data.voName = "directx";
 #else
         s_data.voName = "";
+#endif
+    }
+
+    s_data.voNameForClipping = s.value("voNameForClipping", "0").toString();
+    if( s_data.voNameForClipping == "0" ) {
+#if defined(Q_WS_X11)
+        s_data.voNameForClipping = "x11";
+#elif defined(Q_OS_WIN32)
+        s_data.voNameForClipping = "directx";
+#else
+        s_data.voNameForClipping = "";
 #endif
     }
 

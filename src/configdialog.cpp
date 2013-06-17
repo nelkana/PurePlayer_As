@@ -17,6 +17,7 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include "configdialog.h"
+#include "pureplayer.h"
 #include "logdialog.h"
 
 ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
@@ -26,26 +27,33 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
     _buttonBox->button(QDialogButtonBox::Apply)->setFocusPolicy(Qt::NoFocus);
     _buttonBox->button(QDialogButtonBox::Ok)->setFocusPolicy(Qt::NoFocus);
     _buttonBox->button(QDialogButtonBox::Cancel)->setFocusPolicy(Qt::NoFocus);
-
     connect(_buttonBox->button(QDialogButtonBox::Apply), SIGNAL(clicked()),
-            this, SLOT(apply()));
+            this, SIGNAL(applied()));
     connect(_buttonBox->button(QDialogButtonBox::Ok), SIGNAL(clicked()),
             this, SLOT(ok()));
     connect(_buttonBox->button(QDialogButtonBox::Cancel), SIGNAL(clicked()),
             this, SLOT(hide()));
 
-    _data = NULL;
-
     _comboBoxVo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    _comboBoxVoClipping->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     _comboBoxAo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
 
-    QString voToolTip = tr("使用するビデオドライバになります。\n初期設定は「%1」になります。");
+    QString voToolTip = tr(
+            "使用するビデオドライバになります。\n"
+            "初期設定は「%1」になります。");
+    QString voClippingToolTip = tr(
+            "クリッピング機能使用時に自動で切り替えるビデオドライバになります。\n"
+            "クリッピングが正常に機能するかは、選択するビデオドライバに依存します。\n"
+            "初期設定は「%1」になります。");
 #if defined(Q_WS_X11)
     _comboBoxVo->setToolTip(voToolTip.arg("xv"));
+    _comboBoxVoClipping->setToolTip(voClippingToolTip.arg("x11"));
 #elif defined(Q_OS_WIN32)
     _comboBoxVo->setToolTip(voToolTip.arg("directx"));
+    _comboBoxVoClipping->setToolTip(voClippingToolTip.arg("directx"));
 #else
     _comboBoxVo->setToolTip(voToolTip.arg(tr("指定無し")));
+    _comboBoxVoClipping->setToolTip(voClippingToolTip.arg(tr("指定無し")));
 #endif
 
     _comboBoxAo->setToolTip(tr("使用するオーディオドライバになります。\n初期設定は「指定無し」になります。"));
@@ -114,107 +122,47 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
     resize(10,10);
 }
 
-void ConfigDialog::setData(ConfigData::Data* data)
+void ConfigDialog::setData(const ConfigData::Data& data)
+{
+    _checkBoxSoftVideoEq->setChecked(data.useSoftWareVideoEq);
+    _checkBox320x240->setChecked(data.openIn320x240Size);
+    _checkBoxReverseWheelSeek->setChecked(data.reverseWheelSeek);
+    _spinBoxVolumeMax->setValue(data.volumeMax);
+    _groupBoxCacheSize->setChecked(data.useCacheSize);
+    _cacheStreamSpinBox->setValue(data.cacheStreamSize);
+    _groupBoxScreenshotPath->setChecked(data.useScreenshotPath);
+    _lineEditScreenshotPath->setText(data.screenshotPath);
+    _groupBoxMplayerPath->setChecked(data.useMplayerPath);
+    _lineEditMplayerPath->setText(data.mplayerPath);
+    _checkBoxDisconnectChannel->setChecked(data.disconnectChannel);
+    _groupBoxContactUrlPath->setChecked(data.useContactUrlPath);
+    _lineEditContactUrlPath->setText(data.contactUrlPath);
+    _lineEditContactUrlArg->setText(data.contactUrlArg);
+
+    resetComboBoxVoAoItem(data);
+}
+
+void ConfigDialog::getData(ConfigData::Data* data)
 {
     if( data == NULL ) return;
 
-    _data = data;
-
-    _checkBoxSoftVideoEq->setChecked(_data->useSoftWareVideoEq);
-    _checkBox320x240->setChecked(_data->openIn320x240Size);
-    _checkBoxReverseWheelSeek->setChecked(_data->reverseWheelSeek);
-    _spinBoxVolumeMax->setValue(_data->volumeMax);
-    _groupBoxCacheSize->setChecked(_data->useCacheSize);
-    _cacheStreamSpinBox->setValue(_data->cacheStreamSize);
-    _checkBoxDisconnectChannel->setChecked(_data->disconnectChannel);
-    _groupBoxScreenshotPath->setChecked(_data->useScreenshotPath);
-    _lineEditScreenshotPath->setText(_data->screenshotPath);
-    _groupBoxMplayerPath->setChecked(_data->useMplayerPath);
-    _lineEditMplayerPath->setText(_data->mplayerPath);
-    _groupBoxContactUrlPath->setChecked(_data->useContactUrlPath);
-    _lineEditContactUrlPath->setText(_data->contactUrlPath);
-    _lineEditContactUrlArg->setText(_data->contactUrlArg);
-
-    resetComboBoxVoAoItem();
-}
-
-void ConfigDialog::apply()
-{
-    bool restart = false;
-    QString driverName;
-
-    driverName = _comboBoxVo->itemData(_comboBoxVo->currentIndex()).toString();
-    if( driverName != _data->voName )
-        restart = true;
-
-    _data->voName = driverName;
-
-    driverName = _comboBoxAo->itemData(_comboBoxAo->currentIndex()).toString();
-    if( driverName != _data->aoName )
-        restart = true;
-
-    _data->aoName = driverName;
-
-    if( _checkBoxSoftVideoEq->isChecked() != _data->useSoftWareVideoEq )
-        restart = true;
-
-    _data->useSoftWareVideoEq = _checkBoxSoftVideoEq->isChecked();
-
-    _data->openIn320x240Size = _checkBox320x240->isChecked();
-    _data->reverseWheelSeek = _checkBoxReverseWheelSeek->isChecked();
-    _data->volumeMax = _spinBoxVolumeMax->value();
-
-    if( _groupBoxCacheSize->isChecked() != _data->useCacheSize )
-        restart = true;
-
-    _data->useCacheSize = _groupBoxCacheSize->isChecked();
-
-    if( _groupBoxCacheSize->isChecked()
-         && _cacheStreamSpinBox->value() != _data->cacheStreamSize )
-    {
-        restart = true;
-    }
-
-    _data->cacheStreamSize = _cacheStreamSpinBox->value();
-
-    if( _groupBoxScreenshotPath->isChecked() != _data->useScreenshotPath )
-        restart = true;
-
-    _data->useScreenshotPath = _groupBoxScreenshotPath->isChecked();
-
-    if( _groupBoxScreenshotPath->isChecked()
-         && _lineEditScreenshotPath->text() != _data->screenshotPath )
-    {
-        restart = true;
-    }
-
-    _data->screenshotPath = _lineEditScreenshotPath->text();
-
-    bool resetDriver = false;
-    if( _groupBoxMplayerPath->isChecked() != _data->useMplayerPath ) {
-        restart = true;
-        resetDriver = true;
-    }
-
-    _data->useMplayerPath = _groupBoxMplayerPath->isChecked();
-
-    if( _groupBoxMplayerPath->isChecked()
-         && _lineEditMplayerPath->text() != _data->mplayerPath )
-    {
-        restart = true;
-        resetDriver = true;
-    }
-
-    _data->mplayerPath = _lineEditMplayerPath->text();
-    if( resetDriver )
-        resetComboBoxVoAoItem();
-
-    _data->disconnectChannel = _checkBoxDisconnectChannel->isChecked();
-    _data->useContactUrlPath = _groupBoxContactUrlPath->isChecked();
-    _data->contactUrlPath = _lineEditContactUrlPath->text();
-    _data->contactUrlArg = _lineEditContactUrlArg->text();
-
-    emit applied(restart);
+    data->voName = _comboBoxVo->itemData(_comboBoxVo->currentIndex()).toString();
+    data->voNameForClipping = _comboBoxVoClipping->itemData(_comboBoxVoClipping->currentIndex()).toString();
+    data->aoName = _comboBoxAo->itemData(_comboBoxAo->currentIndex()).toString();
+    data->useSoftWareVideoEq = _checkBoxSoftVideoEq->isChecked();
+    data->openIn320x240Size = _checkBox320x240->isChecked();
+    data->reverseWheelSeek = _checkBoxReverseWheelSeek->isChecked();
+    data->volumeMax = _spinBoxVolumeMax->value();
+    data->useCacheSize = _groupBoxCacheSize->isChecked();
+    data->cacheStreamSize = _cacheStreamSpinBox->value();
+    data->useScreenshotPath = _groupBoxScreenshotPath->isChecked();
+    data->screenshotPath = _lineEditScreenshotPath->text();
+    data->useMplayerPath = _groupBoxMplayerPath->isChecked();
+    data->mplayerPath = _lineEditMplayerPath->text();
+    data->disconnectChannel = _checkBoxDisconnectChannel->isChecked();
+    data->useContactUrlPath = _groupBoxContactUrlPath->isChecked();
+    data->contactUrlPath = _lineEditContactUrlPath->text();
+    data->contactUrlArg = _lineEditContactUrlArg->text();
 }
 
 void ConfigDialog::setScreenshotPathFromDialog()
@@ -277,29 +225,31 @@ void ConfigDialog::showEvent(QShowEvent*)
     _lineEditContactUrlArg->clearFocus();
 }
 
-void ConfigDialog::resetComboBoxVoAoItem()
+void ConfigDialog::resetComboBoxVoAoItem(const ConfigData::Data& data)
 {
-    if( _data == NULL ) return;
-
     // 使用出来るドライバ項目を取得、初期化する
     QRegExp rx("^\t(.+)\t");
     QProcess p;
 
     QString mplayerPath;
-    if( _data->useMplayerPath )
-        mplayerPath = _data->mplayerPath;
+    if( data.useMplayerPath )
+        mplayerPath = data.mplayerPath;
     else
         mplayerPath = "mplayer";
 
     _comboBoxVo->clear();
     _comboBoxVo->addItem(tr("指定無し"), "");
+    _comboBoxVoClipping->clear();
+    _comboBoxVoClipping->addItem(tr("指定無し"), "");
     p.start(mplayerPath, QStringList() << "-vo" << "help");
     if( p.waitForFinished() ) {
         QStringList out = QString(p.readAllStandardOutput()).split("\n");
 
         for(int i=0; i < out.size(); ++i) {
-            if( rx.indexIn(out[i]) != -1 )
+            if( rx.indexIn(out[i]) != -1 ) {
                 _comboBoxVo->addItem(rx.cap(1), rx.cap(1));
+                _comboBoxVoClipping->addItem(rx.cap(1), rx.cap(1));
+            }
         }
     }
 
@@ -317,20 +267,25 @@ void ConfigDialog::resetComboBoxVoAoItem()
 
     // 項目を選択する
     int index;
-    index = _comboBoxVo->findData(_data->voName);
+    index = _comboBoxVo->findData(data.voName);
     if( index < 0 ) {
-        _comboBoxVo->addItem(_data->voName + tr("(使用不可)"), _data->voName);
+        _comboBoxVo->addItem(data.voName + tr("(使用不可)"), data.voName);
         index = _comboBoxVo->count() - 1;
     }
-
     _comboBoxVo->setCurrentIndex(index);
 
-    index = _comboBoxAo->findData(_data->aoName);
+    index = _comboBoxVoClipping->findData(data.voNameForClipping);
     if( index < 0 ) {
-        _comboBoxAo->addItem(_data->aoName + tr("(使用不可)"), _data->aoName);
+        _comboBoxVoClipping->addItem(data.voNameForClipping + tr("(使用不可)"), data.voNameForClipping);
+        index = _comboBoxVoClipping->count() - 1;
+    }
+    _comboBoxVoClipping->setCurrentIndex(index);
+
+    index = _comboBoxAo->findData(data.aoName);
+    if( index < 0 ) {
+        _comboBoxAo->addItem(data.aoName + tr("(使用不可)"), data.aoName);
         index = _comboBoxAo->count() - 1;
     }
-
     _comboBoxAo->setCurrentIndex(index);
 }
 

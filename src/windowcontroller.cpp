@@ -26,6 +26,7 @@ WindowController::WindowController(QObject* parent) : QObject(parent)
     _pressedEdgeFlags = PE_NO_PRESS;
     _resizeEnabled = false;
     _useRubberBand = false;
+    _resizeMargin = 4;
 
     _rubberBand = NULL;
 }
@@ -246,10 +247,10 @@ bool WindowController::eventFilter(QObject* o, QEvent* e)
 WindowController::PressedEdgeFlags WindowController::retPressedEdgeFlags(const QWidget* w, const QPoint& pos)
 {
     const QRect rect(0,0, w->width(),w->height());
-    const int topMargin    = 1;
-    const int bottomMargin = 4;
-    const int leftMargin   = 4;
-    const int rightMargin  = 4;
+    const int topMargin    = _resizeMargin;
+    const int bottomMargin = _resizeMargin;
+    const int leftMargin   = _resizeMargin;
+    const int rightMargin  = _resizeMargin;
 
     PressedEdgeFlags flags = PE_NO_PRESS;
     if( rect.top()<=pos.y() && pos.y()<=rect.top()+topMargin )

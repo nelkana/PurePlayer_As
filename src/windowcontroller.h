@@ -41,9 +41,11 @@ public:
     WindowController(QObject* parent);
     virtual ~WindowController();
 
-    void setResizeEnabled(bool b)    { _resizeEnabled = b; }
-    void setSimpleResizeView(bool b);
-    void mouseEventProcess(QWidget*, QMouseEvent*);
+    void   setResizeEnabled(bool b)    { _resizeEnabled = b; }
+    void   setSimpleResizeView(bool b);
+    quint8 resizeMargin()                 { return _resizeMargin; }
+    void   setResizeMargin(quint8 margin) { _resizeMargin = margin; }
+    void   mouseEventProcess(QWidget*, QMouseEvent*);
 
 protected:
     bool eventFilter(QObject*, QEvent*);
@@ -60,6 +62,7 @@ private:
     PressedEdgeFlags _pressedEdgeFlags;
     bool   _resizeEnabled;
     bool   _useRubberBand;
+    quint8 _resizeMargin;
 
     QRubberBand* _rubberBand;
 };

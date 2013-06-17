@@ -30,13 +30,13 @@
 #include "videoadjustdialog.h"
 #include "logdialog.h"
 #include "configdialog.h"
-#include "configdata.h"
 #include "playlistdialog.h"
 #include "commonlib.h"
 #include "task.h"
 #include "windowcontroller.h"
 #include "speedspinbox.h"
 #include "aboutdialog.h"
+#include "clipwindow.h"
 
 PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 {
@@ -61,7 +61,9 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 
     setCentralWidget(new QWidget(this));
     centralWidget()->setAcceptDrops(true);
-    _videoScreen = new QWidget(centralWidget());
+    _clipScreen = new QWidget(centralWidget());
+    _clipScreen->setAcceptDrops(true);
+    _videoScreen = new QWidget(_clipScreen);
     _videoScreen->setAcceptDrops(true);
     _videoScreen->lower();
 #ifdef Q_OS_WIN32
@@ -80,6 +82,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _aspectRatio = AR_VIDEO;
     _deinterlace = DI_NO_DEINTERLACE;
     _videoSize = QSize(320, 240);
+    _clipRect = QRect(0,0, _videoSize.width(),_videoSize.height());
     _isMute = false;
     _alwaysShowStatusBar = false;
     _noVideo = false;
@@ -125,6 +128,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _configDialog      = NULL;
     _playlistDialog    = NULL;
     _aboutDialog       = NULL;
+    _clipWindow        = NULL;
 
     createStatusBar();
     createActionContextMenu();
@@ -347,9 +351,6 @@ void PurePlayer::createToolBar()
 
 void PurePlayer::createActionContextMenu()
 {
-//  QAction* actTitle = new QAction(tr("PUREPLAYER MENU"), this);
-//  actTitle->setEnabled(false);
-
     _actMute = new QAction(tr("ミュート"), this);
     _actMute->setCheckable(true);
     _actMute->setChecked(false);
@@ -522,6 +523,18 @@ void PurePlayer::createActionContextMenu()
     QMenu* menuAspect = new QMenu(tr("アスペクト比変更"), this);
     menuAspect->addActions(_actGroupAspect->actions());
 
+    // クリッピングメニュー
+    _actShowClipWindow = new QAction(tr("対象領域を指定する"), this);
+    _actShowClipWindow->setEnabled(false);
+    connect(_actShowClipWindow, SIGNAL(triggered()), this, SLOT(showClipWindow()));
+    _actReleaseClipping = new QAction(tr("クリッピング解除"), this);
+    _actReleaseClipping->setEnabled(false);
+    connect(_actReleaseClipping, SIGNAL(triggered()), this, SLOT(releaseClipping()));
+
+    QMenu* menuClipping = new QMenu(tr("クリッピング"), this);
+    menuClipping->addAction(_actShowClipWindow);
+    menuClipping->addAction(_actReleaseClipping);
+
     // インターレース解除メニュー
     _actGroupDeinterlace = new QActionGroup(this);
     connect(_actGroupDeinterlace, SIGNAL(triggered(QAction*)),
@@ -565,13 +578,12 @@ void PurePlayer::createActionContextMenu()
 
     // コンテキストメニュー
     _menuContext = new QMenu(this);
-//  _menuContext->addAction(actTitle);
-//  _menuContext->addSeparator();
     _menuContext->addMenu(menuAudioOutput);
     _menuContext->addAction(_actMute);
     _menuContext->addSeparator();
     _menuContext->addMenu(menuSize);
     _menuContext->addMenu(menuAspect);
+    _menuContext->addMenu(menuClipping);
     _menuContext->addMenu(menuDeinterlace);
     _menuContext->addAction(_actScreenshot);
     _menuContext->addAction(actVideoAdjust);
@@ -768,6 +780,7 @@ void PurePlayer::openCommonProcess(const QString& path)
     }
 
     _path = path;
+    releaseClipping();
     _controlFlags |= FLG_OPENED_PATH;
 
     reflectChannelInfo();
@@ -1055,6 +1068,33 @@ void PurePlayer::setAspectRatio(ASPECT_RATIO ratio)
     }
 }
 
+QSize PurePlayer::aspectRatioSize()
+{
+    QSize aspect;
+    switch( _aspectRatio ) {
+    case AR_VIDEO:
+        aspect = _clipRect.size();
+        break;
+    case AR_4_3:
+        aspect.setWidth(4);
+        aspect.setHeight(3);
+        break;
+    case AR_16_9:
+        aspect.setWidth(16);
+        aspect.setHeight(9);
+        break;
+    case AR_16_10:
+        aspect.setWidth(16);
+        aspect.setHeight(10);
+        break;
+    case AR_NO_KEEP:
+    default:
+        aspect = windowVideoClientSize();
+    }
+
+    return aspect;
+}
+
 void PurePlayer::setContrast(int value, bool alwaysSet)
 {
     if( value < -100 ) value = -100; else
@@ -1197,6 +1237,55 @@ void PurePlayer::setDeinterlace(DEINTERLACE_MODE mode)
     }
 }
 
+void PurePlayer::clipVideoViewArea(const QRect& rc)
+{
+    if( !(_state == ST_PLAY || _state == ST_PAUSE) )
+        return;
+
+    if( !_clipScreen->rect().contains(rc) )
+        return;
+
+    // 指定クリップ矩形rcをビデオ等倍サイズに基づく矩形に変換
+    int w = rc.width() * _videoSize.width()/(double)_videoScreen->width() + 0.5;
+    int h = rc.height() * _videoSize.height()/(double)_videoScreen->height() + 0.5;
+    int x = rc.x() * _videoSize.width()/(double)_videoScreen->width() + 0.5;
+    int y = rc.y() * _videoSize.height()/(double)_videoScreen->height() + 0.5;
+    x += _clipRect.x();
+    y += _clipRect.y();
+
+    if( w < 50 || h < 50 )
+        return;
+
+    _clipRect = QRect(x,y, w,h);
+    LogDialog::debug(QString("PurePlayer::clipVideoViewArea(): %1,%2, %3,%4")
+                        .arg(x).arg(y).arg(w).arg(h));
+
+    if( !resizeFromVideoClient(rc.size()) )
+        updateVideoScreenGeometry();
+
+    if( _clipRect == QRect(0,0, _videoSize.width(),_videoSize.height()) )
+        return;
+
+    _actReleaseClipping->setEnabled(true);
+
+    if( !_controlFlags.testFlag(FLG_NO_CHANGE_VDRIVER_WHEN_CLIPPING)
+        && ConfigData::data()->voName != ConfigData::data()->voNameForClipping
+        && _usingVideoDriver != ConfigData::data()->voNameForClipping )
+    {
+        restartPlay(true);
+    }
+
+    _controlFlags |= FLG_NO_CHANGE_VDRIVER_WHEN_CLIPPING;
+}
+
+void PurePlayer::releaseClipping()
+{
+    _clipRect = QRect(0,0, _videoSize.width(),_videoSize.height());
+
+    updateVideoScreenGeometry();
+    _actReleaseClipping->setEnabled(false);
+}
+
 void PurePlayer::screenshot()
 {
     if( _state == ST_PLAY )
@@ -1209,8 +1298,7 @@ void PurePlayer::screenshot()
 }
 
 // ビデオクライアントサイズを指定してウィンドウをリサイズする
-// 返却値:
-// リサイズ処理が行われたら、trueを返す。そうでないならfalseを返す。
+// 返却値: リサイズされたら、trueを返す。そうでないならfalseを返す。
 bool PurePlayer::resizeFromVideoClient(QSize size)
 {
     if( isFullScreen() || isMaximized() )
@@ -1222,38 +1310,35 @@ bool PurePlayer::resizeFromVideoClient(QSize size)
     if( !isPeercastStream() )
         size.rheight() += _toolBar->height();
 
-    if( size == QMainWindow::size() )
-        return false;
-    else {
-        resize(size);
-        return true;
-    }
+    QSize old = this->size();
+    resize(size);
+    return (this->size() != old);
 }
 
-void PurePlayer::resizePercentageFromCurrent(int percentage)
+void PurePlayer::resizePercentFromCurrent(int percent)
 {
-    if( percentage == 0 ) return;
+    if( percent == 0 ) return;
 
-    // 等倍サイズとして解釈するビデオサイズを取得
-    QSize videoSize = videoSize100Percent();
+    // 等倍サイズとして解釈するビデオ表示サイズを取得
+    QSize viewSize = videoViewSize100Percent();
 
-    // 現在のビデオサイズの割合を求める
-//  int currentPercentage = _videoScreen->width()*100 / videoSize.width();
-    int currentPercentage = _videoScreen->height()*100 / videoSize.height();
+    // 現在のビデオ表示サイズの割合を求める
+//  int currentPercent = _clipScreen->width()*100 / viewSize.width();
+    int currentPercent = _clipScreen->height()*100 / viewSize.height();
 /*
     // 現在のウィンドウサイズの割合がしきい値の何束目に相当するか求める
-    int threshold = abs(percentage);
-    int temp = (double)currentPercentage/threshold + 0.5;
+    int threshold = abs(percent);
+    int temp = (double)currentPercent/threshold + 0.5;
 
     // リサイズする割合を求める
-    int resizePercentage = (temp + (percentage>0 ? 1:-1)) * threshold;
-*/  int resizePercentage = currentPercentage + percentage; // 単純に加算する場合
+    int resizePercent = (temp + (percent>0 ? 1:-1)) * threshold;
+*/  int resizePercent = currentPercent + percent; // 単純に加算する場合
 
-    if( resizePercentage <= 0 )
+    if( resizePercent <= 0 )
         return;
 
-    // videoSizeをスケーリングしたサイズを取得
-    QSize size = calcPercentageVideoSize(videoSize, resizePercentage);
+    // viewSizeをスケーリングしたサイズを取得
+    QSize size = calcVideoViewSizeForResize(viewSize, resizePercent);
 
     resizeFromVideoClient(size);
 }
@@ -1262,12 +1347,12 @@ void PurePlayer::resizeFromCurrent(int amount)
 {
     if( amount == 0 ) return;
 
-    QSize videoSize = videoSize100Percent();
+    QSize viewSize = videoViewSize100Percent();
 
-    double c = hypot(videoSize.width(), videoSize.height());
-    int percentage = 100 * amount / c;
+    double c = hypot(viewSize.width(), viewSize.height());
+    int percent = 100 * amount / c;
 
-    resizePercentageFromCurrent(percentage);
+    resizePercentFromCurrent(percent);
 }
 
 void PurePlayer::toggleFullScreenOrWindow()
@@ -1406,13 +1491,13 @@ void PurePlayer::showConfigDialog()
     if( _configDialog == NULL ) {
         _configDialog = new ConfigDialog(this);
         _configDialog->installEventFilter(new WindowController(_configDialog));
-        connect(_configDialog, SIGNAL(applied(bool)),
-                this,          SLOT(configDialog_applied(bool)));
+        connect(_configDialog, SIGNAL(applied()),
+                this,          SLOT(configDialog_applied()));
 
         addX = 170;
     }
 
-    _configDialog->setData(ConfigData::data());
+    _configDialog->setData(*ConfigData::data());
     _configDialog->move(_menuContext->x()
                             + (_menuContext->width()-_configDialog->frameSize().width())/2 - addX,
                         _menuContext->y());
@@ -1442,6 +1527,24 @@ void PurePlayer::showAboutDialog()
                        _menuContext->y());
 
     _aboutDialog->show();
+}
+
+void PurePlayer::showClipWindow()
+{
+    if( _clipWindow == NULL ) {
+        QRect rc(_videoScreen->parentWidget()->mapToGlobal(_videoScreen->pos()),
+                 _videoScreen->size());
+
+        _clipWindow = new ClipWindow(this);
+        _clipWindow->setTargetWidget(_clipScreen);
+        _clipWindow->setGeometry(rc);
+        connect(_clipWindow, SIGNAL(windowActivate()),
+                this,        SLOT(raise()));
+        connect(_clipWindow, SIGNAL(decidedClipArea(const QRect&)),
+                this,        SLOT(clipVideoViewArea(const QRect&)));
+    }
+
+    _clipWindow->show();
 }
 
 void PurePlayer::openContactUrl()
@@ -1562,7 +1665,7 @@ void PurePlayer::resizeEvent(QResizeEvent* )
     if( _aspectRatio == AR_VIDEO )
         sizeInfo = QString("%1%").arg(_videoScreen->height()*100/_videoSize.height());
 
-    sizeInfo += QString(" %1x%2").arg(_videoScreen->width()).arg(_videoScreen->height());
+    sizeInfo += QString(" %1x%2").arg(_clipScreen->width()).arg(_clipScreen->height());
     _infoLabel->setText(sizeInfo, 1000);
 }
 
@@ -1802,6 +1905,7 @@ void PurePlayer::setMouseTrackingClient(bool b)
 {
     setMouseTracking(b);
     centralWidget()->setMouseTracking(b);
+    _clipScreen->setMouseTracking(b);
     _videoScreen->setMouseTracking(b);
 }
 
@@ -1836,17 +1940,23 @@ void PurePlayer::middleClickResize()
         else
             videoClientSize = size();
 
-        QSize normalVideoClientSize = calcPercentageVideoSize(100);
-        if( normalVideoClientSize.width() < minimumSizeHint().width() )
-            normalVideoClientSize.setWidth(minimumSizeHint().width());
+        // 等倍表示した時のビデオクライアントサイズを求める
+        QSize videoClientSize100 = calcVideoViewSizeForResize(100);
+        if( videoClientSize100.width() < minimumSizeHint().width() )
+            videoClientSize100.setWidth(minimumSizeHint().width());
 
-        QSize halfVideoSize = calcPercentageVideoSize(50);
+        // 50%表示した時のビデオ表示サイズを求める
+        QRect rc = CommonLib::scaleRectOnRect(calcVideoViewSizeForResize(50), aspectRatioSize());
+        QSize videoViewSize50 = rc.size();
+//      QSize videoSize50 = calcFullVideoSizeFromVideoViewSize(videoViewSize50);
 
-        if( videoClientSize.width()  > normalVideoClientSize.width()
-         || videoClientSize.height() > normalVideoClientSize.height()
-
-         || (_videoScreen->width() == halfVideoSize.width()
-         && _videoScreen->height() == halfVideoSize.height()) )
+        if( videoClientSize.width()  > videoClientSize100.width()
+         || videoClientSize.height() > videoClientSize100.height()
+         || (_clipScreen->width() == videoViewSize50.width()
+             && _clipScreen->height() == videoViewSize50.height()
+//           && _videoScreen->width() == videoSize50.width()
+//           && _videoScreen->height() == videoSize50.height()
+            ) )
         {
             resize100Percent();
         }
@@ -1932,6 +2042,9 @@ void PurePlayer::closeAllOtherDialog()
 
     if( _aboutDialog != NULL )
         _aboutDialog->close();
+
+    if( _clipWindow != NULL )
+        _clipWindow->close();
 }
 
 void PurePlayer::mpProcess_finished()
@@ -2008,7 +2121,7 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
     static QRegExp rxGenIndex("^Generating Index: *(\\d+)");
 //  static QRegExp rxVideoW("^ID_VIDEO_WIDTH=(\\d+)");
 //  static QRegExp rxVideoH("^ID_VIDEO_HEIGHT=(\\d+)");
-    static QRegExp rxVideoWH("^VO: \\[.+\\] \\d+x\\d+ => (\\d+)x(\\d+)");
+    static QRegExp rxVideoDriverWH("^VO: \\[(.+)\\] \\d+x\\d+ => (\\d+)x(\\d+)");
     static QRegExp rxLength("^ID_LENGTH=([0-9.]+)");
     static QRegExp rxSeekable("^ID_SEEKABLE=(\\d)");
 //  static QRegExp rxStartTime("^ID_START_TIME=([0-9.]+)");
@@ -2126,7 +2239,7 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
         LogDialog::print(line);
 
         if( (line.startsWith("Starting playback...") && _noVideo)
-         || (rxVideoWH.indexIn(line) != -1) )
+         || (rxVideoDriverWH.indexIn(line) != -1) )
         {
             setStatus(ST_PLAY);
 
@@ -2167,8 +2280,21 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
                 _repeatABButton->setEnabled(false);
             }
 
-            if( _controlFlags.testFlag(FLG_OPENED_PATH) )
-            {
+            // ビデオドライバ,サイズの取得
+            if( _noVideo ) {
+                _usingVideoDriver.clear();
+                _videoSize = QSize(320, 240);
+            }
+            else {
+                _usingVideoDriver = rxVideoDriverWH.cap(1);
+                _videoSize.setWidth(rxVideoDriverWH.cap(2).toInt());
+                if( _videoSize.width() <= 0 ) _videoSize.setWidth(320);
+
+                _videoSize.setHeight(rxVideoDriverWH.cap(3).toInt());
+                if( _videoSize.height() <= 0 ) _videoSize.setHeight(240);
+            }
+
+            if( _controlFlags.testFlag(FLG_OPENED_PATH) ) {
                 _labelFrame->setText("0");
                 _labelFps->setText("0fps");
 
@@ -2179,6 +2305,7 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
                                  // 前の再生のステータスラインを拾ってしまう為ここで初期化。
                 _elapsedTime = 0;
 
+                _clipRect = QRect(0,0, _videoSize.width(),_videoSize.height());
                 _controlFlags &= ~FLG_OPENED_PATH;
             }
 
@@ -2190,17 +2317,6 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
 
                 if( _channelInfo.status == ChannelInfo::ST_SEARCH )
                     updateChannelInfo();
-            }
-
-            // ビデオサイズの設定
-            if( _noVideo )
-                _videoSize = QSize(320, 240);
-            else {
-                _videoSize.setWidth(rxVideoWH.cap(1).toInt());
-                if( _videoSize.width() <= 0 ) _videoSize.setWidth(320);
-
-                _videoSize.setHeight(rxVideoWH.cap(2).toInt());
-                if( _videoSize.height() <= 0 ) _videoSize.setHeight(240);
             }
 
             // ウィンドウリサイズ
@@ -2390,8 +2506,27 @@ void PurePlayer::timerFps_timeout()
     _fpsCount = 0;
 }
 
-void PurePlayer::configDialog_applied(bool restartMplayer)
+void PurePlayer::configDialog_applied()
 {
+    ConfigData::Data newData;
+    _configDialog->getData(&newData);
+
+    bool resetDriver = false;
+    if( newData.useMplayerPath != ConfigData::data()->useMplayerPath )
+        resetDriver = true;
+
+    if( newData.useMplayerPath
+        && newData.mplayerPath != ConfigData::data()->mplayerPath )
+    {
+        resetDriver = true;
+    }
+
+    if( resetDriver )
+        _configDialog->resetComboBoxVoAoItem(newData);
+
+    bool restartMplayer = checkRestartFromConfigData(*ConfigData::data(), newData);
+
+    ConfigData::setData(newData);
     ConfigData::saveData();
     _timeSlider->setReverseWheelSeek(ConfigData::data()->reverseWheelSeek);
 
@@ -2403,6 +2538,53 @@ void PurePlayer::configDialog_applied(bool restartMplayer)
     }
 
     LogDialog::debug("PurePlayer::configDialog_applied(): end");
+}
+
+bool PurePlayer::checkRestartFromConfigData(const ConfigData::Data& oldData, const ConfigData::Data& newData)
+{
+    if( _controlFlags.testFlag(FLG_NO_CHANGE_VDRIVER_WHEN_CLIPPING) ) {
+        if( newData.voNameForClipping != oldData.voNameForClipping )
+            return true;
+    }
+    else {
+        if( newData.voName != oldData.voName )
+            return true;
+    }
+
+    if( newData.aoName != oldData.aoName )
+        return true;
+
+    if( newData.useSoftWareVideoEq != oldData.useSoftWareVideoEq )
+        return true;
+
+    if( newData.useCacheSize != oldData.useCacheSize )
+        return true;
+
+    if( newData.useCacheSize
+        && newData.cacheStreamSize != oldData.cacheStreamSize )
+    {
+        return true;
+    }
+
+    if( newData.useScreenshotPath != oldData.useScreenshotPath )
+        return true;
+
+    if( newData.useScreenshotPath
+        && newData.screenshotPath != oldData.screenshotPath )
+    {
+        return true;
+    }
+
+    if( newData.useMplayerPath != oldData.useMplayerPath )
+        return true;
+
+    if( newData.useMplayerPath
+        && newData.mplayerPath != oldData.mplayerPath )
+    {
+        return true;
+    }
+
+    return false;
 }
 
 void PurePlayer::mpCmd(const QString& command)
@@ -2465,15 +2647,33 @@ void PurePlayer::playCommonProcess()
 
     QStringList args;
 
-    if( !ConfigData::data()->voName.isEmpty() ) {
+    if( isClipping() )
+    {
+        if( !ConfigData::data()->voNameForClipping.isEmpty() ) {
 #ifdef Q_WS_X11
-        if( ConfigData::data()->voName == "x11" )
-            args << "-vo" << ConfigData::data()->voName + ",";
+        if( ConfigData::data()->voNameForClipping == "x11" )
+            args << "-vo" << "x11,";
         else
-            args << "-vo" << ConfigData::data()->voName + ",x11,";
+            args << "-vo" << ConfigData::data()->voNameForClipping + ",x11,";
 #else
-        args << "-vo" << ConfigData::data()->voName + ",";
+        args << "-vo" << ConfigData::data()->voNameForClipping + ",";
 #endif
+        }
+    }
+    else
+    {
+        if( !ConfigData::data()->voName.isEmpty() ) {
+#ifdef Q_WS_X11
+            if( ConfigData::data()->voName == "x11" )
+                args << "-vo" << "x11,";
+            else
+                args << "-vo" << ConfigData::data()->voName + ",x11,";
+#else
+            args << "-vo" << ConfigData::data()->voName + ",";
+#endif
+        }
+
+        _controlFlags &= ~FLG_NO_CHANGE_VDRIVER_WHEN_CLIPPING;
     }
 
     if( !ConfigData::data()->aoName.isEmpty() )
@@ -2723,38 +2923,30 @@ void PurePlayer::loadInteractiveSettings()
     LogDialog::debug("PurePlayer::loadInteractiveSettings(): end");
 }
 
-// アスペクト比設定を考慮に入れた等倍サイズとして解釈するビデオサイズを返す
-QSize PurePlayer::videoSize100Percent()
+QSize PurePlayer::windowVideoClientSize()
 {
-    QSize videoSize;
-    if( _aspectRatio == AR_VIDEO )
-        videoSize = _videoSize;
-    else {
-        QSize aspect;
-        switch( _aspectRatio ) {
-        case AR_4_3:
-            aspect.setWidth(4);
-            aspect.setHeight(3);
-            break;
-        case AR_16_9:
-            aspect.setWidth(16);
-            aspect.setHeight(9);
-            break;
-        case AR_16_10:
-            aspect.setWidth(16);
-            aspect.setHeight(10);
-            break;
-        case AR_NO_KEEP:
-        default:
-            aspect = _videoScreen->size();
-        }
+    QSize videoClientSize(size());
 
-        QRect rc;
-        rc = CommonLib::scaleRectOnRect(_videoSize, aspect);
-        videoSize = rc.size();
-    }
+    if( !isPeercastStream() )
+        videoClientSize.rheight() -= _toolBar->height();
+    if( isAlwaysShowStatusBar() )
+        videoClientSize.rheight() -= statusBar()->height();
 
-    return videoSize;
+        // ステータスバーを表示に切り替えた直後の場合(setAlwaysShowStatusBar())
+    if( !isFullScreen() && _alwaysShowStatusBar && statusBar()->isHidden() )
+        videoClientSize.setHeight(height() - statusBar()->height());
+    else
+    if( !isAlwaysShowStatusBar() )
+        videoClientSize = size();
+
+    return videoClientSize;
+}
+
+// アスペクト比設定を考慮に入れた等倍サイズとして解釈するビデオサイズを返す
+QSize PurePlayer::videoViewSize100Percent()
+{
+    QRect rc = CommonLib::scaleRectOnRect(_clipRect.size(), aspectRatioSize());
+    return rc.size();
 }
 
 // toSizeを有効な値に修正したサイズを返す
@@ -2801,39 +2993,50 @@ QSize PurePlayer::correctToValidVideoSize(QSize toSize, const QSize& videoSize)
     return toSize;
 }
 
-// videoSizeに対してスケーリングを計算し、有効なサイズを返す
-QSize PurePlayer::calcPercentageVideoSize(const QSize& videoSize, const int percentage)
+// viewSizeに対してスケーリングを計算し、有効なサイズを返す
+QSize PurePlayer::calcVideoViewSizeForResize(const QSize& viewSize, int percent)
 {
-    if( percentage <= 0 ) return QSize(0, 0); // マイナス分は最後に-1を掛ければ
-                                              // 対応できるが特に対応しない。
+    if( percent <= 0 ) return QSize(0, 0); // マイナス分は最後に-1を掛ければ
+                                           // 対応できるが特に対応しない。
 
     // サイズを求める
     // サイズの%表示,ビデオ矩形の表示算出処理が高さを元に判定している為、高さ起点で求める
     int w, h;
-    h = videoSize.height() * percentage / 100;
-    if( videoSize.height() * percentage % 100 )
+    h = viewSize.height() * percent / 100;
+    if( viewSize.height() * percent % 100 )
         ++h;
 
-    w = h * videoSize.width() / videoSize.height();
-    if( h * videoSize.width() % videoSize.height() )
-        ++w;
 
-//  LogDialog::debug(QString("PurePlayer::calcPercentageVideoSize(): %1 %2 %3%")
-//                                                   .arg(w).arg(h).arg(percentage));
+    w = h * viewSize.width() / viewSize.height();
+    if( h * viewSize.width() % viewSize.height() )
+        ++w;                     // 切り上げる事によって一定のサイズ確保、
+                                 // 連ねて計算する事によって比を維持する。
+                                 // (リサイズを繰り返しても元のサイズへ戻れる)
 
-    return correctToValidVideoSize(QSize(w, h), videoSize);
+//  LogDialog::debug(QString("PurePlayer::calcVideoViewSizeForResize(): %1 %2 %3%")
+//                                                   .arg(w).arg(h).arg(percent));
+
+    return correctToValidVideoSize(QSize(w, h), viewSize);
 }
 
-// ビデオに対してスケーリングを計算し、有効なサイズを返す
-QSize PurePlayer::calcPercentageVideoSize(const int percentage)
+// ビデオ表示サイズに対してスケーリングを計算し、有効なサイズを返す
+QSize PurePlayer::calcVideoViewSizeForResize(int percent)
 {
-    // 等倍サイズとして解釈するビデオサイズを取得
-    QSize videoSize = videoSize100Percent();
+    // 等倍サイズとして解釈するビデオ表示サイズを取得
+    QSize viewSize = videoViewSize100Percent();
 
-    // videoSizeをスケーリングしたサイズを取得
-    QSize size = calcPercentageVideoSize(videoSize, percentage);
+    // viewSizeをスケーリングしたサイズを取得
+    QSize size = calcVideoViewSizeForResize(viewSize, percent);
 
     return size;
+}
+
+QSize PurePlayer::calcFullVideoSizeFromVideoViewSize(QSize viewSize)
+{
+    int w = _videoSize.width() * viewSize.width()/(double)_clipRect.width() + 0.5;
+    int h = _videoSize.height() * viewSize.height()/(double)_clipRect.height() + 0.5;
+
+    return QSize(w, h);
 }
 
 #ifdef Q_OS_WIN32
@@ -2878,6 +3081,34 @@ QRgb PurePlayer::genColorKey(int step, QRgb baseColorKey)
 
 void PurePlayer::updateVideoScreenGeometry()
 {
+    QSize videoClientSize = windowVideoClientSize();
+    QSize aspect;
+    if( _aspectRatio == AR_NO_KEEP )
+        aspect = videoClientSize;
+    else
+        aspect = aspectRatioSize();
+
+    // ウィンドウ内のビデオ表示領域を求める
+    QRect viewRect = CommonLib::scaleRectOnRect(videoClientSize, aspect);
+
+    _clipScreen->setGeometry(viewRect);
+
+    // ビデオスケーリング後のクリップ領域の左上始点を求める
+    int clipX = _clipRect.x() * viewRect.width()/(double)_clipRect.width() + 0.5;
+    int clipY = _clipRect.y() * viewRect.height()/(double)_clipRect.height() + 0.5;
+    // ビデオスケーリング後のビデオ全体(非表示部含む)の幅高さを求める
+    int scaledW = _videoSize.width() * viewRect.width()/(double)_clipRect.width() + 0.5;
+    int scaledH = _videoSize.height() * viewRect.height()/(double)_clipRect.height() + 0.5;
+
+    _videoScreen->setGeometry(-clipX,-clipY, scaledW,scaledH);
+
+    LogDialog::debug(QString()
+            .sprintf("PurePlayer::updateVideoScreenGeometry(): videorect(%d,%d,%dx%d)",
+            viewRect.x(),viewRect.y(),viewRect.width(),viewRect.height()));
+}
+/*
+void PurePlayer::updateVideoScreenGeometry()
+{
 //  if( !isFullScreen() && _alwaysShowStatusBar && statusBar()->isHidden() )
 //      statusBar()->show();
 
@@ -2896,8 +3127,14 @@ void PurePlayer::updateVideoScreenGeometry()
 
     // ビデオ表示の位置,サイズ設定
     QRect rect;
-    if( _aspectRatio != AR_NO_KEEP )
-    {
+    QRect clipRect;
+    QSize videoSize;
+    if( _aspectRatio == AR_NO_KEEP ) {
+        rect.setRect(0,0, screen.width(),screen.height());
+        clipRect  = _clipRect;
+        videoSize = _videoSize;
+    }
+    else {
         QSize aspect;
 
         switch( _aspectRatio ) {
@@ -2915,22 +3152,42 @@ void PurePlayer::updateVideoScreenGeometry()
             break;
         case AR_VIDEO:
         default:
-            aspect.setWidth(_videoSize.width());
-            aspect.setHeight(_videoSize.height());
+            aspect.setWidth(_clipRect.width());
+            aspect.setHeight(_clipRect.height());
         }
 
+        // ウィンドウクライアント領域内のアスペクト比に基づいたビデオ表示領域を求める
         rect = CommonLib::scaleRectOnRect(screen, aspect);
-    }
-    else
-        rect.setRect(0,0, screen.width(),screen.height());
 
-    _videoScreen->setGeometry(rect);
+        // クリッピング領域をアスペクト比に基づいた矩形に変換し、開始位置を修正する
+        clipRect = CommonLib::scaleRectOnRect(_clipRect.size(), aspect);
+        clipRect.moveTopLeft(QPoint(
+                _clipRect.x() * clipRect.width()/(double)_clipRect.width() + 0.5,
+                _clipRect.y() * clipRect.height()/(double)_clipRect.height() + 0.5));
+
+        // 新しく変換されたクリッピング領域の拡大率に合わせて、ビデオサイズを修正する
+        videoSize = calcFullVideoSizeFromVideoViewSize(clipRect.size());
+//      videoSize = QSize(_videoSize.width() * clipRect.width()/(double)_clipRect.width() + 0.5,
+//                        _videoSize.height() * clipRect.height()/(double)_clipRect.height() + 0.5);
+    }
+
+    _clipScreen->setGeometry(rect);
+
+    // ビデオスケーリング後のクリップ領域の左上始点を求める
+    int clipX = clipRect.x() * rect.width()/(double)clipRect.width() + 0.5;
+    int clipY = clipRect.y() * rect.height()/(double)clipRect.height() + 0.5;
+    // ビデオスケーリング後のビデオ全体(非表示部含む)の幅高さを求める
+    int scaledW = videoSize.width() * rect.width()/(double)clipRect.width() + 0.5;
+    int scaledH = videoSize.height() * rect.height()/(double)clipRect.height() + 0.5;
+//  qDebug() << "xywh" << clipX << clipY << scaledW << scaledH;
+
+    _videoScreen->setGeometry(-clipX,-clipY, scaledW,scaledH);
 
     LogDialog::debug(QString()
             .sprintf("PurePlayer::updateVideoScreenGeometry(): videorect(%d,%d,%dx%d)",
             rect.x(),rect.y(),rect.width(),rect.height()));
 }
-
+*/
 void PurePlayer::showInterface(bool b)
 {
     if( b ) {
@@ -3019,6 +3276,7 @@ void PurePlayer::setStatus(const STATE s)
         _actPlayPause->setText(tr("一時停止"));
         _actPlayPause->setEnabled(true);
         _actStop->setEnabled(true);
+        _actShowClipWindow->setEnabled(true);
 
         _infoLabel->startClipInfo();
 
@@ -3096,6 +3354,7 @@ void PurePlayer::setStatus(const STATE s)
         _actPlayPause->setText(tr("再生"));
         _actPlayPause->setEnabled(true);
         _actStop->setEnabled(false);
+        _actShowClipWindow->setEnabled(false);
 
         _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
 

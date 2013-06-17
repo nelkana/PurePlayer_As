@@ -30,7 +30,8 @@ HEADERS += \
     videoadjustdialog.h \
     playlistdialog.h \
     inputdialog.h \
-    aboutdialog.h
+    aboutdialog.h \
+    clipwindow.h
 
 SOURCES += \
     main.cpp \
@@ -52,7 +53,8 @@ SOURCES += \
     configdialog.cpp \
     videoadjustdialog.cpp \
     playlistdialog.cpp \
-    inputdialog.cpp
+    inputdialog.cpp \
+    clipwindow.cpp
 
 FORMS += \
     logdialog.ui \
