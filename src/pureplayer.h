@@ -231,6 +231,7 @@ private slots:
     void actGroupDeinterlace_changed(QAction*);
     void timerReconnect_timeout();
     void timerFps_timeout();
+    void clipWindow_changedTranslucentDisplay(bool);
     void configDialog_applied();
     void videoAdjustDialog_windowActivate() { refreshVideoProfile(false, true); }
 

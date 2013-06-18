@@ -1532,16 +1532,20 @@ void PurePlayer::showAboutDialog()
 void PurePlayer::showClipWindow()
 {
     if( _clipWindow == NULL ) {
-        QRect rc(_videoScreen->parentWidget()->mapToGlobal(_videoScreen->pos()),
-                 _videoScreen->size());
+        QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
+        int translucentDisplay = s.value("clipWindow_translucentDisplay", true).toBool();
 
         _clipWindow = new ClipWindow(this);
         _clipWindow->setTargetWidget(_clipScreen);
-        _clipWindow->setGeometry(rc);
+        _clipWindow->setTranslucentDisplay(translucentDisplay);
+        _clipWindow->setGeometry(QRect(_clipScreen->mapToGlobal(QPoint(0,0)),
+                                       _clipScreen->size()));
         connect(_clipWindow, SIGNAL(windowActivate()),
                 this,        SLOT(raise()));
         connect(_clipWindow, SIGNAL(decidedClipArea(const QRect&)),
                 this,        SLOT(clipVideoViewArea(const QRect&)));
+        connect(_clipWindow, SIGNAL(changedTranslucentDisplay(bool)),
+                this,        SLOT(clipWindow_changedTranslucentDisplay(bool)));
     }
 
     _clipWindow->show();
@@ -2504,6 +2508,12 @@ void PurePlayer::timerFps_timeout()
 */
     _labelFps->setText(QString("%1fps").arg(_fpsCount));
     _fpsCount = 0;
+}
+
+void PurePlayer::clipWindow_changedTranslucentDisplay(bool b)
+{
+    QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
+    s.setValue("clipWindow_translucentDisplay", b);
 }
 
 void PurePlayer::configDialog_applied()
