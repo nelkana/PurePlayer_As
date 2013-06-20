@@ -247,11 +247,13 @@ bool WindowController::eventFilter(QObject* o, QEvent* e)
 
 WindowController::PressedEdgeFlags WindowController::retPressedEdgeFlags(const QWidget* w, const QPoint& pos)
 {
-    const QRect rect(0,0, w->width(),w->height());
-    const int topMargin    = _resizeMargin;
-    const int bottomMargin = _resizeMargin;
-    const int leftMargin   = _resizeMargin;
-    const int rightMargin  = _resizeMargin;
+    if( w == NULL ) return PE_NO_PRESS;
+
+    const QRect rect = w->rect();
+    const int topMargin    = _resizeMargin - 1;
+    const int bottomMargin = _resizeMargin - 1;
+    const int leftMargin   = _resizeMargin - 1;
+    const int rightMargin  = _resizeMargin - 1;
 
     PressedEdgeFlags flags = PE_NO_PRESS;
     if( rect.top()<=pos.y() && pos.y()<=rect.top()+topMargin )
