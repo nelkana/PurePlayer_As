@@ -1533,7 +1533,11 @@ void PurePlayer::showClipWindow()
 {
     if( _clipWindow == NULL ) {
         QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
+#ifdef Q_OS_WIN32
+        int translucentDisplay = s.value("clipWindow_translucentDisplay", false).toBool();
+#else
         int translucentDisplay = s.value("clipWindow_translucentDisplay", true).toBool();
+#endif
 
         _clipWindow = new ClipWindow(this);
         _clipWindow->setTargetWidget(_clipScreen);

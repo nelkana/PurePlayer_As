@@ -139,7 +139,7 @@ void ClipWindow::paintEvent(QPaintEvent* e)
 
     if( _isTranslucentDisplay ) {
         p.setPen(Qt::NoPen);
-        p.setBrush(QColor(0,0,255,75));
+        p.setBrush(QColor(0,0,255,80));
         p.drawRect(0,0, width(),height());
         p.setPen(QColor(255,255,255,25));
         p.setBrush(Qt::NoBrush);
@@ -173,9 +173,11 @@ void ClipWindow::mousePressEvent(QMouseEvent* e)
     }
 }
 
-void ClipWindow::mouseDoubleClickEvent(QMouseEvent*)
+void ClipWindow::mouseDoubleClickEvent(QMouseEvent* e)
 {
-    decideClipArea();
+    if( e->button() == Qt::LeftButton ) {
+        decideClipArea();
+    }
 }
 
 void ClipWindow::mouseMoveEvent(QMouseEvent*)
