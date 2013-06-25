@@ -394,20 +394,20 @@ void PurePlayer::createActionContextMenu()
     _actStatusBar->setVisible(false);
     connect(_actStatusBar, SIGNAL(triggered(bool)), this, SLOT(setAlwaysShowStatusBar(bool)));
 
-    QAction* actVideoAdjust = new QAction(tr("ビデオ調整"), this);
-    connect(actVideoAdjust, SIGNAL(triggered()), this, SLOT(showVideoAdjustDialog()));
+    _actVideoAdjust = new QAction(tr("ビデオ調整"), this);
+    connect(_actVideoAdjust, SIGNAL(triggered()), this, SLOT(showVideoAdjustDialog()));
 
-    QAction* actOpen = new QAction(tr("開く"), this);
-    connect(actOpen, SIGNAL(triggered()), this, SLOT(openFromDialog()));
+    _actOpen = new QAction(tr("開く"), this);
+    connect(_actOpen, SIGNAL(triggered()), this, SLOT(openFromDialog()));
 
-    QAction* actConfig = new QAction(tr("設定"), this);
-    connect(actConfig, SIGNAL(triggered()), this, SLOT(showConfigDialog()));
+    _actConfig = new QAction(tr("設定"), this);
+    connect(_actConfig, SIGNAL(triggered()), this, SLOT(showConfigDialog()));
 
-    QAction* actLog = new QAction(tr("ログ"), this);
-    connect(actLog, SIGNAL(triggered()), this, SLOT(showLogDialog()));
+    _actLog = new QAction(tr("ログ"), this);
+    connect(_actLog, SIGNAL(triggered()), this, SLOT(showLogDialog()));
 
-    QAction* actAbout = new QAction(tr("プレイヤーについて"), this);
-    connect(actAbout, SIGNAL(triggered()), this, SLOT(showAboutDialog()));
+    _actAbout = new QAction(tr("プレイヤーについて"), this);
+    connect(_actAbout, SIGNAL(triggered()), this, SLOT(showAboutDialog()));
 
     // 音声出力メニュー
     _actGroupAudioOutput = new QActionGroup(this);
@@ -586,19 +586,19 @@ void PurePlayer::createActionContextMenu()
     _menuContext->addMenu(menuClipping);
     _menuContext->addMenu(menuDeinterlace);
     _menuContext->addAction(_actScreenshot);
-    _menuContext->addAction(actVideoAdjust);
+    _menuContext->addAction(_actVideoAdjust);
     _menuContext->addSeparator();
     _menuContext->addMenu(_menuReconnect);
     _menuContext->addAction(_actPlayPause);
     _menuContext->addAction(_actStop);
-    _menuContext->addAction(actOpen);
+    _menuContext->addAction(_actOpen);
     _menuContext->addAction(_actOpenContactUrl);
     _menuContext->addAction(_actPlaylist);
     _menuContext->addSeparator();
     _menuContext->addAction(_actStatusBar);
-    _menuContext->addAction(actConfig);
-    _menuContext->addAction(actLog);
-    _menuContext->addAction(actAbout);
+    _menuContext->addAction(_actConfig);
+    _menuContext->addAction(_actLog);
+    _menuContext->addAction(_actAbout);
 
 #ifdef Q_OS_WIN32
     connect(_menuContext, SIGNAL(aboutToHide()), this, SLOT(menuContext_aboutToHide()));
@@ -1540,6 +1540,11 @@ void PurePlayer::showClipWindow()
         _clipWindow->setTranslucentDisplay(translucentDisplay);
         _clipWindow->setGeometry(QRect(_clipScreen->mapToGlobal(QPoint(0,0)),
                                        _clipScreen->size()));
+
+        connect(_clipWindow, SIGNAL(triggeredShow()),
+                this,        SLOT(clipWindow_triggeredShow()));
+        connect(_clipWindow, SIGNAL(closed()),
+                this,        SLOT(clipWindow_closed()));
         connect(_clipWindow, SIGNAL(windowActivate()),
                 this,        SLOT(raise()));
         connect(_clipWindow, SIGNAL(decidedClipArea(const QRect&)),
@@ -1548,7 +1553,7 @@ void PurePlayer::showClipWindow()
                 this,        SLOT(clipWindow_changedTranslucentDisplay(bool)));
     }
 
-    _clipWindow->show();
+    _clipWindow->triggerShow();
 }
 
 void PurePlayer::openContactUrl()
@@ -1578,6 +1583,84 @@ bool PurePlayer::event(QEvent* e)
 //  LogDialog::debug(tr("%1").arg(e->type()));
     if( e->type() == QEvent::WindowActivate ) {
         _timerBlockCursorHide.start();
+    }
+    else    // 初めにボタンプレスしたウィンドウ側にイベント送信先が切り替わる様に作り直す
+    if( e->type() == QEvent::MouseButtonPress ) {
+        QMouseEvent* event = static_cast<QMouseEvent*>(e);
+        if( containsInClipWindow(event->globalPos()) ) {
+            if( event->button() == Qt::LeftButton )
+                _controlFlags |= FLG_MOUSE_PRESSED_CLIPWINDOW;
+
+            QMouseEvent evt(event->type(),
+                            _clipWindow->mapFromGlobal(event->globalPos()),
+                            event->globalPos(),
+                            event->button(), event->buttons(), event->modifiers());
+
+            QApplication::sendEvent(_clipWindow, &evt);
+
+            e->accept();
+            return true;
+        }
+    }
+    else
+    if( e->type() == QEvent::MouseButtonRelease ) {
+        if( _controlFlags.testFlag(FLG_MOUSE_PRESSED_CLIPWINDOW) ) {
+            QMouseEvent* event = static_cast<QMouseEvent*>(e);
+
+            if( event->button() == Qt::LeftButton )
+                _controlFlags &= ~FLG_MOUSE_PRESSED_CLIPWINDOW;
+
+            QMouseEvent evt(event->type(),
+                            _clipWindow->mapFromGlobal(event->globalPos()),
+                            event->globalPos(),
+                            event->button(), event->buttons(), event->modifiers());
+
+            QApplication::sendEvent(_clipWindow, &evt);
+
+            e->accept();
+            return true;
+        }
+    }
+    else
+    if( e->type() == QEvent::MouseButtonDblClick ) {
+        QMouseEvent* event = static_cast<QMouseEvent*>(e);
+        if( containsInClipWindow(event->globalPos()) ) {
+            QMouseEvent evt(event->type(),
+                            _clipWindow->mapFromGlobal(event->globalPos()),
+                            event->globalPos(),
+                            event->button(), event->buttons(), event->modifiers());
+
+            QApplication::sendEvent(_clipWindow, &evt);
+
+            e->accept();
+            return true;
+        }
+    }
+    else
+    if( e->type() == QEvent::MouseMove ) {
+        if( _controlFlags.testFlag(FLG_MOUSE_PRESSED_CLIPWINDOW) ) {
+            QMouseEvent* event = static_cast<QMouseEvent*>(e);
+
+            QMouseEvent evt(event->type(),
+                            _clipWindow->mapFromGlobal(event->globalPos()),
+                            event->globalPos(),
+                            event->button(), event->buttons(), event->modifiers());
+
+            QApplication::sendEvent(_clipWindow, &evt);
+
+            e->accept();
+            return true;
+        }
+    }
+    else
+    if( e->type() == QEvent::Wheel ) {
+        if( !_controlFlags.testFlag(FLG_WHEEL_RESIZED) ) {          // 仮
+            QMouseEvent* event = static_cast<QMouseEvent*>(e);
+            if( containsInClipWindow(event->globalPos()) ) {
+                e->accept();
+                return true;
+            }
+        }
     }
 
     return QMainWindow::event(e);
@@ -1645,6 +1728,12 @@ void PurePlayer::closeEvent(QCloseEvent* e)
     e->accept();
 
     LogDialog::debug("PurePlayer::closeEvent():-end");
+}
+
+void PurePlayer::moveEvent(QMoveEvent*)
+{
+    if( _clipWindow != NULL && _clipWindow->isVisible() )
+        _clipWindow->repaintWindow();
 }
 
 void PurePlayer::resizeEvent(QResizeEvent* )
@@ -1751,8 +1840,9 @@ void PurePlayer::mousePressEvent(QMouseEvent* e)
         _controlFlags &= ~FLG_DISABLE_MOUSEWINDOWMOVE;
     }
     else
-    if( e->button() == Qt::MidButton )
+    if( e->button() == Qt::MidButton ) {
         middleClickResize();
+    }
 }
 
 void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
@@ -1795,7 +1885,8 @@ void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
     else
     if( e->button() == Qt::RightButton ) {
         if( !_controlFlags.testFlag(FLG_WHEEL_RESIZED)
-         && geometry().contains(e->globalPos()) )
+            && geometry().contains(e->globalPos())
+            && !containsInClipWindow(e->globalPos()) )
         {
             if( isHideMouseCursor() )
                 hideMouseCursor(false);
@@ -1821,7 +1912,6 @@ void PurePlayer::mouseDoubleClickEvent(QMouseEvent* e)
 
 void PurePlayer::mouseMoveEvent(QMouseEvent* e)
 {
-//  LogDialog::debug("mouse move");
     if( isFullScreen() ) {
         if( isHideMouseCursor() && _mousePressPos!=e->globalPos() )
             hideMouseCursor(false);
@@ -2516,6 +2606,64 @@ void PurePlayer::clipWindow_changedTranslucentDisplay(bool b)
     s.setValue("clipWindow_translucentDisplay", b);
 }
 
+void PurePlayer::clipWindow_triggeredShow()
+{
+    if( !_hiddenWindowList.isEmpty() )
+        return;
+
+    if( LogDialog::isVisibleDialog() ) {
+        LogDialog::dialog()->hide();
+        _hiddenWindowList << LogDialog::dialog();
+    }
+
+    if( _videoAdjustDialog != NULL && _videoAdjustDialog->isVisible() ) {
+        _videoAdjustDialog->close();
+        _hiddenWindowList << _videoAdjustDialog;
+    }
+
+    if( _openDialog != NULL && _openDialog->isVisible() ) {
+        _openDialog->close();
+        _hiddenWindowList << _openDialog;
+    }
+
+    if( _playlistDialog != NULL && _playlistDialog->isVisible() ) {
+        _playlistDialog->close();
+        _hiddenWindowList << _playlistDialog;
+    }
+
+    if( _configDialog != NULL && _configDialog->isVisible() ) {
+        _configDialog->close();
+        _hiddenWindowList << _configDialog;
+    }
+
+    if( _aboutDialog != NULL && _aboutDialog->isVisible() ) {
+        _aboutDialog->close();
+        _hiddenWindowList << _aboutDialog;
+    }
+
+    _actPlaylist->setEnabled(false);
+    _actVideoAdjust->setEnabled(false);
+    _actOpen->setEnabled(false);
+    _actConfig->setEnabled(false);
+    _actLog->setEnabled(false);
+    _actAbout->setEnabled(false);
+}
+
+void PurePlayer::clipWindow_closed()
+{
+    foreach(QWidget* window, _hiddenWindowList)
+        window->show();
+
+    _hiddenWindowList.clear();
+
+    _actPlaylist->setEnabled(true);
+    _actVideoAdjust->setEnabled(true);
+    _actOpen->setEnabled(true);
+    _actConfig->setEnabled(true);
+    _actLog->setEnabled(true);
+    _actAbout->setEnabled(true);
+}
+
 void PurePlayer::configDialog_applied()
 {
     ConfigData::Data newData;
@@ -3056,6 +3204,14 @@ QSize PurePlayer::calcFullVideoSizeFromVideoViewSize(QSize viewSize)
     return QSize(w, h);
 }
 
+bool PurePlayer::containsInClipWindow(const QPoint& pos)
+{
+    if( _clipWindow && _clipWindow->isVisible() )
+        return _clipWindow->geometry().contains(pos);
+
+    return false;
+}
+
 #ifdef Q_OS_WIN32
 void PurePlayer::menuContext_aboutToHide()
 {
@@ -3118,6 +3274,9 @@ void PurePlayer::updateVideoScreenGeometry()
     int scaledH = _videoSize.height() * viewRect.height()/(double)_clipRect.height() + 0.5;
 
     _videoScreen->setGeometry(-clipX,-clipY, scaledW,scaledH);
+
+    if( _clipWindow != NULL && _clipWindow->isVisible() )
+        _clipWindow->repaintWindow();
 
     LogDialog::debug(QString()
             .sprintf("PurePlayer::updateVideoScreenGeometry(): videorect(%d,%d,%dx%d)",

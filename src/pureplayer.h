@@ -176,12 +176,14 @@ protected:
         FLG_RECONNECTED                 = 1 << 12, // 再接続した
         FLG_EXPLICITLY_STOPPED          = 1 << 13, // 明示的に停止した
         FLG_NO_CHANGE_VDRIVER_WHEN_CLIPPING= 1 << 14, // クリッピングした時、ビデオドライバを切り替えない
+        FLG_MOUSE_PRESSED_CLIPWINDOW    = 1 << 15, // クリップウィンドウ内をマウス押下した
     };
     Q_DECLARE_FLAGS(ControlFlags, CONTROL_FLAG)
 
     bool event(QEvent*);
     bool eventFilter(QObject*, QEvent*);
     void closeEvent(QCloseEvent*);
+    void moveEvent(QMoveEvent*);
     void resizeEvent(QResizeEvent*);
     void keyPressEvent(QKeyEvent*);
     void mousePressEvent(QMouseEvent*);
@@ -212,6 +214,8 @@ protected:
     QSize calcVideoViewSizeForResize(int percent);
     QSize calcFullVideoSizeFromVideoViewSize(QSize viewSize);
 
+    bool containsInClipWindow(const QPoint& pos);
+
     void reflectChannelInfo();
     QString genDateTimeSaveFileName(const QString& suffix=QString());
 
@@ -232,6 +236,8 @@ private slots:
     void timerReconnect_timeout();
     void timerFps_timeout();
     void clipWindow_changedTranslucentDisplay(bool);
+    void clipWindow_triggeredShow();
+    void clipWindow_closed();
     void configDialog_applied();
     void videoAdjustDialog_windowActivate() { refreshVideoProfile(false, true); }
 
@@ -344,6 +350,11 @@ private:
     QAction*        _actReleaseClipping;
     QAction*        _actOpenContactUrl;
     QAction*        _actPlaylist;
+    QAction*        _actVideoAdjust;
+    QAction*        _actOpen;
+    QAction*        _actConfig;
+    QAction*        _actLog;
+    QAction*        _actAbout;
     QAction*        _actStatusBar;
     QActionGroup*   _actGroupAudioOutput;
     QActionGroup*   _actGroupVolumeFactor;
@@ -357,6 +368,7 @@ private:
     PlaylistDialog*    _playlistDialog;
     AboutDialog*       _aboutDialog;
     ClipWindow*        _clipWindow;
+    QList<QWidget*>    _hiddenWindowList;
 
     bool _debugFlag;
     int  _debugCount;

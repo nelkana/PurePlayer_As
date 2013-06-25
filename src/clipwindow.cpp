@@ -37,18 +37,19 @@ ClipWindow::ClipWindow(QWidget* parent) : QWidget(parent)
     installEventFilter(_wc);
 
     setTargetWidget(parent);
+    setTargetWindow(parent);
 
     // ラベルを初期化
 //  _labelSize = new QLabel(this);
 //  _labelSize->setAlignment(Qt::AlignLeft|Qt::AlignTop);
 //  _labelSize->setMouseTracking(true);
-    QLabel* label2 = new QLabel(tr("ダブルクリックで決定"), this);
-    label2->setAlignment(Qt::AlignRight|Qt::AlignBottom);
-    label2->setMouseTracking(true);
+    _labelDescription = new QLabel(tr("ダブルクリックで決定"), this);
+    _labelDescription->setAlignment(Qt::AlignRight|Qt::AlignBottom);
+    _labelDescription->setMouseTracking(true);
 
     _vLayout = new QVBoxLayout;
 //  _vLayout->addWidget(_labelSize);
-    _vLayout->addWidget(label2);
+    _vLayout->addWidget(_labelDescription);
     setLayout(_vLayout);
 
     // コンテキストメニュー初期化
@@ -101,11 +102,12 @@ void ClipWindow::setTranslucentDisplay(bool b)
 {
     if( _isTranslucentDisplay != b ) {
         _isTranslucentDisplay = b;
-        if( _isTranslucentDisplay )
+        if( b )
             setResizeMargin(20);
         else
             setResizeMargin(10);
 
+        _labelDescription->setVisible(b);
         _actTranslucentDisplay->setChecked(b);
         emit changedTranslucentDisplay(b);
     }
@@ -117,6 +119,18 @@ bool ClipWindow::event(QEvent* e)
         emit windowActivate();
 
     return QWidget::event(e);
+}
+
+void ClipWindow::showEvent(QShowEvent* e)
+{
+    updateMask();
+    QWidget::showEvent(e);
+}
+
+void ClipWindow::closeEvent(QCloseEvent* e)
+{
+    emit closed();
+    QWidget::closeEvent(e);
 }
 
 void ClipWindow::paintEvent(QPaintEvent* e)
@@ -137,7 +151,7 @@ void ClipWindow::paintEvent(QPaintEvent* e)
         p.setBrush(QColor(0,0,255,255));
         p.drawRect(0,0, width(),height());
         p.setPen(QColor(63,63,255,255));
-        p.setBrush(Qt::NoBrush);
+        p.setBrush(QColor(0,0,0,255));
         p.drawRect(_wc->resizeMargin()-1, _wc->resizeMargin()-1,
                    width()+2-_wc->resizeMargin()*2 -1, height()+2-_wc->resizeMargin()*2 -1);
     }
@@ -164,17 +178,25 @@ void ClipWindow::mouseDoubleClickEvent(QMouseEvent*)
     decideClipArea();
 }
 
+void ClipWindow::mouseMoveEvent(QMouseEvent*)
+{
+    updateMask();
+}
+
 void ClipWindow::updateMask()
 {
     QRegion region(rect());
     if( !_isTranslucentDisplay ) {
-        const int clientMargin = 20;
+//      QRect targetWindowClient(mapFromGlobal(_targetWindow->geometry().topLeft()), _targetWindow->size());
+        QRect targetWindowClient(mapFromGlobal(_targetWidget->mapToGlobal(QPoint(0,0))),
+                                 _targetWidget->size());
+        int margin = _wc->resizeMargin();
+        QRect subRect = CommonLib::clipRect(targetWindowClient, QRect(margin,margin, width()-margin*2,height()-margin*2));
 
-        int margin = _wc->resizeMargin() + clientMargin;
-        region = region.subtracted(QRegion(
-                    QRect(margin,margin, width()-margin*2,height()-margin*2)));
+        region = region.subtracted(subRect);
     }
 
     setMask(region);
+    repaint();
 }
 

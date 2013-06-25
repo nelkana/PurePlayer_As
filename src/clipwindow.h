@@ -19,6 +19,7 @@
 #include <QWidget>
 
 class QVBoxLayout;
+class QLabel;
 class QMenu;
 class WindowController;
 
@@ -29,34 +30,44 @@ class ClipWindow : public QWidget
 public:
     ClipWindow(QWidget* parent);
     void setTargetWidget(QWidget* w) { _targetWidget = w; }
+    void setTargetWindow(QWidget* w) { _targetWindow = w; }
     void setResizeMargin(quint8 margin);
+    void repaintWindow() { updateMask(); }
 
 public slots:
+    void triggerShow() { show(); emit triggeredShow(); }
     void decideClipArea();
     void fitToTargetWidget();
     void setTranslucentDisplay(bool);
 
 signals:
+    void triggeredShow();
+    void closed();
     void windowActivate();
     void decidedClipArea(QRect);
     void changedTranslucentDisplay(bool);
 
 protected:
     bool event(QEvent*);
+    void showEvent(QShowEvent*);
+    void closeEvent(QCloseEvent*);
     void paintEvent(QPaintEvent*);
     void resizeEvent(QResizeEvent*);
     void mousePressEvent(QMouseEvent*);
     void mouseDoubleClickEvent(QMouseEvent*);
+    void mouseMoveEvent(QMouseEvent*);
 
     void updateMask();
 
 private:
     QWidget* _targetWidget;
+    QWidget* _targetWindow;
     bool     _isTranslucentDisplay;
 
     WindowController* _wc;
     QVBoxLayout* _vLayout;
 //  QLabel*  _labelSize;
+    QLabel*  _labelDescription;
     QAction* _actTranslucentDisplay;
     QMenu*   _menuContext;
 };
