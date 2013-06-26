@@ -388,26 +388,11 @@ void PurePlayer::createActionContextMenu()
     connect(_actPlaylist, SIGNAL(triggered()), this, SLOT(showPlaylistDialog()));
     addAction(_actPlaylist);
 
-    _actStatusBar = new QAction(tr("ステータスを常に表示"), this);
-    _actStatusBar->setCheckable(true);
-    _actStatusBar->setChecked(false);
-    _actStatusBar->setVisible(false);
-    connect(_actStatusBar, SIGNAL(triggered(bool)), this, SLOT(setAlwaysShowStatusBar(bool)));
-
     _actVideoAdjust = new QAction(tr("ビデオ調整"), this);
     connect(_actVideoAdjust, SIGNAL(triggered()), this, SLOT(showVideoAdjustDialog()));
 
     _actOpen = new QAction(tr("開く"), this);
     connect(_actOpen, SIGNAL(triggered()), this, SLOT(openFromDialog()));
-
-    _actConfig = new QAction(tr("設定"), this);
-    connect(_actConfig, SIGNAL(triggered()), this, SLOT(showConfigDialog()));
-
-    _actLog = new QAction(tr("ログ"), this);
-    connect(_actLog, SIGNAL(triggered()), this, SLOT(showLogDialog()));
-
-    _actAbout = new QAction(tr("プレイヤーについて"), this);
-    connect(_actAbout, SIGNAL(triggered()), this, SLOT(showAboutDialog()));
 
     // 音声出力メニュー
     _actGroupAudioOutput = new QActionGroup(this);
@@ -576,6 +561,25 @@ void PurePlayer::createActionContextMenu()
     _menuReconnect->addSeparator();
     _menuReconnect->addAction(_actPlayNoSound);
 
+    // その他メニュー
+    _actStatusBar = new QAction(tr("ステータスを常に表示"), this);
+    _actStatusBar->setCheckable(true);
+    _actStatusBar->setChecked(false);
+    _actStatusBar->setVisible(false);
+    connect(_actStatusBar, SIGNAL(triggered(bool)), this, SLOT(setAlwaysShowStatusBar(bool)));
+    _actConfig = new QAction(tr("設定"), this);
+    connect(_actConfig, SIGNAL(triggered()), this, SLOT(showConfigDialog()));
+    _actLog = new QAction(tr("ログ"), this);
+    connect(_actLog, SIGNAL(triggered()), this, SLOT(showLogDialog()));
+    _actAbout = new QAction(tr("プレイヤーについて"), this);
+    connect(_actAbout, SIGNAL(triggered()), this, SLOT(showAboutDialog()));
+
+    QMenu* menuEtc = new QMenu(tr("その他"), this);
+    menuEtc->addAction(_actStatusBar);
+    menuEtc->addAction(_actConfig);
+    menuEtc->addAction(_actLog);
+    menuEtc->addAction(_actAbout);
+
     // コンテキストメニュー
     _menuContext = new QMenu(this);
     _menuContext->addMenu(menuAudioOutput);
@@ -595,10 +599,7 @@ void PurePlayer::createActionContextMenu()
     _menuContext->addAction(_actOpenContactUrl);
     _menuContext->addAction(_actPlaylist);
     _menuContext->addSeparator();
-    _menuContext->addAction(_actStatusBar);
-    _menuContext->addAction(_actConfig);
-    _menuContext->addAction(_actLog);
-    _menuContext->addAction(_actAbout);
+    _menuContext->addMenu(menuEtc);
 
 #ifdef Q_OS_WIN32
     connect(_menuContext, SIGNAL(aboutToHide()), this, SLOT(menuContext_aboutToHide()));
