@@ -26,28 +26,27 @@ class ConfigDialog : public QDialog, Ui::ConfigDialog
 public:
     ConfigDialog(QWidget* parent);
 
-    void setData(ConfigData::Data* data);
+    void setData(const ConfigData::Data& data);
+    void getData(ConfigData::Data* data);
+    void resetComboBoxVoAoItem(const ConfigData::Data& data);
 
 public slots:
-    void ok() { hide(); apply(); }
-    void apply();
+    void ok() { hide(); emit applied(); }
     void setScreenshotPathFromDialog();
     void setMplayerPathFromDialog();
     void setContactUrlPathFromDialog();
 
 signals:
-    void applied(bool requestRestartMplayer);
+    void applied();
 
 protected:
+//  bool eventFilter(QObject* o, QEvent* e);
     void showEvent(QShowEvent*);
 
 private slots:
     void checkBoxSoftVideoEq_clicked(bool checked);
     void groupBoxCache_toggled(bool) { _cacheStreamSpinBox->deselect(); }
     void buttonContactUrlArg_clicked();
-
-private:
-    ConfigData::Data* _data;
 };
 
 #endif // CONFIGDIALOG_H

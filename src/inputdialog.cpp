@@ -15,6 +15,7 @@
 */
 #include <QPushButton> // QDialogButtonBox::button()から返されるQPushButtonの為に必要
 #include "inputdialog.h"
+#include "windowcontroller.h"
 #include "logdialog.h"
 
 InputDialog::InputDialog(QWidget* parent) : QDialog(parent)
@@ -36,6 +37,7 @@ QString InputDialog::input(QWidget* parent, const QString& title, const QString&
     dialog.setWindowTitle(title);
     dialog._label->setText(text);
     dialog._lineEdit->setText(initText);
+    dialog.installEventFilter(new WindowController(&dialog));
 
     dialog.show();
 

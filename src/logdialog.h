@@ -35,6 +35,7 @@ public:
 
     static void initDialog(QWidget* parent=0);
     static LogDialog* dialog();
+    static bool isVisibleDialog();
 
 public slots:
     void printOut(const QString& text);
@@ -68,20 +69,20 @@ private:
     bool _outputTerminal;
 };
 
-inline void LogDialog::initDialog(QWidget* parent)
-{
-    delete s_logDialog;
-    s_logDialog = new LogDialog();
-
-    s_parent = parent;
-}
-
 inline LogDialog* LogDialog::dialog()
 {
     if( s_logDialog == NULL )
         initDialog();
 
     return s_logDialog;
+}
+
+inline bool LogDialog::isVisibleDialog()
+{
+    if( s_logDialog == NULL )
+        return false;
+
+    return s_logDialog->isVisible();
 }
 
 inline void LogDialog::printOut(const QString& text)

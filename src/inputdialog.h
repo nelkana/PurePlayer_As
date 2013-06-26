@@ -23,11 +23,10 @@ class InputDialog : public QDialog, Ui::InputDialog
     Q_OBJECT
 
 public:
-    InputDialog(QWidget* parent);
-
     static QString input(QWidget* parent, const QString& title, const QString& text, const QString& initText=QString());
 
 protected:
+    InputDialog(QWidget* parent);
     void showEvent(QShowEvent*);
 };
 

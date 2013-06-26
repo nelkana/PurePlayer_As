@@ -25,6 +25,7 @@ public:
 
     struct Data {
         QString voName;
+        QString voNameForClipping;
         QString aoName;
         bool    useSoftWareVideoEq;
         bool    openIn320x240Size;
@@ -43,6 +44,7 @@ public:
     };
 
     static Data* data() { return &s_data; }
+    static void setData(const Data& data) { s_data = data; }
     static void saveData();
     static void loadData();
 

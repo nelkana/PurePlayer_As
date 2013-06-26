@@ -31,6 +31,7 @@ void   msleep(ulong msec);
 QString dayOfWeek(int day);
 QString secondTimeToString(int sec);
 QString removeSpaceBeforeAfter(QString str);
+QRect   clipRect(const QRect& target, QRect clip);
 QRect   scaleRectOnRect(const QSize& baseRect, const QSize& placeRect);
 QString convertStringForFileName(QString name);
 QString retTheFileNameNotExists(const QString& requestFileName);

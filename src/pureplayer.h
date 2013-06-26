@@ -23,6 +23,7 @@
 #include <QTimer>
 #include <QLabel>
 #include "videosettings.h"
+#include "configdata.h"
 #include "peercast.h"
 
 class QWidget;
@@ -46,6 +47,7 @@ class VideoAdjustDialog;
 class ConfigDialog;
 class PlaylistDialog;
 class AboutDialog;
+class ClipWindow;
 class LogDialog;
 
 class PurePlayer : public QMainWindow
@@ -63,6 +65,7 @@ public:
     bool isMute()    { return _isMute; }
     bool isPlaying() { return _state == ST_PLAY; }
     bool isStop()    { return _state == ST_STOP; }
+    bool isClipping() { return _clipRect != QRect(0,0,_videoSize.width(),_videoSize.height()); }
     bool isAlwaysShowStatusBar() { return !isFullScreen()
                                         && (_alwaysShowStatusBar || !isPeercastStream()); }
     bool isPeercastStream() { return _peercast.port() != 0; }
@@ -97,25 +100,28 @@ public slots:
     void setVolumeFactor(VOLUME_FACTOR_MODE);
     void setAudioOutput(AUDIO_OUTPUT_MODE);
     void setAspectRatio(ASPECT_RATIO);
+    QSize aspectRatioSize();
     void setContrast(int value, bool alwaysSet=false);
     void setBrightness(int value, bool alwaysSet=false);
     void setSaturation(int value, bool alwaysSet=false);
     void setHue(int value, bool alwaysSet=false);
     void setGamma(int value, bool alwaysSet=false);
     void setDeinterlace(DEINTERLACE_MODE);
+    void clipVideoViewArea(const QRect&);
+    void releaseClipping();
     void screenshot();
     void resizeReduce()     { resizeFromCurrent(-300); }
     void resizeIncrease()   { resizeFromCurrent(+300); }
     void resize320x240()    { resizeFromVideoClient(QSize(320,240)); }
     void resize1280x720()   { resizeFromVideoClient(QSize(1280,720)); }
-    void resize25Percent()  { resizeFromVideoClient(calcPercentageVideoSize(25)); }
-    void resize50Percent()  { resizeFromVideoClient(calcPercentageVideoSize(50)); }
-    void resize75Percent()  { resizeFromVideoClient(calcPercentageVideoSize(75)); }
-    void resize100Percent() { resizeFromVideoClient(calcPercentageVideoSize(100)); }
-    void resize125Percent() { resizeFromVideoClient(calcPercentageVideoSize(125)); }
-    void resize150Percent() { resizeFromVideoClient(calcPercentageVideoSize(150)); }
+    void resize25Percent()  { resizeFromVideoClient(calcVideoViewSizeForResize(25)); }
+    void resize50Percent()  { resizeFromVideoClient(calcVideoViewSizeForResize(50)); }
+    void resize75Percent()  { resizeFromVideoClient(calcVideoViewSizeForResize(75)); }
+    void resize100Percent() { resizeFromVideoClient(calcVideoViewSizeForResize(100)); }
+    void resize125Percent() { resizeFromVideoClient(calcVideoViewSizeForResize(125)); }
+    void resize150Percent() { resizeFromVideoClient(calcVideoViewSizeForResize(150)); }
     bool resizeFromVideoClient(QSize size);
-    void resizePercentageFromCurrent(int percentage);
+    void resizePercentFromCurrent(int percent);
     void resizeFromCurrent(int amount);
     void toggleFullScreenOrWindow();
     void setAlwaysShowStatusBar(bool);
@@ -132,6 +138,7 @@ public slots:
     void showConfigDialog();
     void showLogDialog();
     void showAboutDialog();
+    void showClipWindow();
 
     void updateChannelInfo() { _peercast.getChannelInfo(); }
     void openContactUrl();
@@ -168,12 +175,15 @@ protected:
         FLG_MAXIMIZED_BEFORE_FULLSCREEN = 1 << 11, // フルスクリーンの前は最大化
         FLG_RECONNECTED                 = 1 << 12, // 再接続した
         FLG_EXPLICITLY_STOPPED          = 1 << 13, // 明示的に停止した
+        FLG_NO_CHANGE_VDRIVER_WHEN_CLIPPING= 1 << 14, // クリッピングした時、ビデオドライバを切り替えない
+        FLG_MOUSE_PRESSED_CLIPWINDOW    = 1 << 15, // クリップウィンドウ内をマウス押下した
     };
     Q_DECLARE_FLAGS(ControlFlags, CONTROL_FLAG)
 
     bool event(QEvent*);
     bool eventFilter(QObject*, QEvent*);
     void closeEvent(QCloseEvent*);
+    void moveEvent(QMoveEvent*);
     void resizeEvent(QResizeEvent*);
     void keyPressEvent(QKeyEvent*);
     void mousePressEvent(QMouseEvent*);
@@ -195,11 +205,16 @@ protected:
     void playCommonProcess();
     void saveInteractiveSettings();
     void loadInteractiveSettings();
+    bool checkRestartFromConfigData(const ConfigData::Data& oldData, const ConfigData::Data& newData);
 
-    QSize videoSize100Percent();
+    QSize windowVideoClientSize();
+    QSize videoViewSize100Percent();
     QSize correctToValidVideoSize(QSize toSize, const QSize& videoSize);
-    QSize calcPercentageVideoSize(const QSize& videoSize, const int percentage);
-    QSize calcPercentageVideoSize(const int percentage);
+    QSize calcVideoViewSizeForResize(const QSize& viewSize, int percent);
+    QSize calcVideoViewSizeForResize(int percent);
+    QSize calcFullVideoSizeFromVideoViewSize(QSize viewSize);
+
+    bool containsInClipWindow(const QPoint& pos);
 
     void reflectChannelInfo();
     QString genDateTimeSaveFileName(const QString& suffix=QString());
@@ -220,7 +235,10 @@ private slots:
     void actGroupDeinterlace_changed(QAction*);
     void timerReconnect_timeout();
     void timerFps_timeout();
-    void configDialog_applied(bool restartMplayer);
+    void clipWindow_changedTranslucentDisplay(bool);
+    void clipWindow_triggeredShow();
+    void clipWindow_closed();
+    void configDialog_applied();
     void videoAdjustDialog_windowActivate() { refreshVideoProfile(false, true); }
 
 #ifdef Q_OS_WIN32
@@ -256,10 +274,13 @@ private:
     ChannelInfo _channelInfo;
     Peercast _peercast;
 
+    QString         _usingVideoDriver;
+
     QSize           _videoSize;
     double          _videoLength;
-    bool            _noVideo;
     bool            _isSeekable;
+    bool            _noVideo;
+    QRect           _clipRect;
 
     double          _currentTime;
     double          _startTime;
@@ -296,6 +317,7 @@ private:
 
     PlaylistModel*  _playlist;
 
+    QWidget*        _clipScreen;
     QWidget*        _videoScreen;
     QToolBar*       _toolBar;
     ControlButton*  _playPauseButton;
@@ -324,8 +346,15 @@ private:
     QAction*        _actPlayPause;
     QAction*        _actStop;
     QAction*        _actMute;
+    QAction*        _actShowClipWindow;
+    QAction*        _actReleaseClipping;
     QAction*        _actOpenContactUrl;
     QAction*        _actPlaylist;
+    QAction*        _actVideoAdjust;
+    QAction*        _actOpen;
+    QAction*        _actConfig;
+    QAction*        _actLog;
+    QAction*        _actAbout;
     QAction*        _actStatusBar;
     QActionGroup*   _actGroupAudioOutput;
     QActionGroup*   _actGroupVolumeFactor;
@@ -338,6 +367,8 @@ private:
     ConfigDialog*      _configDialog;
     PlaylistDialog*    _playlistDialog;
     AboutDialog*       _aboutDialog;
+    ClipWindow*        _clipWindow;
+    QList<QWidget*>    _hiddenWindowList;
 
     bool _debugFlag;
     int  _debugCount;

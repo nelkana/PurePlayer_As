@@ -150,6 +150,31 @@ QString CommonLib::removeSpaceBeforeAfter(QString str)
     return str;
 }
 
+QRect CommonLib::clipRect(const QRect& target, QRect clip)
+{
+    if( target.left()  > clip.right()
+     || target.right() < clip.left()
+     || target.top()    > clip.bottom()
+     || target.bottom() < clip.top() )
+    {
+        return QRect(-1,-1, -1,-1);
+    }
+
+    if( target.left() > clip.left() )
+        clip.setLeft(target.left());
+
+    if( target.right() < clip.right() )
+        clip.setRight(target.right());
+
+    if( target.top() > clip.top() )
+        clip.setTop(target.top());
+
+    if( target.bottom() < clip.bottom() )
+        clip.setBottom(target.bottom());
+
+    return clip;
+}
+
 // 矩形上で、比を維持してスケーリングを行った矩形を返す
 QRect CommonLib::scaleRectOnRect(const QSize& baseRect, const QSize& placeRect)
 {

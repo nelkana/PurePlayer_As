@@ -21,6 +21,7 @@ HEADERS += \
     playlist.h \
     commonlib.h \
     task.h \
+    windowcontroller.h \
     \
     logdialog.h \
     commonspinbox.h \
@@ -29,7 +30,8 @@ HEADERS += \
     videoadjustdialog.h \
     playlistdialog.h \
     inputdialog.h \
-    aboutdialog.h
+    aboutdialog.h \
+    clipwindow.h
 
 SOURCES += \
     main.cpp \
@@ -45,12 +47,14 @@ SOURCES += \
     playlist.cpp \
     commonlib.cpp \
     task.cpp \
+    windowcontroller.cpp \
     \
     logdialog.cpp \
     configdialog.cpp \
     videoadjustdialog.cpp \
     playlistdialog.cpp \
-    inputdialog.cpp
+    inputdialog.cpp \
+    clipwindow.cpp
 
 FORMS += \
     logdialog.ui \
@@ -63,8 +67,10 @@ FORMS += \
 
 RESOURCES += resource.qrc
 
-win32:debug {
-    CONFIG += console
+win32 {
+    CONFIG(debug, debug|release) {
+        CONFIG += console
+    }
 }
 
 CONFIG(release, debug|release) {
