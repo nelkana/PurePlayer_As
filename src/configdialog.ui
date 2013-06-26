@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>376</width>
-    <height>455</height>
+    <height>464</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -246,7 +246,8 @@
        <item>
         <widget class="QGroupBox" name="_groupBoxScreenshotPath">
          <property name="toolTip">
-          <string>無効の場合は、保存先は動画ファイルと同じディレクトリ、またはホームディレクトリになります。</string>
+          <string>無効の場合、保存先は動画ファイルと同じディレクトリ、
+またはホームディレクトリになります。</string>
          </property>
          <property name="title">
           <string>スクリーンショットの保存先を指定する</string>
@@ -369,7 +370,8 @@
           <enum>Qt::NoFocus</enum>
          </property>
          <property name="toolTip">
-          <string>無効の場合またはプログラムが起動できなかった場合は、既定のブラウザで開きます。</string>
+          <string>無効の場合またはプログラムが起動できなかった場合は、
+既定のブラウザで開きます。</string>
          </property>
          <property name="title">
           <string>コンタクトURLを開くプログラムを指定する</string>
