@@ -2621,27 +2621,27 @@ void PurePlayer::clipWindow_triggeredShow()
     }
 
     if( _videoAdjustDialog != NULL && _videoAdjustDialog->isVisible() ) {
-        _videoAdjustDialog->close();
+        _videoAdjustDialog->hide();
         _hiddenWindowList << _videoAdjustDialog;
     }
 
     if( _openDialog != NULL && _openDialog->isVisible() ) {
-        _openDialog->close();
+        _openDialog->hide();
         _hiddenWindowList << _openDialog;
     }
 
     if( _playlistDialog != NULL && _playlistDialog->isVisible() ) {
-        _playlistDialog->close();
+        _playlistDialog->hide();
         _hiddenWindowList << _playlistDialog;
     }
 
     if( _configDialog != NULL && _configDialog->isVisible() ) {
-        _configDialog->close();
+        _configDialog->hide();
         _hiddenWindowList << _configDialog;
     }
 
     if( _aboutDialog != NULL && _aboutDialog->isVisible() ) {
-        _aboutDialog->close();
+        _aboutDialog->hide();
         _hiddenWindowList << _aboutDialog;
     }
 
