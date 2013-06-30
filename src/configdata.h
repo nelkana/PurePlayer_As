@@ -21,6 +21,9 @@
 class ConfigData
 {
 public:
+    static const char* const VONAME_DEFAULT;
+    static const char* const VONAME_FOR_CLIPPING_DEFAULT;
+    static const char* const AONAME_DEFAULT;
     static const char* const CONTACTURL_ARG_DEFAULT;
 
     struct Data {

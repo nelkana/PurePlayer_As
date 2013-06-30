@@ -41,22 +41,30 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
     QString voToolTip = tr(
             "使用するビデオドライバになります。\n"
             "初期設定は「%1」になります。");
+    QString voNameDefault = ConfigData::VONAME_DEFAULT;
+    if( voNameDefault.isEmpty() )
+        voNameDefault = tr("指定無し");
+
+    _comboBoxVo->setToolTip(voToolTip.arg(voNameDefault));
+
     QString voClippingToolTip = tr(
             "クリッピング機能使用時に自動で切り替えるビデオドライバになります。\n"
             "クリッピングが正常に機能するかは、選択するビデオドライバに依存します。\n"
             "初期設定は「%1」になります。");
-#if defined(Q_WS_X11)
-    _comboBoxVo->setToolTip(voToolTip.arg("xv"));
-    _comboBoxVoClipping->setToolTip(voClippingToolTip.arg("x11"));
-#elif defined(Q_OS_WIN32)
-    _comboBoxVo->setToolTip(voToolTip.arg("directx"));
-    _comboBoxVoClipping->setToolTip(voClippingToolTip.arg("directx"));
-#else
-    _comboBoxVo->setToolTip(voToolTip.arg(tr("指定無し")));
-    _comboBoxVoClipping->setToolTip(voClippingToolTip.arg(tr("指定無し")));
-#endif
+    QString voNameForClippingDefault = ConfigData::VONAME_FOR_CLIPPING_DEFAULT;
+    if( voNameForClippingDefault.isEmpty() )
+        voNameForClippingDefault = tr("指定無し");
 
-    _comboBoxAo->setToolTip(tr("使用するオーディオドライバになります。\n初期設定は「指定無し」になります。"));
+    _comboBoxVoClipping->setToolTip(voClippingToolTip.arg(voNameForClippingDefault));
+
+    QString aoToolTip = tr(
+            "使用するオーディオドライバになります。\n"
+            "初期設定は「%1」になります。");
+    QString aoNameDefault = ConfigData::AONAME_DEFAULT;
+    if( aoNameDefault.isEmpty() )
+        aoNameDefault = tr("指定無し");
+
+    _comboBoxAo->setToolTip(aoToolTip.arg(aoNameDefault));
 
 #ifdef Q_OS_LINUX
 
