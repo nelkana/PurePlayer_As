@@ -37,6 +37,7 @@
 #include "speedspinbox.h"
 #include "aboutdialog.h"
 #include "clipwindow.h"
+#include "commonmenu.h"
 
 PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 {
@@ -421,10 +422,19 @@ void PurePlayer::createActionContextMenu()
     QAction* actVFactor3 = new QAction(tr("音量を3倍にする"), _actGroupVolumeFactor);
     actVFactor3->setCheckable(true);
 
-    QMenu* menuAudioOutput = new QMenu(tr("音声出力"), this);
+    CommonMenu* menuAudioOutput = new CommonMenu(tr("音声出力"), this);
     menuAudioOutput->addActions(_actGroupAudioOutput->actions());
     menuAudioOutput->addSeparator();
     menuAudioOutput->addActions(_actGroupVolumeFactor->actions());
+
+    menuAudioOutput->addNoCloseAction(actStereo);
+    menuAudioOutput->addNoCloseAction(actMonaural);
+    menuAudioOutput->addNoCloseAction(actLeft);
+    menuAudioOutput->addNoCloseAction(actRight);
+    menuAudioOutput->addNoCloseAction(actVFactor0);
+    menuAudioOutput->addNoCloseAction(actVFactor1);
+    menuAudioOutput->addNoCloseAction(actVFactor2);
+    menuAudioOutput->addNoCloseAction(actVFactor3);
 
     // サイズ変更メニュー
     QAction* actReduceSize = new QAction(tr("小さくする"), this);
@@ -474,7 +484,7 @@ void PurePlayer::createActionContextMenu()
     connect(act150Percent, SIGNAL(triggered()), this, SLOT(resize150Percent()));
     addAction(act150Percent);
 
-    QMenu* menuSize = new QMenu(tr("サイズ変更"), this);
+    CommonMenu* menuSize = new CommonMenu(tr("サイズ変更"), this);
     menuSize->addAction(actReduceSize);
     menuSize->addAction(actIncreaseSize);
 //  menuSize->addAction(actSlightlyReduceSize);
@@ -489,6 +499,17 @@ void PurePlayer::createActionContextMenu()
     menuSize->addAction(act100Percent);
     menuSize->addAction(act125Percent);
     menuSize->addAction(act150Percent);
+
+    menuSize->addNoCloseAction(actReduceSize);
+    menuSize->addNoCloseAction(actIncreaseSize);
+    menuSize->addNoCloseAction(act320x240);
+    menuSize->addNoCloseAction(act1280x720);
+    menuSize->addNoCloseAction(act25Percent);
+    menuSize->addNoCloseAction(act50Percent);
+    menuSize->addNoCloseAction(act75Percent);
+    menuSize->addNoCloseAction(act100Percent);
+    menuSize->addNoCloseAction(act125Percent);
+    menuSize->addNoCloseAction(act150Percent);
 
     // アスペクト比変更メニュー
     _actGroupAspect = new QActionGroup(this);
@@ -505,8 +526,14 @@ void PurePlayer::createActionContextMenu()
     actAspect16_10->setCheckable(true);
     QAction* actAspectNoKeep = new QAction(tr("比を維持しない"), _actGroupAspect);
     actAspectNoKeep->setCheckable(true);
-    QMenu* menuAspect = new QMenu(tr("アスペクト比変更"), this);
+    CommonMenu* menuAspect = new CommonMenu(tr("アスペクト比変更"), this);
     menuAspect->addActions(_actGroupAspect->actions());
+
+    menuAspect->addNoCloseAction(actAspectVideo);
+    menuAspect->addNoCloseAction(actAspect4_3);
+    menuAspect->addNoCloseAction(actAspect16_9);
+    menuAspect->addNoCloseAction(actAspect16_10);
+    menuAspect->addNoCloseAction(actAspectNoKeep);
 
     // クリッピングメニュー
     _actShowClipWindow = new QAction(tr("対象領域を指定する"), this);
@@ -533,8 +560,13 @@ void PurePlayer::createActionContextMenu()
     actDeinterlaceYadif2->setCheckable(true);
     QAction* actDeinterlaceLB = new QAction(tr("リニアブレンド"), _actGroupDeinterlace);
     actDeinterlaceLB->setCheckable(true);
-    QMenu* menuDeinterlace = new QMenu(tr("インターレース解除"), this);
+    CommonMenu* menuDeinterlace = new CommonMenu(tr("インターレース解除"), this);
     menuDeinterlace->addActions(_actGroupDeinterlace->actions());
+
+    menuDeinterlace->addNoCloseAction(actDeinterlaceNo);
+    menuDeinterlace->addNoCloseAction(actDeinterlaceYadif);
+    menuDeinterlace->addNoCloseAction(actDeinterlaceYadif2);
+    menuDeinterlace->addNoCloseAction(actDeinterlaceLB);
 
     // 再接続メニュー
     _actReconnect = new QAction(tr("通常"), this);
@@ -581,7 +613,7 @@ void PurePlayer::createActionContextMenu()
     menuEtc->addAction(_actAbout);
 
     // コンテキストメニュー
-    _menuContext = new QMenu(this);
+    _menuContext = new CommonMenu(this);
     _menuContext->addMenu(menuAudioOutput);
     _menuContext->addAction(_actMute);
     _menuContext->addSeparator();
@@ -600,6 +632,8 @@ void PurePlayer::createActionContextMenu()
     _menuContext->addAction(_actPlaylist);
     _menuContext->addSeparator();
     _menuContext->addMenu(menuEtc);
+
+    _menuContext->addNoCloseAction(_actScreenshot);
 
 #ifdef Q_OS_WIN32
     connect(_menuContext, SIGNAL(aboutToHide()), this, SLOT(menuContext_aboutToHide()));

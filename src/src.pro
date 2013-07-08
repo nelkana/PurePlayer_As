@@ -19,6 +19,7 @@ HEADERS += \
     configdata.h \
     videosettings.h \
     playlist.h \
+    commonmenu.h \
     commonlib.h \
     task.h \
     windowcontroller.h \
@@ -45,6 +46,7 @@ SOURCES += \
     configdata.cpp \
     videosettings.cpp \
     playlist.cpp \
+    commonmenu.cpp \
     commonlib.cpp \
     task.cpp \
     windowcontroller.cpp \

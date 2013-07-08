@@ -42,6 +42,7 @@ class TimeSlider;
 class InfoLabel;
 class TimeLabel;
 class PlaylistModel;
+class CommonMenu;
 class OpenDialog;
 class VideoAdjustDialog;
 class ConfigDialog;
@@ -335,7 +336,7 @@ private:
     InfoLabel*      _infoLabel;
     QWidget*        _statusbarSpaceL;
     QWidget*        _statusbarSpaceR;
-    QMenu*          _menuContext;
+    CommonMenu*     _menuContext;
     QMenu*          _menuReconnect;
 
     QAction*        _actScreenshot;
