@@ -294,6 +294,7 @@ void PurePlayer::createToolBar()
     _screenshotButton->setFixedSize(buttonSize);
     _screenshotButton->setToolTip("スクリーンショット");
     connect(_screenshotButton, SIGNAL(clicked(bool)), this, SLOT(screenshot()));
+    _screenshotButton->hide(); // 仮
 
     _timeSlider   = NULL;
     _speedSpinBox = NULL;
