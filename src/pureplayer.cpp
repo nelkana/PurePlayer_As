@@ -633,8 +633,6 @@ void PurePlayer::createActionContextMenu()
     _menuContext->addSeparator();
     _menuContext->addMenu(menuEtc);
 
-    _menuContext->addNoCloseAction(_actScreenshot);
-
 #ifdef Q_OS_WIN32
     connect(_menuContext, SIGNAL(aboutToHide()), this, SLOT(menuContext_aboutToHide()));
 #endif
