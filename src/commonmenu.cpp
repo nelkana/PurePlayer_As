@@ -44,10 +44,12 @@ void CommonMenu::keyPressEvent(QKeyEvent* e)
 
 void CommonMenu::mouseReleaseEvent(QMouseEvent* e)
 {
-    QAction* action = activeAction();
-    if( _listNoCloseAction.contains(action) ) {
-        action->trigger();
-        return;
+    if( e->button() == Qt::LeftButton ) {
+        QAction* action = activeAction();
+        if( _listNoCloseAction.contains(action) ) {
+            action->trigger();
+            return;
+        }
     }
 
     QMenu::mouseReleaseEvent(e);
