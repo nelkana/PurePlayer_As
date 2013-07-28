@@ -73,6 +73,8 @@ win32 {
     CONFIG(debug, debug|release) {
         CONFIG += console
     }
+
+    RC_FILE = myapp.rc
 }
 
 CONFIG(release, debug|release) {
