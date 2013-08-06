@@ -787,6 +787,7 @@ void PurePlayer::openCommonProcess(const QString& path)
             _channelInfo.rootIp = "";
 
         _reconnectCount = 0;
+        setSpeed(1.0);
 
         _menuReconnect->menuAction()->setVisible(true);
         // _actPlayPauseとのショートカットキー切り替えの為、設定
