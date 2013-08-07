@@ -34,7 +34,6 @@
 #include "commonlib.h"
 #include "task.h"
 #include "windowcontroller.h"
-#include "speedspinbox.h"
 #include "aboutdialog.h"
 #include "clipwindow.h"
 #include "commonmenu.h"
@@ -78,6 +77,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 
 //  _oldTime = -1;
     _path = "";
+    _speedRate = 1.0;
     _audioOutput = AO_STEREO;
     _volumeFactor = VF_NORMAL;
     _aspectRatio = AR_VIDEO;
@@ -164,6 +164,8 @@ void PurePlayer::createStatusBar()
     _labelFrame = new QLabel();
     _labelFps = new QLabel();
     _labelVolume = new QLabel();
+    _labelSpeedRate = new QLabel();
+    _labelSpeedRate->setToolTip(tr("再生速度(ホイールで変更)"));
     _statusbarSpaceL = new QWidget();
     _statusbarSpaceR = new QWidget();
 
@@ -199,6 +201,7 @@ void PurePlayer::createStatusBar()
     statusBar()->addWidget(_statusbarSpaceL);
     statusBar()->addWidget(_infoLabel);
     statusBar()->addPermanentWidget(_labelFrame);
+    statusBar()->addPermanentWidget(_labelSpeedRate);
     statusBar()->addPermanentWidget(_labelFps);
     statusBar()->addPermanentWidget(_timeLabel);
     statusBar()->addPermanentWidget(_labelVolume);
@@ -218,6 +221,11 @@ void PurePlayer::createStatusBar()
     _labelFps->setText(tr(" 00fps"));
     _labelFps->setMinimumWidth(_labelFps->sizeHint().width());
     _labelFps->setText("0fps");
+
+    _labelSpeedRate->setFrameShape(QFrame::NoFrame);
+    _labelSpeedRate->setText(tr("x0.0 "));
+    _labelSpeedRate->setMinimumWidth(_labelSpeedRate->sizeHint().width());
+    _labelSpeedRate->setText("x1.0");
 
     _labelFrame->setAlignment(Qt::AlignRight);
     _labelFrame->setText(" 00000000");
@@ -297,20 +305,12 @@ void PurePlayer::createToolBar()
     _screenshotButton->hide(); // 仮
 
     _timeSlider   = NULL;
-    _speedSpinBox = NULL;
     _toolBar      = NULL;
     _timeSlider = new TimeSlider(this);
     _timeSlider->installEventFilter(this);
     _timeSlider->setFocusPolicy(Qt::NoFocus);
     _timeSlider->setReverseWheelSeek(ConfigData::data()->reverseWheelSeek);
     connect(_timeSlider, SIGNAL(requestSeek(double, bool)), this, SLOT(seek(double, bool)));
-
-    _speedSpinBox = new SpeedSpinBox(this);
-    _speedSpinBox->installEventFilter(this);
-    _speedSpinBox->setFixedWidth(_speedSpinBox->sizeHint().width());
-    _speedSpinBox->setFixedHeight(17);
-    _speedSpinBox->setToolTip(tr("再生速度"));
-    connect(_speedSpinBox, SIGNAL(valueChanged(double)), this, SLOT(setSpeed(double)));
 
     _toolBar = new QToolBar("toolbar", this);
     _toolBar->installEventFilter(this);
@@ -341,7 +341,6 @@ void PurePlayer::createToolBar()
     hl->addWidget(_screenshotButton);
     hl->addWidget(_timeSlider);
     //hl->addStretch();
-    hl->addWidget(_speedSpinBox);
 //  vl->addWidget(_timeSlider);
 //  vl->addLayout(hl);
     QWidget* widget = new QWidget(this);
@@ -773,7 +772,7 @@ void PurePlayer::openCommonProcess(const QString& path)
     QRegExp rxPeercastUrl(
             "(?:^http|^mms|^mmsh)://(.+):(\\d+)/(?:stream|pls)/([A-F0-9]{32})");
     if( rxPeercastUrl.indexIn(path) != -1 ) {
-        LogDialog::debug(debugPrefix + "peercast url detected.");
+        LogDialog::debug(debugPrefix + "detected peercast url.");
 
         _peercast.setHostPortId(rxPeercastUrl.cap(1),
                                 rxPeercastUrl.cap(2).toShort(),
@@ -787,7 +786,8 @@ void PurePlayer::openCommonProcess(const QString& path)
             _channelInfo.rootIp = "";
 
         _reconnectCount = 0;
-        setSpeed(1.0);
+        _labelSpeedRate->hide();
+        setSpeedRate(1.0);
 
         _menuReconnect->menuAction()->setVisible(true);
         // _actPlayPauseとのショートカットキー切り替えの為、設定
@@ -800,6 +800,8 @@ void PurePlayer::openCommonProcess(const QString& path)
     else {
         _peercast.setHostPortId("", 0, "");
         _channelInfo.clear();
+
+        _labelSpeedRate->show();
 
         _menuReconnect->menuAction()->setVisible(false);
         // _actPlayPauseとのショートカットキー切り替えの為、設定
@@ -919,24 +921,35 @@ void PurePlayer::seek(double sec, bool relative)
     }
 }
 
-void PurePlayer::setSpeed(double rate)
+void PurePlayer::upSpeedRate(double value)
 {
-    if( rate < 0.1 ) rate = 0.1; else
-    if( rate > 3.0 ) rate = 3.0;
+    _speedRate += value;
+    setSpeedRate(_speedRate);
+}
 
-    if( _speedSpinBox->value() != rate ) {
-        _speedSpinBox->setValue(rate);
-        return;
-    }
+void PurePlayer::downSpeedRate(double value)
+{
+    _speedRate -= value;
+    setSpeedRate(_speedRate);
+}
+
+void PurePlayer::setSpeedRate(double value)
+{
+    if( value < 0.1 ) value = 0.1; else
+    if( value > 3.0 ) value = 3.0;
+
+    _speedRate = CommonLib::round(value, 1);//(int)(value*10+0.5) / 10.0;
 
     if( _state == ST_PLAY ) {
-        mpCmd(QString().sprintf("speed_set %.1f", rate));
+        mpCmd(QString().sprintf("speed_set %.1f", _speedRate));
         mpCmd("osd_show_property_text 'Speed: x ${speed}'");
-        //mpCmd("osd_show_text " + QString().sprintf("'Speed: x %.1f'", rate));
+        //mpCmd("osd_show_text " + QString().sprintf("'Speed: x %.1f'", value));
     }
     else
     if( _state == ST_PAUSE )
-        mpCmd(QString().sprintf("pausing_keep_force speed_set %.1f", rate));
+        mpCmd(QString().sprintf("pausing_keep_force speed_set %.1f", _speedRate));
+
+    _labelSpeedRate->setText(QString().sprintf("x%.1f", _speedRate));
 }
 
 void PurePlayer::reconnect()
@@ -1718,16 +1731,6 @@ bool PurePlayer::eventFilter(QObject* o, QEvent* e)
             }
         }
     }
-    else
-    if( o == _speedSpinBox ) {
-        if( e->type() == QEvent::Wheel ) {
-            QWheelEvent* ev = static_cast<QWheelEvent*>(e);
-            if( ev->buttons() & Qt::RightButton ) {
-                QApplication::sendEvent(_toolBar, ev);
-                return true;
-            }
-        }
-    }
 
     return QMainWindow::eventFilter(o, e);
 }
@@ -1977,22 +1980,29 @@ void PurePlayer::wheelEvent(QWheelEvent* e)
         _controlFlags |= FLG_WHEEL_RESIZED;
     }
     else {
-        int volume;
         QPoint localPoint = statusBar()->mapFromGlobal(e->globalPos());
-        QRect  labelRect  = _labelVolume->geometry();
-//      LogDialog::debug(QString().sprintf("(%d %d %d %d) (%d %d)",
-//                  labelRect.x(),labelRect.y(), labelRect.right(),labelRect.bottom(),
-//                  localPoint.x(), localPoint.y()));
 
-        if( labelRect.contains(localPoint) )
-            volume = 1;
-        else
-            volume = 5;
+        if( _labelSpeedRate->isVisible()
+            && _labelSpeedRate->geometry().contains(localPoint) )
+        {
+            if( e->delta() < 0 )
+                downSpeedRate();
+            else
+                upSpeedRate();
+        }
+        else {
+            int volume;
 
-        if( e->delta() < 0 )
-            downVolume(volume);
-        else
-            upVolume(volume);
+            if( _labelVolume->geometry().contains(localPoint) )
+                volume = 1;
+            else
+                volume = 5;
+
+            if( e->delta() < 0 )
+                downVolume(volume);
+            else
+                upVolume(volume);
+        }
     }
 }
 
@@ -2375,12 +2385,8 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
             if( isMute() )
                 mute(true);
 
-            double roundSpeed = CommonLib::round(_speedSpinBox->value(), 1);//(int)(_speedSpinBox->value()*10+0.5) / 10.0;
-            if( roundSpeed != 1.0 ) {
-                setSpeed(_speedSpinBox->value());
-            }
-//          LogDialog::debug(QString().sprintf("%.70f", _speedSpinBox->value()));
-//          LogDialog::debug(QString().sprintf("%.70f", roundSpeed));
+            if( _speedRate != 1.0 )
+                setSpeedRate(_speedRate);
 
             _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 0");
 
@@ -2398,7 +2404,6 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
 
             _timeLabel->setTotalTime(_videoLength);
             _playlist->setCurrentTrackTime(_videoLength);
-            //_speedSpinBox->setRange(0, _videoLength*10);
 
             if( _isSeekable ) {
                 _timeSlider->setLength(_videoLength);

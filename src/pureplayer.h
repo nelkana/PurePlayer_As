@@ -37,7 +37,6 @@ class QNetworkReply;
 class MplayerProcess;
 class RecordingProcess;
 class ControlButton;
-class SpeedSpinBox;
 class TimeSlider;
 class InfoLabel;
 class TimeLabel;
@@ -88,7 +87,9 @@ public slots:
     void frameAdvance();
     void repeatAB();
     void seek(double sec, bool relative=false);
-    void setSpeed(double rate);
+    void upSpeedRate(double value=0.1);
+    void downSpeedRate(double value=0.1);
+    void setSpeedRate(double value);
     void reconnect();
     void reconnectPurePlayer() { restartPlay(); }
     void reconnectPeercast();
@@ -291,6 +292,7 @@ private:
     int             _repeatEndTime;
 
     qint8           _volume;
+    double          _speedRate;
 
     QTimer          _timerFps;
     quint16         _fpsCount;
@@ -328,11 +330,11 @@ private:
     ControlButton*  _loopButton;
     ControlButton*  _screenshotButton;
     TimeSlider*     _timeSlider;
-    SpeedSpinBox*   _speedSpinBox;
     TimeLabel*      _timeLabel;
     QLabel*         _labelFrame;
     QLabel*         _labelFps;
     QLabel*         _labelVolume;
+    QLabel*         _labelSpeedRate;
     InfoLabel*      _infoLabel;
     QWidget*        _statusbarSpaceL;
     QWidget*        _statusbarSpaceR;

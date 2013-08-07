@@ -12,7 +12,6 @@ HEADERS += \
     peercast.h \
     process.h \
     controlbutton.h \
-    speedspinbox.h \
     timeslider.h \
     infolabel.h \
     timelabel.h \
@@ -39,7 +38,6 @@ SOURCES += \
     pureplayer.cpp \
     peercast.cpp \
     process.cpp \
-    speedspinbox.cpp \
     timeslider.cpp \
     infolabel.cpp \
     timelabel.cpp \
