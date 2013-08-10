@@ -556,7 +556,7 @@ int PlaylistModel::trackRowOf(const QString& path)
 
 bool PlaylistModel::downCurrentTrackRow(bool forceLoop)
 {
-    if( _tracks.size() <= 1 ) return false;
+    if( _tracks.size() <= 0 ) return false;
 
     int i;
     if( _randomPlay ) {
