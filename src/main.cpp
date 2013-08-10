@@ -20,16 +20,33 @@
 #include <QLibraryInfo>
 #include <QLocale>
 #include "pureplayer.h"
+#include "aboutdialog.h"
 
 bool parseArgs(PurePlayer* player, int argc, char** argv)
 {
     QStringList paths;
 
-    for(int i=1; i < argc; i++)
-        paths << argv[i];
+    for(int i=1; i < argc; i++) {
+        if( !strcmp(argv[i], "--help")
+         || !strcmp(argv[i], "-h") )
+        {
+            QString help = QObject::tr(
+                    "PurePlayer* %1\n"
+                    "Usage: %2 [Options] [File|URL]...\n"
+                    "\n"
+                    "Options:\n"
+                    "  --help|-h            ヘルプ\n")
+                    .arg(PUREPLAYER_VERSION)
+                    .arg(argv[0]);
 
-//  foreach(QString str, paths)
-//      printf("%s\n", str.toAscii().data());
+            fprintf(stderr, help.toAscii().data());
+
+            return false;
+        }
+        else {
+            paths << argv[i];
+        }
+    }
 
     if( paths.count() > 0 )
         player->open(paths, true);
@@ -40,11 +57,6 @@ bool parseArgs(PurePlayer* player, int argc, char** argv)
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
-
-//  if( argc >= 3 ) {
-//      fprintf(stderr, "Usage: %s [File Path or URL]\n", argv[0]);
-//      exit(1);
-//  }
 
     QTextCodec::setCodecForCStrings(QTextCodec::codecForName("UTF-8"));//codecForLocale());
     QTextCodec::setCodecForTr(QTextCodec::codecForName("UTF-8"));//codecForLocale());
