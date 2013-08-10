@@ -74,9 +74,9 @@ public:
 //  void resize(int w, int h) { resize(QSize(w, h)); }
 
 public slots:
-    void open(const QString& path) { open(QStringList() << path); }
-    void open(const QStringList& paths);
-    void open(const QList<QUrl>& urls);
+    void open(const QString& path, bool doResize=false) { open(QStringList() << path, doResize); }
+    void open(const QStringList& paths, bool doResize=false);
+    void open(const QList<QUrl>& urls, bool doResize=false);
     void openFromDialog();
     void play();
     bool playPrev(bool forceLoop=false);

@@ -649,7 +649,7 @@ void PurePlayer::createActionContextMenu()
     //setContextMenuPolicy(Qt::ActionsContextMenu);
 }
 
-void PurePlayer::open(const QStringList& paths)
+void PurePlayer::open(const QStringList& paths, bool doResize)
 {
     bool b;
     int rows = _playlist->appendTracks(paths, &b);
@@ -692,17 +692,19 @@ void PurePlayer::open(const QStringList& paths)
     if( _playlistDialog != NULL )
         _playlistDialog->scrollToCurrentTrackHidden();
 
-    _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
+    if( doResize )
+        _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
+
     openCommonProcess(_playlist->currentTrackPath());
 }
 
-void PurePlayer::open(const QList<QUrl>& urls)
+void PurePlayer::open(const QList<QUrl>& urls, bool doResize)
 {
     QStringList paths;
     foreach(const QUrl& url, urls)
         paths << url.toString();
 
-    open(paths);
+    open(paths, doResize);
 }
 
 void PurePlayer::play()

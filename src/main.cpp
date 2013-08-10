@@ -44,7 +44,7 @@ int main(int argc, char** argv)
 
     PurePlayer* main = new PurePlayer();
     if( argc >= 2 )
-        main->open(argv[1]);
+        main->open(argv[1], true);
 
     main->show();
 

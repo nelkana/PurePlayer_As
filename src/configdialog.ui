@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>376</width>
-    <height>464</height>
+    <width>394</width>
+    <height>455</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -112,10 +112,11 @@
           <enum>Qt::NoFocus</enum>
          </property>
          <property name="toolTip">
-          <string>無効の場合は、50%サイズで開きます。</string>
+          <string>動画を指定してプレイヤーを起動した時のサイズ指定になります。
+無効の場合は、50%サイズで開きます。</string>
          </property>
          <property name="text">
-          <string>動画を開く時、320x240サイズ固定で開く</string>
+          <string>起動と同時に動画を開いた時は、320x240サイズ固定で開く</string>
          </property>
         </widget>
        </item>
