@@ -104,7 +104,7 @@ signals:
 
 protected:
     int insertTracks(int row, QList<Track*>& tracks, bool* removedTrackByMaximum=0);
-    QList<Track*> createTracks(const QStringList& paths);
+    QList<Track*> createTracks(QStringList paths);
     void shuffleRandomTracks();
 
 private:

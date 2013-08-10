@@ -21,14 +21,30 @@
 #include <QLocale>
 #include "pureplayer.h"
 
+bool parseArgs(PurePlayer* player, int argc, char** argv)
+{
+    QStringList paths;
+
+    for(int i=1; i < argc; i++)
+        paths << argv[i];
+
+//  foreach(QString str, paths)
+//      printf("%s\n", str.toAscii().data());
+
+    if( paths.count() > 0 )
+        player->open(paths, true);
+
+    return true;
+}
+
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
 
-    if( argc >= 3 ) {
-        fprintf(stderr, "Usage: %s [File Path or URL]\n", argv[0]);
-        exit(1);
-    }
+//  if( argc >= 3 ) {
+//      fprintf(stderr, "Usage: %s [File Path or URL]\n", argv[0]);
+//      exit(1);
+//  }
 
     QTextCodec::setCodecForCStrings(QTextCodec::codecForName("UTF-8"));//codecForLocale());
     QTextCodec::setCodecForTr(QTextCodec::codecForName("UTF-8"));//codecForLocale());
@@ -43,8 +59,8 @@ int main(int argc, char** argv)
 #endif
 
     PurePlayer* main = new PurePlayer();
-    if( argc >= 2 )
-        main->open(argv[1], true);
+    if( !parseArgs(main, argc, argv) )
+        exit(1);
 
     main->show();
 

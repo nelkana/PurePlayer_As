@@ -42,6 +42,24 @@ bool    isPeercastUrl(const QString& url);
 bool    isHttpUrl(const QString& url);
 //QSize   widgetFrameSize(QWidget* const);
 
+// QListから重複する項目を削除する
+template <class T>
+void removeDuplicateQList(T& list)
+{
+    if( list.isEmpty() ) return;
+
+    for(int i=0; i < list.count()-1; ++i) {
+        int index = i + 1;
+        while( 1 ) {
+            index = list.indexOf(list[i], index);
+            if( index == -1 )
+                break;
+
+            list.removeAt(index);
+        }
+    }
+}
+
 class EmitDeterFlag
 {
 public:

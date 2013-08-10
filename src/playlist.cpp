@@ -871,9 +871,11 @@ int PlaylistModel::insertTracks(int row, QList<Track*>& inTracks, bool* removedT
     return inTracks.size();
 }
 
-QList<PlaylistModel::Track*> PlaylistModel::createTracks(const QStringList& paths)
+QList<PlaylistModel::Track*> PlaylistModel::createTracks(QStringList paths)
 {
     QList<Track*> tracks;
+
+    CommonLib::removeDuplicateQList(paths);
 
     foreach(QString path, paths) {
         if( path.isEmpty() )
