@@ -26,7 +26,7 @@ bool parseArgs(PurePlayer* player, int argc, char** argv)
 {
     QStringList paths;
 
-    for(int i=1; i < argc; i++) {
+    for(int i=1; i < argc; ++i) {
         if( !strcmp(argv[i], "--help")
          || !strcmp(argv[i], "-h") )
         {
@@ -43,6 +43,22 @@ bool parseArgs(PurePlayer* player, int argc, char** argv)
 
             return false;
         }
+//      else
+//      if( !strcmp(argv[i], "--title")
+//       || !strcmp(argv[i], "-t") )
+//      {
+//          ++i;
+//          if( i >= argc ) {
+//              fprintf(stderr,
+//                      QObject::tr("error: '%1'の引数が足りません。\n")
+//                      .arg(argv[i-1])
+//                      .toAscii().data());
+
+//              return false;
+//          }
+//          else
+//              player->setWindowTitle(argv[i]);
+//      }
         else {
             paths << argv[i];
         }
