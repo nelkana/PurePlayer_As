@@ -116,7 +116,7 @@
 無効の場合は、50%サイズで開きます。</string>
          </property>
          <property name="text">
-          <string>起動と同時に動画を開いた時は、320x240サイズ固定で開く</string>
+          <string>動画を指定して起動した時は、320x240サイズ固定で開く</string>
          </property>
         </widget>
        </item>
