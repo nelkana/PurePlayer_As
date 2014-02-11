@@ -2954,6 +2954,8 @@ void PurePlayer::playCommonProcess()
                         qRgba(qBlue(_colorKey), qGreen(_colorKey), qRed(_colorKey), 0))
 #endif
 
+//  << "-bluray-device" << "/dev/sr1"
+
     << "-idx";
 
     if( isPeercastStream() ) {

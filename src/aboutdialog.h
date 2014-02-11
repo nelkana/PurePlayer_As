@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2014 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -51,8 +51,8 @@ inline AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent)
         "Qtバージョン(コンパイル): %3<br>"
         "ライセンス: GNU GPLv3<br>"
         "<br>"
-        "Copyright (C) 2012-2013 nel<br>"
-        "<a href=\"http://jbbs.livedoor.jp/internet/9117/\">http://jbbs.livedoor.jp/internet/9117/</a><br>"
+        "Copyright (C) 2012-2014 nel<br>"
+        "<a href=\"http://jbbs.shitaraba.net/internet/9117/\">http://jbbs.shitaraba.net/internet/9117/</a><br>"
         ).arg(PUREPLAYER_VERSION).arg(qVersion()).arg(QT_VERSION_STR);
 
     _labelText->setText(text);
