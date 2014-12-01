@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2014 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -112,7 +112,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 //  connect(_recProcess, SIGNAL(finished()),
 //          this,        SLOT(recProcess_finished()));
 
-    _receivedErrorCount = 0;
+    _reconnectScore = 0;
     _reconnectCount = 0;
     _reconnectControlTime  = 0;
     connect(&_timerReconnect, SIGNAL(timeout()), this, SLOT(timerReconnect_timeout()));
@@ -2203,7 +2203,7 @@ void PurePlayer::mpProcess_finished()
         if( isStop() ) {
 //          setStatus(ST_STOP);
             if( ConfigData::data()->disconnectChannel
-             && _controlFlags.testFlag(FLG_EXPLICITLY_STOPPED) )
+                && _controlFlags.testFlag(FLG_EXPLICITLY_STOPPED) )
             {
                 _peercast.disconnectChannel(15);
             }
@@ -2212,7 +2212,7 @@ void PurePlayer::mpProcess_finished()
             ++_reconnectCount;
             LogDialog::debug(debugPrefix + QString("reconnectCount %1").arg(_reconnectCount));
 
-            if( _reconnectCount <= 3 ) {
+            if( _reconnectCount < 4 ) {
                 if( _channelInfo.status == ChannelInfo::ST_SEARCH ) {
                     LogDialog::debug(debugPrefix + "reconnectPurePlayer", QColor(255,0,0));
                     reconnectPurePlayer();
@@ -2275,12 +2275,12 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
     static QRegExp rxScreenshot("^\\*\\*\\* screenshot '(.+)'");
     static QRegExp rxScreenshotError(".+ Error opening .+ for writing!");
 
-    if( isStop() )
+    if( isStop() ) // 再生停止時、溜まってる情報を一気に出力する場合があるので解析対象外にする
     {
         if( rxStatus.indexIn(line) != -1 )
             return;
 
-        LogDialog::print(line);
+        LogDialog::print("ignore: " + line);
     }
     else
     {
@@ -2448,8 +2448,9 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
             if( isPeercastStream() ) {
                 _startTime = -1;
 
-                // _reconnectControlTimeの比較を、再生開始時の開始時間から比較できる様に更新する
-                _reconnectControlTime = _elapsedTime;
+                _timerReconnect.start(6000); // 再スタート
+                _reconnectScore = 0;
+                _reconnectControlTime = _elapsedTime; // _reconnectControlTimeの比較を、再生開始時の開始時間から比較できる様に更新する
 
                 if( _channelInfo.status == ChannelInfo::ST_SEARCH )
                     updateChannelInfo();
@@ -2483,12 +2484,17 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
         }
         else
         if( line.startsWith("Cache size set to") ) {
-            if( _controlFlags.testFlag(FLG_RECONNECT_WHEN_PLAYED) ) { // 再接続(peercast)は接続後行う
-                reconnectPeercast();
-                _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
-            }
+            if( isPeercastStream() ) {
+                if( _controlFlags.testFlag(FLG_RECONNECT_WHEN_PLAYED) ) { // 再接続(peercast)は再生後行う
+                    reconnectPeercast();
+                    _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
+                }
 
-            updateChannelInfo();
+                updateChannelInfo();
+
+                _timerReconnect.start(6000);
+                _reconnectScore = 0;
+            }
         }
         else
         if( rxCacheFill.indexIn(line) != -1 )
@@ -2522,11 +2528,11 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
          || line.contains("Bits overconsumption:") )
         {
             if( isPeercastStream() ) {
-/*              LogDialog::debug(debugPrefix + QString("time %1").arg(_timeLabel->time()));
-                LogDialog::debug(debugPrefix + QString("timea %1").arg(_currentTime));
-                LogDialog::debug(debugPrefix + QString("frame %1").arg(_currentFrame));
-*/
-                ++_receivedErrorCount;
+//              LogDialog::debug(debugPrefix + QString("time %1").arg(_timeLabel->time()));
+//              LogDialog::debug(debugPrefix + QString("timea %1").arg(_currentTime));
+//              LogDialog::debug(debugPrefix + QString("frame %1").arg(_currentFrame));
+
+                _reconnectScore += 100;
             }
         }
     }
@@ -2597,38 +2603,47 @@ void PurePlayer::timerReconnect_timeout()
     const QString debugPrefix = "PurePlayer::timerReconnect_timeout(): ";
 //  LogDialog::debug(QString(debugPrefix + "time %1").arg(_timeLabel->time()));
 //  LogDialog::debug(QString(debugPrefix + "currentTime %1").arg(_currentTime));
-//  LogDialog::debug(QString(debugPrefix + "frame %1").arg(_currentFrame));
+//  LogDialog::debug(QString(debugPrefix + "currentFrame %1").arg(_currentFrame));
 
-//  LogDialog::debug(debugPrefix + QString::number(_receivedErrorCount));
+//  LogDialog::debug(debugPrefix + QString::number(_reconnectScore));
 
-    if( _reconnectControlTime == _timeLabel->time() ) {
-        LogDialog::debug(QString(debugPrefix + "reconnect time %1")
-                .arg(_reconnectControlTime), QColor(255,0,0));
+    if( _state == ST_READY ) {
+        if( _reconnectScore > 1000 ) {
+            LogDialog::debug(QString(debugPrefix + "reconnect score %1")
+                    .arg(_reconnectScore), QColor(255,0,0));
 
-        if( _channelInfo.status == ChannelInfo::ST_SEARCH )
             reconnectPurePlayer();
+        }
+    }
+    else
+    if( _state == ST_PLAY ) {
+        if( _reconnectControlTime == _timeLabel->time() ) {
+            LogDialog::debug(QString(debugPrefix + "reconnect time %1")
+                    .arg(_reconnectControlTime), QColor(255,0,0));
+
+            if( _channelInfo.status == ChannelInfo::ST_SEARCH )
+                reconnectPurePlayer();
+            else
+                reconnect();
+        }
         else
+        if( _reconnectScore > 1000 ) {
+            LogDialog::debug(QString(debugPrefix + "reconnect score %1")
+                    .arg(_reconnectScore), QColor(255,0,0));
+
             reconnect();
+        }
+        else
+        if( _channelInfo.status == ChannelInfo::ST_SEARCH )
+            updateChannelInfo();
+        else
+        if( _reconnectScore == 0 )
+            _reconnectCount = 0;
+
+        _reconnectControlTime = _timeLabel->time();
     }
-    else
-    if( _receivedErrorCount > 10 ) {
-        LogDialog::debug(QString(debugPrefix + "reconnect count %1")
-                .arg(_receivedErrorCount), QColor(255,0,0));
 
-        reconnect();
-    }
-    else
-    if( _channelInfo.status == ChannelInfo::ST_SEARCH )
-        updateChannelInfo();
-    else
-    if( _receivedErrorCount == 0 )
-        _reconnectCount = 0;
-
-    _reconnectControlTime = _timeLabel->time();
-
-    _receivedErrorCount = 0;
-
-//  _debugFlag = !_debugFlag;
+    _reconnectScore = 0;
 }
 
 void PurePlayer::timerFps_timeout()
@@ -2813,7 +2828,7 @@ void PurePlayer::playlist_playStopCurrentTrack()
     else {
         _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
         _controlFlags |= FLG_EXPLICITLY_STOPPED;
-        _reconnectCount=0;
+        _reconnectCount = 0;
         restartPlay();
     }
 }
@@ -3500,9 +3515,6 @@ void PurePlayer::setStatus(const STATE s)
 
         _infoLabel->startClipInfo();
 
-        if( isPeercastStream() )
-            _timerReconnect.start(6000);
-
         if( !_noVideo ) {
             _timerFps.start(1000);
             _fpsCount = 0;
@@ -3579,7 +3591,6 @@ void PurePlayer::setStatus(const STATE s)
         _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
 
         _infoLabel->stopClipInfo();
-        _receivedErrorCount = 0;
 
         _timerReconnect.stop();
         _timerFps.stop();

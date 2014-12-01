@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2014 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -314,8 +314,8 @@ private:
     QTimer          _timerBlockCursorHide;
 
     QTimer          _timerReconnect;
-    quint16         _receivedErrorCount;
-    qint8           _reconnectCount;
+    quint8          _reconnectCount;
+    quint16         _reconnectScore;
     int             _reconnectControlTime;
 
     PlaylistModel*  _playlist;
