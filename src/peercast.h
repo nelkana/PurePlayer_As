@@ -1,4 +1,4 @@
-/*  Copyright (C) 2013 nel
+/*  Copyright (C) 2013-2014 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,8 +25,9 @@ class ChannelInfo
 public:
     enum STATUS { ST_UNKNOWN, ST_CONNECT, ST_RECEIVE, ST_SEARCH, ST_ERROR };
     QString chName;
-    QString rootIp; // 不使用
+    QString rootIp;     // 不使用
     QString contactUrl;
+    int     bitrate;    // kbps
     STATUS  status;
 
     void channelInfo() { clear(); }
@@ -34,6 +35,7 @@ public:
         chName = "";
         rootIp = "";
         contactUrl = "";
+        bitrate = 0;
         status = ST_UNKNOWN;
     }
 };

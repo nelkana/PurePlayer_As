@@ -1,4 +1,4 @@
-/*  Copyright (C) 2013 nel
+/*  Copyright (C) 2013-2014 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -315,6 +315,20 @@ bool GetChannelInfoTask::parseChannelInfoPcVp(const QString& reply)
 
     _chInfo.contactUrl = reply.mid(start, end - start);
     LogDialog::debug(debugPrefix + "url " + _chInfo.contactUrl);
+
+    // ビットレートの取得
+    start = reply.indexOf("<td>ビットレート", start);
+    if( start == -1 )
+        return false;
+
+    ++start;
+    start = reply.indexOf("<td>", start);
+    start += 4;
+    end = reply.indexOf(" kbps<", start);
+
+    QString bitrate = reply.mid(start, end - start);
+    _chInfo.bitrate = bitrate.toInt();
+    LogDialog::debug(debugPrefix + "bitrate " + QString::number(_chInfo.bitrate));
 /*
     // 接続先IPアドレスの取得
     start = reply.indexOf("<td>取得元", start);
@@ -388,9 +402,11 @@ bool GetChannelInfoTask::parseChannelInfoPcSt(const QString& reply)
 
     _chInfo.chName     = value.property("name").toString();
     _chInfo.contactUrl = value.property("url").toString();
+    _chInfo.bitrate    = value.property("bitrate").toInt32();
 
     LogDialog::debug(debugPrefix + "name " + _chInfo.chName);
     LogDialog::debug(debugPrefix + "url " + _chInfo.contactUrl);
+    LogDialog::debug(debugPrefix + "bitrate " + QString::number(_chInfo.bitrate));
 
     return true;
 }
