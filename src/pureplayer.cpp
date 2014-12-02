@@ -84,6 +84,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _deinterlace = DI_NO_DEINTERLACE;
     _videoSize = QSize(320, 240);
     _clipRect = QRect(0,0, _videoSize.width(),_videoSize.height());
+    _fileFormat = "";
     _isMute = false;
     _alwaysShowStatusBar = false;
     _noVideo = false;
@@ -771,15 +772,18 @@ void PurePlayer::openCommonProcess(const QString& path)
 
     stop();
 
+    _peercast.setHostPortId("", 0, "");
+    _channelInfo.clear();
+
     QRegExp rxPeercastUrl(
             "(?:^http|^mms|^mmsh)://(.+):(\\d+)/(?:stream|pls)/([A-F0-9]{32})");
+//          "(?:^http|^mms|^mmsh)://(.+):(\\d+)/(?:stream|pls)/([A-F0-9]{32})(?:\\.([a-zA-Z0-9]+))?");
     if( rxPeercastUrl.indexIn(path) != -1 ) {
         LogDialog::debug(debugPrefix + "detected peercast url.");
 
         _peercast.setHostPortId(rxPeercastUrl.cap(1),
                                 rxPeercastUrl.cap(2).toShort(),
                                 rxPeercastUrl.cap(3));
-        _channelInfo.clear();
 
         QRegExp rootIp(".+\\?tip=(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})");
         if( rootIp.indexIn(path) != -1 )
@@ -800,9 +804,6 @@ void PurePlayer::openCommonProcess(const QString& path)
         _actStatusBar->setVisible(true);
     }
     else {
-        _peercast.setHostPortId("", 0, "");
-        _channelInfo.clear();
-
         _labelSpeedRate->show();
 
         _menuReconnect->menuAction()->setVisible(false);
@@ -819,6 +820,7 @@ void PurePlayer::openCommonProcess(const QString& path)
     }
 
     _path = path;
+    _fileFormat = "";
     releaseClipping();
     _controlFlags |= FLG_OPENED_PATH;
 
@@ -2258,8 +2260,10 @@ void PurePlayer::mpProcess_debugKilledCPid()
 void PurePlayer::mpProcess_outputLine(const QString& line)
 {
     const QString debugPrefix = "PurePlayer::mpProcess_outputLine(): ";
+//  static QRegExp rxCacheSize("^Cache size set to (\\d+)");
     static QRegExp rxCacheFill("^Cache fill: *([0-9.]+)%");
     static QRegExp rxGenIndex("^Generating Index: *(\\d+)");
+    static QRegExp rxFileFormat("^(.+) file format detected.|^Detected file format: (.+)");
 //  static QRegExp rxVideoW("^ID_VIDEO_WIDTH=(\\d+)");
 //  static QRegExp rxVideoH("^ID_VIDEO_HEIGHT=(\\d+)");
     static QRegExp rxVideoDriverWH("^VO: \\[(.+)\\] \\d+x\\d+ => (\\d+)x(\\d+)");
@@ -2379,6 +2383,18 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
 
         LogDialog::print(line);
 
+        if( line.startsWith("Cache empty") || line.startsWith("Cache not filling")
+         || line.contains("Bits overconsumption:") )
+        {
+            if( isPeercastStream() ) {
+//              LogDialog::debug(debugPrefix + QString("time %1").arg(_timeLabel->time()));
+//              LogDialog::debug(debugPrefix + QString("timea %1").arg(_currentTime));
+//              LogDialog::debug(debugPrefix + QString("frame %1").arg(_currentFrame));
+
+                _reconnectScore += 100;
+            }
+        }
+        else
         if( (line.startsWith("Starting playback...") && _noVideo)
          || (rxVideoDriverWH.indexIn(line) != -1) )
         {
@@ -2524,16 +2540,10 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
         if( line.startsWith("Video: no video") )
             _noVideo = true;
         else
-        if( line.startsWith("Cache empty") || line.startsWith("Cache not filling")
-         || line.contains("Bits overconsumption:") )
-        {
-            if( isPeercastStream() ) {
-//              LogDialog::debug(debugPrefix + QString("time %1").arg(_timeLabel->time()));
-//              LogDialog::debug(debugPrefix + QString("timea %1").arg(_currentTime));
-//              LogDialog::debug(debugPrefix + QString("frame %1").arg(_currentFrame));
-
-                _reconnectScore += 100;
-            }
+        if( rxFileFormat.indexIn(line) != -1 ) {
+            _fileFormat = rxFileFormat.cap(1);
+            if( _fileFormat.size() == 0 )
+                _fileFormat = rxFileFormat.cap(2);
         }
     }
 
@@ -2568,9 +2578,7 @@ void PurePlayer::recProcess_outputLine(const QString& line)
 
 void PurePlayer::peercast_gotChannelInfo(const ChannelInfo& chInfo)
 {
-    _channelInfo.chName     = chInfo.chName;
-    _channelInfo.contactUrl = chInfo.contactUrl;
-    _channelInfo.status     = chInfo.status;
+    _channelInfo = chInfo;
     reflectChannelInfo();
 }
 
@@ -2933,8 +2941,18 @@ void PurePlayer::playCommonProcess()
     default          : args << "110";
     }
 
-    if( ConfigData::data()->useCacheSize && !QUrl(_path).scheme().isEmpty() )
-        args << "-cache" << QString::number(ConfigData::data()->cacheStreamSize);
+    if( !QUrl(_path).scheme().isEmpty() ) {
+        if( ConfigData::data()->useCacheSize )
+            args << "-cache" << QString::number(ConfigData::data()->cacheStreamSize);
+        else
+        if( isPeercastStream() ) {
+            if( !_fileFormat.isEmpty() && _fileFormat != "ASF" ) {
+                int size = _channelInfo.bitrate/8 * 20;
+                if( size > 320 )
+                    args << "-cache" << QString::number(size);
+            }
+        }
+    }
 
     if( _controlFlags.testFlag(FLG_SEEK_WHEN_PLAYED) ) {
         args << "-ss" << QString::number(_timeLabel->time());

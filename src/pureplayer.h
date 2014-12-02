@@ -273,13 +273,14 @@ private:
     STATE           _state;
     QString         _path;
 
-    ChannelInfo _channelInfo;
-    Peercast _peercast;
+    Peercast        _peercast;
+    ChannelInfo     _channelInfo;
 
     QString         _usingVideoDriver;
 
     QSize           _videoSize;
     double          _videoLength;
+    QString         _fileFormat;
     bool            _isSeekable;
     bool            _noVideo;
     QRect           _clipRect;
