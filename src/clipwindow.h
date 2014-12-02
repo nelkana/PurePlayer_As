@@ -1,4 +1,4 @@
-/*  Copyright (C) 2013 nel
+/*  Copyright (C) 2013-2014 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,11 +31,12 @@ public:
     ClipWindow(QWidget* parent);
     void setTargetWidget(QWidget* w) { _targetWidget = w; }
     void setTargetWindow(QWidget* w) { _targetWindow = w; }
+    void setFitToWidgetTriggerShow(bool b) { _fitToWidgetWhenTriggerShow = b; }
     void setResizeMargin(quint8 margin);
     void repaintWindow() { updateMask(); }
 
 public slots:
-    void triggerShow() { show(); emit triggeredShow(); }
+    void triggerShow() { if( _fitToWidgetWhenTriggerShow ) fitToTargetWidget(); show(); emit triggeredShow(); }
     void decideClipArea();
     void fitToTargetWidget();
     void setTranslucentDisplay(bool);
@@ -62,6 +63,7 @@ protected:
 private:
     QWidget* _targetWidget;
     QWidget* _targetWindow;
+    bool     _fitToWidgetWhenTriggerShow;
     bool     _isTranslucentDisplay;
 
     WindowController* _wc;

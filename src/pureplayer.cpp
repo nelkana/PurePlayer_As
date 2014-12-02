@@ -1319,6 +1319,7 @@ void PurePlayer::clipVideoViewArea(const QRect& rc)
         return;
 
     _actReleaseClipping->setEnabled(true);
+    _clipWindow->setFitToWidgetTriggerShow(true);
 
     if( !_controlFlags.testFlag(FLG_NO_CHANGE_VDRIVER_WHEN_CLIPPING)
         && ConfigData::data()->voName != ConfigData::data()->voNameForClipping
@@ -1590,8 +1591,7 @@ void PurePlayer::showClipWindow()
         _clipWindow = new ClipWindow(this);
         _clipWindow->setTargetWidget(_clipScreen);
         _clipWindow->setTranslucentDisplay(translucentDisplay);
-        _clipWindow->setGeometry(QRect(_clipScreen->mapToGlobal(QPoint(0,0)),
-                                       _clipScreen->size()));
+        _clipWindow->setFitToWidgetTriggerShow(true);
 
         connect(_clipWindow, SIGNAL(triggeredShow()),
                 this,        SLOT(clipWindow_triggeredShow()));
@@ -1606,6 +1606,7 @@ void PurePlayer::showClipWindow()
     }
 
     _clipWindow->triggerShow();
+    _clipWindow->setFitToWidgetTriggerShow(false);
 }
 
 void PurePlayer::openContactUrl()
