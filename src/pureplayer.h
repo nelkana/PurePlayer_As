@@ -114,7 +114,7 @@ public slots:
     void screenshot();
     void resizeReduce()     { resizeFromCurrent(-300); }
     void resizeIncrease()   { resizeFromCurrent(+300); }
-    void resize320x240()    { resizeFromVideoClient(QSize(320,240)); }
+    void resizeInitial();
     void resize1280x720()   { resizeFromVideoClient(QSize(1280,720)); }
     void resize25Percent()  { resizeFromVideoClient(calcVideoViewSizeForResize(25)); }
     void resize50Percent()  { resizeFromVideoClient(calcVideoViewSizeForResize(50)); }
@@ -184,6 +184,7 @@ protected:
 
     bool event(QEvent*);
     bool eventFilter(QObject*, QEvent*);
+    void showEvent(QShowEvent*);
     void closeEvent(QCloseEvent*);
     void moveEvent(QMoveEvent*);
     void resizeEvent(QResizeEvent*);

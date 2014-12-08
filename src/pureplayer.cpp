@@ -38,6 +38,9 @@
 #include "clipwindow.h"
 #include "commonmenu.h"
 
+#define INIT_VIDEO_CLIENT_WIDTH  320//400
+#define INIT_VIDEO_CLIENT_HEIGHT 240//225
+
 PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 {
     const QIcon appIcon(":/icons/heart.png");
@@ -82,8 +85,8 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _volumeFactor = VF_NORMAL;
     _aspectRatio = AR_VIDEO;
     _deinterlace = DI_NO_DEINTERLACE;
-    _videoSize = QSize(320, 240);
-    _clipRect = QRect(0,0, _videoSize.width(),_videoSize.height());
+    _videoSize = QSize(-1, -1);
+    _clipRect = QRect(0,0, 1,1);
     _fileFormat = "";
     _isMute = false;
     _alwaysShowStatusBar = false;
@@ -142,8 +145,6 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     loadInteractiveSettings();
 
     setStatus(ST_STOP);
-    resize(QSize(320,260));
-    _menuContext->move(x()+width()*0.2, y()+height()*0.2);
 
     _debugFlag = false;
     _debugCount = 0;
@@ -160,7 +161,7 @@ PurePlayer::~PurePlayer()
 
 void PurePlayer::createStatusBar()
 {
-    _infoLabel = new InfoLabel(tr("停止 "));
+    _infoLabel = new InfoLabel(tr("000%")); //tr("停止 "));
     _timeLabel = new TimeLabel();
     _labelFrame = new QLabel();
     _labelFps = new QLabel();
@@ -454,10 +455,10 @@ void PurePlayer::createActionContextMenu()
 //  actSlightlyIncreaseSize->setShortcut(tr("]"));
 //  connect(actSlightlyIncreaseSize, SIGNAL(triggered()), this, SLOT(resizeSlightlyIncrease()));
 //  addAction(actSlightlyIncreaseSize);
-    QAction* act320x240 = new QAction(tr("320x240"), this);
-    act320x240->setShortcut(tr("0"));
-    connect(act320x240, SIGNAL(triggered()), this, SLOT(resize320x240()));
-    addAction(act320x240);
+    QAction* actInitial = new QAction(tr("%1x%2").arg(INIT_VIDEO_CLIENT_WIDTH).arg(INIT_VIDEO_CLIENT_HEIGHT), this);
+    actInitial->setShortcut(tr("0"));
+    connect(actInitial, SIGNAL(triggered()), this, SLOT(resizeInitial()));
+    addAction(actInitial);
     QAction* act1280x720 = new QAction(tr("1280x720"), this);
     connect(act1280x720, SIGNAL(triggered()), this, SLOT(resize1280x720()));
     QAction* act25Percent = new QAction(tr("25%"), this);
@@ -491,7 +492,7 @@ void PurePlayer::createActionContextMenu()
 //  menuSize->addAction(actSlightlyReduceSize);
 //  menuSize->addAction(actSlightlyIncreaseSize);
     menuSize->addSeparator();
-    menuSize->addAction(act320x240);
+    menuSize->addAction(actInitial);
     menuSize->addAction(act1280x720);
     menuSize->addSeparator();
     menuSize->addAction(act25Percent);
@@ -503,7 +504,7 @@ void PurePlayer::createActionContextMenu()
 
     menuSize->addNoCloseAction(actReduceSize);
     menuSize->addNoCloseAction(actIncreaseSize);
-    menuSize->addNoCloseAction(act320x240);
+    menuSize->addNoCloseAction(actInitial);
     menuSize->addNoCloseAction(act1280x720);
     menuSize->addNoCloseAction(act25Percent);
     menuSize->addNoCloseAction(act50Percent);
@@ -1350,6 +1351,11 @@ void PurePlayer::screenshot()
     }
 }
 
+void PurePlayer::resizeInitial()
+{
+    resizeFromVideoClient(QSize(INIT_VIDEO_CLIENT_WIDTH, INIT_VIDEO_CLIENT_HEIGHT));
+}
+
 // ビデオクライアントサイズを指定してウィンドウをリサイズする
 // 返却値: リサイズされたら、trueを返す。そうでないならfalseを返す。
 bool PurePlayer::resizeFromVideoClient(QSize size)
@@ -1739,24 +1745,27 @@ bool PurePlayer::eventFilter(QObject* o, QEvent* e)
 
     return QMainWindow::eventFilter(o, e);
 }
-/*
+
 void PurePlayer::showEvent(QShowEvent* e)
 {
     QMainWindow::showEvent(e);
 
-    if( !_controlFlags.testFlag(FLG_SHOW_FUNC_CALLED) ) {
-        QSize size(_videoSize.width(),
-                   _videoSize.height() - _toolBar->height());
-        if( !_alwaysShowStatusBar )
-            size.rheight() -= statusBar()->height();
+    LogDialog::debug(QString("PurePlayer::showEvent(): videoSize %1,%2 %3 %4")
+                                    .arg(_videoSize.width()).arg(_videoSize.height())
+                                    .arg(_toolBar->height()).arg(statusBar()->height()));
 
-        resizeFromVideoClient(size);
+    if( _videoSize.width() < 0 ) {
+        _videoSize = QSize(INIT_VIDEO_CLIENT_WIDTH, INIT_VIDEO_CLIENT_HEIGHT);
+        _clipRect = QRect(0,0, _videoSize.width(),_videoSize.height());
+
+        resizeFromVideoClient(_videoSize);
         _menuContext->move(x()+width()*0.2, y()+height()*0.2);
 
-        _controlFlags |= FLG_SHOW_FUNC_CALLED;
+        // テキスト内容によってステータスバーの高さが変わる為、高さを固定にする
+//      statusBar()->setFixedHeight(statusBar()->height());
     }
 }
-*/
+
 void PurePlayer::closeEvent(QCloseEvent* e)
 {
     LogDialog::debug("PurePlayer::closeEvent(): start-");
@@ -2477,7 +2486,7 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
             if( _controlFlags.testFlag(FLG_RESIZE_WHEN_PLAYED) ) {
                 QSize size;
                 if( ConfigData::data()->openIn320x240Size )
-                    size = QSize(320, 240);
+                    size = QSize(INIT_VIDEO_CLIENT_WIDTH, INIT_VIDEO_CLIENT_HEIGHT);
                 else
                     size = QSize(_videoSize.width()/2, _videoSize.height()/2);
 
