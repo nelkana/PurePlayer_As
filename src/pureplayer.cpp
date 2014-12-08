@@ -2626,7 +2626,7 @@ void PurePlayer::timerReconnect_timeout()
 //  LogDialog::debug(debugPrefix + QString::number(_reconnectScore));
 
     if( _state == ST_READY ) {
-        if( _reconnectScore > 1000 ) {
+        if( _reconnectScore > 1200 ) {
             LogDialog::debug(QString(debugPrefix + "reconnect score %1")
                     .arg(_reconnectScore), QColor(255,0,0));
 
@@ -2659,9 +2659,9 @@ void PurePlayer::timerReconnect_timeout()
             _reconnectCount = 0;
 
         _reconnectControlTime = _timeLabel->time();
+        _reconnectScore = 0;
     }
 
-    _reconnectScore = 0;
 }
 
 void PurePlayer::timerFps_timeout()
