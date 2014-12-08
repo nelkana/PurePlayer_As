@@ -599,8 +599,11 @@ void PurePlayer::createActionContextMenu()
     _actStatusBar = new QAction(tr("ステータスを常に表示"), this);
     _actStatusBar->setCheckable(true);
     _actStatusBar->setChecked(false);
+    _actStatusBar->setShortcut(tr("v"));
+    _actStatusBar->setAutoRepeat(false);
     _actStatusBar->setVisible(false);
     connect(_actStatusBar, SIGNAL(triggered(bool)), this, SLOT(setAlwaysShowStatusBar(bool)));
+    addAction(_actStatusBar);
     _actConfig = new QAction(tr("設定"), this);
     connect(_actConfig, SIGNAL(triggered()), this, SLOT(showConfigDialog()));
     _actLog = new QAction(tr("ログ"), this);
