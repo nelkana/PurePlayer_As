@@ -2626,7 +2626,7 @@ void PurePlayer::timerReconnect_timeout()
 //  LogDialog::debug(debugPrefix + QString::number(_reconnectScore));
 
     if( _state == ST_READY ) {
-        if( _reconnectScore > 1200 ) {
+        if( _reconnectScore > 1000 ) {
             LogDialog::debug(QString(debugPrefix + "reconnect score %1")
                     .arg(_reconnectScore), QColor(255,0,0));
 
@@ -2639,8 +2639,11 @@ void PurePlayer::timerReconnect_timeout()
             LogDialog::debug(QString(debugPrefix + "reconnect time %1")
                     .arg(_reconnectControlTime), QColor(255,0,0));
 
-            if( _channelInfo.status == ChannelInfo::ST_SEARCH )
+            if( _channelInfo.status == ChannelInfo::ST_SEARCH
+             || (!_fileFormat.isEmpty() && _fileFormat != "ASF") )
+            {
                 reconnectPurePlayer();
+            }
             else
                 reconnect();
         }
