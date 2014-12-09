@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2014 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -80,10 +80,13 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
 #endif // Q_OS_LINUX
 
     _groupBoxCacheSize->setFocusPolicy(Qt::NoFocus);    // qtデザイナでは効果無し、ここで指定
-    connect(_groupBoxCacheSize, SIGNAL(toggled(bool)),
-            this,               SLOT(groupBoxCache_toggled(bool)));
+    connect(_groupBoxCacheSize, SIGNAL(toggled(bool)),  // checkBoxを切り替えた時のspinBoxの選択状態を解除する
+            this,               SLOT(groupBoxCacheSize_toggled(bool)));
     _groupBoxScreenshotPath->setFocusPolicy(Qt::NoFocus);
     _groupBoxMplayerPath->setFocusPolicy(Qt::NoFocus);
+    _groupBoxLimitLogLine->setFocusPolicy(Qt::NoFocus);
+    connect(_groupBoxLimitLogLine, SIGNAL(toggled(bool)),
+            this,                  SLOT(groupBoxLimitLogLine_toggled(bool)));
     _groupBoxContactUrlPath->setFocusPolicy(Qt::NoFocus);
 
     QPalette palette = _groupBoxCacheSize->palette();
@@ -96,7 +99,7 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
     _groupBoxContactUrlPath->setPalette(palette);
     palette.setColor(QPalette::Active, QPalette::Text, colorText);
     palette.setColor(QPalette::Inactive, QPalette::Text, colorText);
-    _cacheStreamSpinBox->setPalette(palette);
+    _spinBoxCacheStream->setPalette(palette);
     _lineEditScreenshotPath->setPalette(palette);
     _lineEditMplayerPath->setPalette(palette);
     _lineEditContactUrlPath->setPalette(palette);
@@ -137,11 +140,13 @@ void ConfigDialog::setData(const ConfigData::Data& data)
     _checkBoxReverseWheelSeek->setChecked(data.reverseWheelSeek);
     _spinBoxVolumeMax->setValue(data.volumeMax);
     _groupBoxCacheSize->setChecked(data.useCacheSize);
-    _cacheStreamSpinBox->setValue(data.cacheStreamSize);
+    _spinBoxCacheStream->setValue(data.cacheStreamSize);
     _groupBoxScreenshotPath->setChecked(data.useScreenshotPath);
     _lineEditScreenshotPath->setText(data.screenshotPath);
     _groupBoxMplayerPath->setChecked(data.useMplayerPath);
     _lineEditMplayerPath->setText(data.mplayerPath);
+    _groupBoxLimitLogLine->setChecked(data.limitLogLine);
+    _spinBoxLimitLogLine->setValue(data.logLineMax);
     _checkBoxDisconnectChannel->setChecked(data.disconnectChannel);
     _groupBoxContactUrlPath->setChecked(data.useContactUrlPath);
     _lineEditContactUrlPath->setText(data.contactUrlPath);
@@ -162,11 +167,13 @@ void ConfigDialog::getData(ConfigData::Data* data)
     data->reverseWheelSeek = _checkBoxReverseWheelSeek->isChecked();
     data->volumeMax = _spinBoxVolumeMax->value();
     data->useCacheSize = _groupBoxCacheSize->isChecked();
-    data->cacheStreamSize = _cacheStreamSpinBox->value();
+    data->cacheStreamSize = _spinBoxCacheStream->value();
     data->useScreenshotPath = _groupBoxScreenshotPath->isChecked();
     data->screenshotPath = _lineEditScreenshotPath->text();
     data->useMplayerPath = _groupBoxMplayerPath->isChecked();
     data->mplayerPath = _lineEditMplayerPath->text();
+    data->limitLogLine = _groupBoxLimitLogLine->isChecked();
+    data->logLineMax = _spinBoxLimitLogLine->value();
     data->disconnectChannel = _checkBoxDisconnectChannel->isChecked();
     data->useContactUrlPath = _groupBoxContactUrlPath->isChecked();
     data->contactUrlPath = _lineEditContactUrlPath->text();
@@ -225,10 +232,11 @@ void ConfigDialog::showEvent(QShowEvent*)
 {
 //  adjustSize();
     setFixedSize(size());
-    _cacheStreamSpinBox->clearFocus();
     _spinBoxVolumeMax->clearFocus();
+    _spinBoxCacheStream->clearFocus();
     _lineEditScreenshotPath->clearFocus();
     _lineEditMplayerPath->clearFocus();
+    _spinBoxLimitLogLine->clearFocus();
     _lineEditContactUrlPath->clearFocus();
     _lineEditContactUrlArg->clearFocus();
 }

@@ -14,7 +14,7 @@
    <bool>false</bool>
   </property>
   <property name="windowTitle">
-   <string>PureLog</string>
+   <string>PURE LOG</string>
   </property>
   <layout class="QVBoxLayout" name="_verticalLayout">
    <property name="spacing">
@@ -141,6 +141,16 @@
         </size>
        </property>
       </spacer>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="_checkBoxStatusLine">
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
+       <property name="text">
+        <string>ステータス行表示</string>
+       </property>
+      </widget>
      </item>
      <item>
       <widget class="QPushButton" name="_buttonClear">

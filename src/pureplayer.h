@@ -156,6 +156,7 @@ protected slots:
     void prevButton_clicked() { playPrev(true); }
     void exitFullScreen() { if( isFullScreen() ) toggleFullScreenOrWindow(); }
     void restartPlay(bool keepSeekPos=false) { if(keepSeekPos && _isSeekable) _controlFlags |= FLG_SEEK_WHEN_PLAYED; stopInternal(); play(); }
+    void setOutputStatusLog(bool b) { _outputStatusLog = b; }
 
     void refreshVideoProfile(bool restoreVideoValue=true, bool warning=false);
 
@@ -320,6 +321,8 @@ private:
     quint16         _reconnectScore;
     int             _reconnectControlTime;
 
+    bool            _outputStatusLog;
+
     PlaylistModel*  _playlist;
 
     QWidget*        _clipScreen;
@@ -375,7 +378,6 @@ private:
     ClipWindow*        _clipWindow;
     QList<QWidget*>    _hiddenWindowList;
 
-    bool _debugFlag;
     int  _debugCount;
 };
 

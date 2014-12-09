@@ -45,12 +45,19 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 {
     const QIcon appIcon(":/icons/heart.png");
 
+    ConfigData::loadData();
+
     LogDialog::initDialog(this);
 //  LogDialog::dialog()->setWindowIcon(appIcon);
+    if( ConfigData::data()->limitLogLine )
+        LogDialog::dialog()->setMaximumBlockCount(ConfigData::data()->logLineMax);
+
     connect(LogDialog::dialog(), SIGNAL(windowActivate()),
             this,                SLOT(raise()));
     connect(LogDialog::dialog(), SIGNAL(requestCommand(const QString&)),
             this,                SLOT(mpCmd(const QString&)));
+    connect(LogDialog::dialog(), SIGNAL(requestOutputStatusLine(bool)),
+            this,                SLOT(setOutputStatusLog(bool)));
 
     setFont(QFont("DejaVu Sans", 9));
     setWindowIcon(appIcon);
@@ -137,7 +144,6 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 
     createStatusBar();
     createActionContextMenu();
-    ConfigData::loadData();
     createToolBar();
     _state = ST_STOP;
     _videoSettingsModifiedId = 0;
@@ -146,7 +152,7 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 
     setStatus(ST_STOP);
 
-    _debugFlag = false;
+    _outputStatusLog = false;
     _debugCount = 0;
 
     qsrand(time(NULL));
@@ -1862,15 +1868,6 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
 //      recordingStartStop();
         break;
     }
-    case Qt::Key_V:
-        if( e->modifiers() & Qt::AltModifier
-         && e->modifiers() & Qt::ShiftModifier )
-        {
-            _debugFlag = !_debugFlag;
-            LogDialog::debug(QString("blockCount: %1").arg(LogDialog::dialog()->blockCount()));
-        }
-
-        break;
 #endif // QT_NO_DEBUG_OUTPUT
 
     default:
@@ -2147,7 +2144,7 @@ void PurePlayer::reflectChannelInfo()
     else
         setWindowTitle(title);
 
-    LogDialog::dialog()->setWindowTitle(title + " - PureLog");
+    LogDialog::dialog()->setWindowTitle(title + " - PURE LOG");
 }
 
 QString PurePlayer::genDateTimeSaveFileName(const QString& suffix)
@@ -2389,8 +2386,8 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
             if( _state == ST_PAUSE ) // ポーズが解除された場合
                 setStatus(ST_PLAY);
 
-//          if( time < 0 ) _debugFlag = true;
-            if( _debugFlag ) LogDialog::print(line + QString::number(_fpsCount));
+//          if( time < 0 ) _outputStatusLog = true;
+            if( _outputStatusLog ) LogDialog::print(line + QString::number(_fpsCount));
             return;
         }
 
@@ -2765,6 +2762,10 @@ void PurePlayer::configDialog_applied()
     ConfigData::setData(newData);
     ConfigData::saveData();
     _timeSlider->setReverseWheelSeek(ConfigData::data()->reverseWheelSeek);
+    if( ConfigData::data()->limitLogLine )
+        LogDialog::dialog()->setMaximumBlockCount(ConfigData::data()->logLineMax);
+    else
+        LogDialog::dialog()->setMaximumBlockCount(0);
 
     if( restartMplayer ) {
         setCurrentDirectory();

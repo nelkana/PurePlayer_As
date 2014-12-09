@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2014 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -52,6 +52,8 @@ void ConfigData::saveData()
     s.setValue("screenshotPath", s_data.screenshotPath);
     s.setValue("useMplayerPath", s_data.useMplayerPath);
     s.setValue("mplayerPath", s_data.mplayerPath);
+    s.setValue("limitLogLine", s_data.limitLogLine);
+    s.setValue("logLineMax", s_data.logLineMax);
     s.setValue("useContactUrlPath", s_data.useContactUrlPath);
     s.setValue("contactUrlPath", s_data.contactUrlPath);
     s.setValue("contactUrlArg", s_data.contactUrlArg);
@@ -75,6 +77,8 @@ void ConfigData::loadData()
     s_data.screenshotPath = s.value("screenshotPath", QDir::homePath()).toString();
     s_data.useMplayerPath = s.value("useMplayerPath", false).toBool();
     s_data.mplayerPath = s.value("mplayerPath", "").toString();
+    s_data.limitLogLine = s.value("limitLogLine", true).toBool();
+    s_data.logLineMax = s.value("logLineMax", 1000).toInt();
     s_data.useContactUrlPath = s.value("useContactUrlPath", false).toBool();
     s_data.contactUrlPath = s.value("contactUrlPath", "").toString();
     s_data.contactUrlArg = s.value("contactUrlArg", CONTACTURL_ARG_DEFAULT).toString();

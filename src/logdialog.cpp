@@ -26,10 +26,10 @@ LogDialog::LogDialog(QWidget* parent) : QDialog(parent)
     setupUi(this);
 //  setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
     connect(_buttonClear, SIGNAL(clicked()), this, SLOT(clear()));
+    connect(_checkBoxStatusLine, SIGNAL(clicked(bool)), this, SIGNAL(requestOutputStatusLine(bool)));
 
     _textEdit->setTextColor(QColor(212,210,207));
 #ifdef QT_NO_DEBUG_OUTPUT
-    _textEdit->document()->setMaximumBlockCount(600);
     _lineEditCommand->hide();
 #endif
 
