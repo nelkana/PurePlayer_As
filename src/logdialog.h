@@ -39,6 +39,7 @@ public:
     static bool isVisibleDialog();
 
 public slots:
+    void setWindowTitle(const QString& title) { QDialog::setWindowTitle(title + " - PURE LOG"); }
     void printOut(const QString& text);
     void printOut(const QString& text, const QColor& color);
     void debugOut(const QString& text);

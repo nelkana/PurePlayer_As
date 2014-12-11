@@ -114,8 +114,8 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
             this,       SLOT(mpProcess_finished()));
     connect(_mpProcess, SIGNAL(error(QProcess::ProcessError)),
             this,       SLOT(mpProcess_error(QProcess::ProcessError)));
-    connect(_mpProcess, SIGNAL(debugKilledCPid()),
-            this,       SLOT(mpProcess_debugKilledCPid()));
+//  connect(_mpProcess, SIGNAL(debugKilledCPid()),
+//          this,       SLOT(mpProcess_debugKilledCPid()));
 
     _recProcess = new RecordingProcess(this);
     connect(_recProcess, SIGNAL(outputLine(const QString&)),
@@ -153,7 +153,6 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     setStatus(ST_STOP);
 
     _outputStatusLog = false;
-    _debugCount = 0;
 
     qsrand(time(NULL));
 }
@@ -660,6 +659,13 @@ void PurePlayer::createActionContextMenu()
     //setContextMenuPolicy(Qt::ActionsContextMenu);
 }
 
+void PurePlayer::setTitleOption(const QString& title)
+{
+    _pathForTitleOption = QString();
+    setWindowTitle(title);
+    _pathForTitleOption = _path;
+}
+
 void PurePlayer::open(const QStringList& paths, bool doResize)
 {
     bool b;
@@ -782,13 +788,22 @@ void PurePlayer::openCommonProcess(const QString& path)
 
     stop();
 
+    _path = path;
+    if( !_pathForTitleOption.isNull() ) {
+        if( _pathForTitleOption.isEmpty() )
+            _pathForTitleOption = _path;
+        else
+        if( _path != _pathForTitleOption )
+            _pathForTitleOption = QString();
+    }
+
     _peercast.setHostPortId("", 0, "");
     _channelInfo.clear();
 
     QRegExp rxPeercastUrl(
             "(?:^http|^mms|^mmsh)://(.+):(\\d+)/(?:stream|pls)/([A-F0-9]{32})");
 //          "(?:^http|^mms|^mmsh)://(.+):(\\d+)/(?:stream|pls)/([A-F0-9]{32})(?:\\.([a-zA-Z0-9]+))?");
-    if( rxPeercastUrl.indexIn(path) != -1 ) {
+    if( rxPeercastUrl.indexIn(_path) != -1 ) {
         LogDialog::debug(debugPrefix + "detected peercast url.");
 
         _peercast.setHostPortId(rxPeercastUrl.cap(1),
@@ -796,7 +811,7 @@ void PurePlayer::openCommonProcess(const QString& path)
                                 rxPeercastUrl.cap(3));
 
         QRegExp rootIp(".+\\?tip=(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})");
-        if( rootIp.indexIn(path) != -1 )
+        if( rootIp.indexIn(_path) != -1 )
             _channelInfo.rootIp = rootIp.cap(1);
         else
             _channelInfo.rootIp = "";
@@ -812,6 +827,8 @@ void PurePlayer::openCommonProcess(const QString& path)
         _actPlayPause->setVisible(false);
         _actOpenContactUrl->setVisible(true);
         _actStatusBar->setVisible(true);
+
+        reflectChannelInfo();
     }
     else {
         _labelSpeedRate->show();
@@ -827,14 +844,13 @@ void PurePlayer::openCommonProcess(const QString& path)
         _repeatStartTime = -1;
         _repeatEndTime = -1;
         _repeatABButton->setIcon(QIcon(":/icons/repeata.png"));
+
+        setWindowTitle(_playlist->currentTrackTitle());
     }
 
-    _path = path;
     _fileFormat = "";
     releaseClipping();
     _controlFlags |= FLG_OPENED_PATH;
-
-    reflectChannelInfo();
 
     _infoLabel->clearClipInfo();
 
@@ -1646,6 +1662,14 @@ void PurePlayer::openContactUrl()
     }
 }
 
+void PurePlayer::setWindowTitle(const QString& title)
+{
+    if( _pathForTitleOption.isNull() ) {
+        QMainWindow::setWindowTitle(title);
+        LogDialog::dialog()->setWindowTitle(title);
+    }
+}
+
 bool PurePlayer::event(QEvent* e)
 {
 //  LogDialog::debug(tr("%1").arg(e->type()));
@@ -1853,14 +1877,6 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
     case Qt::Key_B:
     {
         repeatAB();
-        break;
-    }
-    case Qt::Key_Z:
-    {
-        break;
-    }
-    case Qt::Key_X:
-    {
         break;
     }
     case Qt::Key_N:
@@ -2122,29 +2138,22 @@ void PurePlayer::middleClickResize()
 
 void PurePlayer::reflectChannelInfo()
 {
+    if( !isPeercastStream() ) return;
+
     if( _channelInfo.contactUrl.isEmpty() )
         _actOpenContactUrl->setEnabled(false);
     else
         _actOpenContactUrl->setEnabled(true);
 
     QString title;
-    if( isPeercastStream() ) {
-        if( _channelInfo.chName.isEmpty() )
-            title = "PurePlayer*";
-        else {
-            title = _channelInfo.chName;
-            _playlist->setCurrentTrackTitle(title);
-        }
+    if( _channelInfo.chName.isEmpty() )
+        title = "PurePlayer*";
+    else {
+        title = _channelInfo.chName;
+        _playlist->setCurrentTrackTitle(title);
     }
-    else
-        title = _playlist->currentTrackTitle();
 
-    if( _debugCount )
-        setWindowTitle(title + QString(" %1").arg(_debugCount));
-    else
-        setWindowTitle(title);
-
-    LogDialog::dialog()->setWindowTitle(title + " - PURE LOG");
+    setWindowTitle(title);
 }
 
 QString PurePlayer::genDateTimeSaveFileName(const QString& suffix)
@@ -2259,12 +2268,6 @@ void PurePlayer::mpProcess_error(QProcess::ProcessError error)
                    "起動にはMPlayerがインストールされており、\n"
                    "PATHが通っているか、起動設定が正しく指定されている必要があります。"));
     }
-}
-
-void PurePlayer::mpProcess_debugKilledCPid()
-{
-    ++_debugCount;
-    reflectChannelInfo();
 }
 
 void PurePlayer::mpProcess_outputLine(const QString& line)
@@ -2588,8 +2591,10 @@ void PurePlayer::recProcess_outputLine(const QString& line)
 
 void PurePlayer::peercast_gotChannelInfo(const ChannelInfo& chInfo)
 {
-    _channelInfo = chInfo;
-    reflectChannelInfo();
+    if( !chInfo.chName.isEmpty() ) { // チャンネル名が空の場合は取得情報が空になったと判断する
+        _channelInfo = chInfo;
+        reflectChannelInfo();
+    }
 }
 
 void PurePlayer::actGroupAudioOutput_changed(QAction* action)

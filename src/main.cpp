@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2014 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,49 +16,48 @@
 #include <stdio.h>
 #include <QApplication>
 #include <QTextCodec>
+#include <QTextStream>
 #include <QTranslator>
 #include <QLibraryInfo>
 #include <QLocale>
 #include "pureplayer.h"
 #include "aboutdialog.h"
 
+#define HELP_STRING \
+    "PurePlayer* %1\n" \
+    "Usage: %2 [Options] [File|URL]...\n" \
+    "\n" \
+    "Options:\n" \
+    "  -h, --help            ヘルプ\n" \
+    "  -t, --title name      ウィンドウタイトル設定\n"
+
 bool parseArgs(PurePlayer* player, int argc, char** argv)
 {
     QStringList paths;
 
     for(int i=1; i < argc; ++i) {
-        if( !strcmp(argv[i], "--help")
-         || !strcmp(argv[i], "-h") )
+        if( !strcmp(argv[i], "-h")
+         || !strcmp(argv[i], "--help") )
         {
-            QString help = QObject::tr(
-                    "PurePlayer* %1\n"
-                    "Usage: %2 [Options] [File|URL]...\n"
-                    "\n"
-                    "Options:\n"
-                    "  --help|-h            ヘルプ\n")
-                    .arg(PUREPLAYER_VERSION)
-                    .arg(argv[0]);
+            QString help = QObject::tr(HELP_STRING).arg(PUREPLAYER_VERSION).arg(argv[0]);
 
-            fprintf(stderr, help.toAscii().data());
-
+            QTextStream(stdout) << help << flush;
             return false;
         }
-//      else
-//      if( !strcmp(argv[i], "--title")
-//       || !strcmp(argv[i], "-t") )
-//      {
-//          ++i;
-//          if( i >= argc ) {
-//              fprintf(stderr,
-//                      QObject::tr("error: '%1'の引数が足りません。\n")
-//                      .arg(argv[i-1])
-//                      .toAscii().data());
+        else
+        if( !strcmp(argv[i], "-t")
+         || !strcmp(argv[i], "--title") )
+        {
+            ++i;
+            if( i >= argc ) {
+                QTextStream(stderr) << QObject::tr("error: '%1'の引数が足りません。\n")
+                                       .arg(argv[i-1]) << flush;
 
-//              return false;
-//          }
-//          else
-//              player->setWindowTitle(argv[i]);
-//      }
+                return false;
+            }
+            else
+                player->setTitleOption(argv[i]);
+        }
         else {
             paths << argv[i];
         }

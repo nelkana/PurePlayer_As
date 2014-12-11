@@ -69,6 +69,7 @@ public:
     bool isAlwaysShowStatusBar() { return !isFullScreen()
                                         && (_alwaysShowStatusBar || !isPeercastStream()); }
     bool isPeercastStream() { return _peercast.port() != 0; }
+    void setTitleOption(const QString& title);
 
 //  void resize(const QSize&);
 //  void resize(int w, int h) { resize(QSize(w, h)); }
@@ -144,6 +145,8 @@ public slots:
 
     void updateChannelInfo() { _peercast.getChannelInfo(); }
     void openContactUrl();
+
+    void setWindowTitle(const QString&);
 
 protected slots:
     void mpCmd(const QString& command);
@@ -228,7 +231,6 @@ protected:
 private slots:
     void mpProcess_finished();
     void mpProcess_error(QProcess::ProcessError);
-    void mpProcess_debugKilledCPid();                    // debug
     void mpProcess_outputLine(const QString& line);
     void recProcess_finished();
     void recProcess_outputLine(const QString& line);
@@ -274,6 +276,7 @@ private:
 
     STATE           _state;
     QString         _path;
+    QString         _pathForTitleOption;
 
     Peercast        _peercast;
     ChannelInfo     _channelInfo;
@@ -377,8 +380,6 @@ private:
     AboutDialog*       _aboutDialog;
     ClipWindow*        _clipWindow;
     QList<QWidget*>    _hiddenWindowList;
-
-    int  _debugCount;
 };
 
 #endif // PUREPLAYER_H
