@@ -17,6 +17,7 @@
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QScriptEngine>
+#include <QXmlStreamReader>
 #include <QDebug>
 #include "peercast.h"
 #include "task.h"
@@ -253,7 +254,7 @@ void GetChannelInfoTask::start()
     }
 
     if( _type == Peercast::TYPE_VP ) {
-        QUrl url(QString("http://%1:%2/html/ja/relayinfo.html?id=%3").arg(_host).arg(_port).arg(_id));
+        QUrl url(QString("http://%1:%2/admin?cmd=viewxml").arg(_host).arg(_port));
         _replyChannelInfo = _nam.get(QNetworkRequest(url));
     }
     else { // _type == Peercast::TYPE_ST
@@ -287,98 +288,66 @@ bool GetChannelInfoTask::parseChannelInfoPcVp(const QString& reply)
     const QString debugPrefix = "GetChannelInfoTask::parseChannelInfoPcVp(): ";
     LogDialog::debug(debugPrefix + "called");
 
-    int start, end;
+    QXmlStreamReader xml(reply);
+    QString status;
 
-    // チャンネル名の取得
-    start = reply.indexOf("<td>チャンネル名");
-    if( start == -1 )
+    while( !xml.atEnd() ) {
+        xml.readNext();
+//      LogDialog::debug(QString("%1/%2").arg(xml.isStartElement()).arg(xml.name().toString()));
+
+        if( xml.isStartElement() ) {
+            if( xml.name() == "peercast" )
+                ;
+            else
+            if( xml.name() == "channels_relayed" )
+                ;
+            else
+            if( xml.name() == "channel" && xml.attributes().value("id") == _id ) {
+                _chInfo.chName = xml.attributes().value("name").toString();
+                _chInfo.contactUrl = xml.attributes().value("url").toString();
+                _chInfo.bitrate = xml.attributes().value("bitrate").toString().toInt();
+
+                // 不要
+//              QTextDocument txt;
+//              txt.setHtml(_chInfo.chName);
+//              _chInfo.chName = txt.toPlainText();
+            }
+            else
+            if( xml.name() == "relay" ) {
+                status = xml.attributes().value("status").toString();
+                if( status == "RECEIVE" )
+                    _chInfo.status = ChannelInfo::ST_RECEIVE;
+                else
+                if( status == "SEARCH" )
+                    _chInfo.status = ChannelInfo::ST_SEARCH;
+                else
+                if( status == "CONNECT" )
+                    _chInfo.status = ChannelInfo::ST_CONNECT;
+                else
+                if( status == "ERROR" )
+                    _chInfo.status = ChannelInfo::ST_ERROR;
+                else
+                    _chInfo.status = ChannelInfo::ST_UNKNOWN;
+
+                break;
+            }
+            else
+                xml.skipCurrentElement();
+        }
+    }
+
+    if( xml.hasError() ) {
+        LogDialog::debug(debugPrefix + xml.errorString());
         return false;
+    }
 
-    start = reply.indexOf("\">", start);
-    start += 2;
-    end = reply.indexOf('<', start);
-
-    _chInfo.chName = reply.mid(start, end - start);
-    QTextDocument txt;
-    txt.setHtml(_chInfo.chName);
-    _chInfo.chName = txt.toPlainText();
-    LogDialog::debug(debugPrefix + "name " + _chInfo.chName);
-
-    // コンタクトURLの取得
-    start = reply.indexOf("<td>URL", start);
-    if( start == -1 )
-        return false;
-
-    start = reply.indexOf("\">", start);
-    start += 2;
-    end = reply.indexOf('<', start);
-
-    _chInfo.contactUrl = reply.mid(start, end - start);
-    LogDialog::debug(debugPrefix + "url " + _chInfo.contactUrl);
-
-    // ビットレートの取得
-    start = reply.indexOf("<td>ビットレート", start);
-    if( start == -1 )
-        return false;
-
-    ++start;
-    start = reply.indexOf("<td>", start);
-    start += 4;
-    end = reply.indexOf(" kbps<", start);
-
-    QString bitrate = reply.mid(start, end - start);
-    _chInfo.bitrate = bitrate.toInt();
-    LogDialog::debug(debugPrefix + "bitrate " + QString::number(_chInfo.bitrate));
-/*
-    // 接続先IPアドレスの取得
-    start = reply.indexOf("<td>取得元", start);
-    if( start == -1 )
-        return false;
-    start = reply.indexOf("<br>", start);
-    start += 4;
-    start = reply.indexOf(QRegExp("\\S"), start);
-    end = reply.indexOf('<', start);
-
-    QString temp = reply.mid(start, end - start);
-    QString connectedIp = temp.left(temp.indexOf(':'));
-
-    LogDialog::debug(debugPrefix + connectedIp + ' ' + _chInfo.rootIp);
-
-#ifndef QT_NO_DEBUG_OUTPUT
-    if( connectedIp == _chInfo.rootIp )
-        _title = "[" + _title + "]";
-#endif
-*/
-    // 接続状態の取得
-    start = reply.indexOf("<td>状態", start);
-    if( start == -1 )
-        return false;
-
-    ++start;
-    start = reply.indexOf("<td>", start);
-    start += 4;
-    end = reply.indexOf('<', start);
-
-    QString status = reply.mid(start, end - start);
-    if( status == "RECEIVE" )
-        _chInfo.status = ChannelInfo::ST_RECEIVE;
-    else
-    if( status == "SEARCH" )
-        _chInfo.status = ChannelInfo::ST_SEARCH;
-    else
-    if( status == "CONNECT" )
-        _chInfo.status = ChannelInfo::ST_CONNECT;
-    else
-    if( status == "ERROR" )
-        _chInfo.status = ChannelInfo::ST_ERROR;
-    else
-        _chInfo.status = ChannelInfo::ST_UNKNOWN;
-
-//  _searchingConnection = (rootIp == "0.0.0.0");
-
-    LogDialog::debug(debugPrefix + "status " + status);
-
-    return true;
+    if( !status.isNull() ) {
+        LogDialog::debug(debugPrefix + "name " + _chInfo.chName);
+        LogDialog::debug(debugPrefix + "url " + _chInfo.contactUrl);
+        LogDialog::debug(debugPrefix + "bitrate " + QString::number(_chInfo.bitrate));
+        LogDialog::debug(debugPrefix + "status " + status);
+    }
+    return !status.isNull();
 }
 
 bool GetChannelInfoTask::parseChannelInfoPcSt(const QString& reply)
@@ -554,29 +523,40 @@ void DisconnectChannelTask::start()
 
 bool DisconnectChannelTask::getChannelStatusPcVp(const QString& reply)
 {
-    int overIndex = reply.indexOf("<channels_found total=");
-    if( overIndex == -1 )
+    QXmlStreamReader xml(reply);
+    _listeners = -1;
+
+    while( !xml.atEnd() ) {
+        xml.readNext();
+//      qDebug() << QString("%1/%2").arg(xml.isStartElement()).arg(xml.name().toString());
+
+        if( xml.isStartElement() ) {
+            if( xml.name() == "peercast" )
+                ;
+            else
+            if( xml.name() == "channels_relayed" )
+                ;
+            else
+            if( xml.name() == "channel" && xml.attributes().value("id") == _id )
+                ;
+            else
+            if( xml.name() == "relay" ) {
+                _listeners = xml.attributes().value("listeners").toString().toInt();
+                QStringRef status = xml.attributes().value("status");
+                _retryGetStatus = (status=="SEARCH" || status=="CONNECT");
+                break;
+            }
+            else
+                xml.skipCurrentElement();
+        }
+    }
+
+    if( xml.hasError() ) {
+        qDebug() << "DisconnectChannelTask::getChannelStatusPcVp():" << xml.errorString();
         return false;
+    }
 
-    int start, end;
-    start = reply.indexOf(_id);
-    if( start == -1 || start > overIndex )
-        return false;
-
-    start = reply.indexOf("<relay listeners=\"", start);
-    start += 18;
-    end = reply.indexOf('\"', start);
-
-    _listeners = reply.mid(start, end - start).toInt();
-
-    start = reply.indexOf("status=\"", start);
-    start += 8;
-    end = reply.indexOf('\"', start);
-
-    QString status = reply.mid(start, end - start);
-    _retryGetStatus = (status=="SEARCH" || status=="CONNECT");
-
-    return true;
+    return _listeners != -1;
 }
 
 bool DisconnectChannelTask::getChannelStatusPcSt(const QString& reply)
