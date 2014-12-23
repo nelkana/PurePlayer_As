@@ -83,18 +83,15 @@ void Peercast::disconnectChannel(int startSec)
 
 void Peercast::getChannelInfo_GetPeercastTypeTask_finished()
 {
-    if( _type != TYPE_UNKNOWN ) {
-        Task* task = new GetChannelInfoTask(_host, _port, _id, _type, this);
-        connect(task, SIGNAL(finished(const ChannelInfo&)),
-                this, SIGNAL(gotChannelInfo(const ChannelInfo&)));
-        Task::push(task);
-    }
+    Task* task = new GetChannelInfoTask(_host, _port, _id, _type, this);
+    connect(task, SIGNAL(finished(const ChannelInfo&)),
+            this, SIGNAL(gotChannelInfo(const ChannelInfo&)));
+    Task::push(task);
 }
 
 void Peercast::disconnectChannel_GetPeercastTypeTask_finished()
 {
-    if( _type != TYPE_UNKNOWN )
-        Task::push(new DisconnectChannelTask(_host, _port, _id, _type, _disconnectStartSec, this));
+    Task::push(new DisconnectChannelTask(_host, _port, _id, _type, _disconnectStartSec, this));
 }
 
 void Peercast::nam_finished(QNetworkReply* reply)
@@ -104,43 +101,47 @@ void Peercast::nam_finished(QNetworkReply* reply)
 
 // ---------------------------------------------------------------------------------------
 GetPeercastTypeTask::GetPeercastTypeTask(const QString& host, ushort port,
-        Peercast::TYPE* type, QObject* parent) : Task(parent)
+        Peercast::TYPE* pType, QObject* parent) : Task(parent)
 {
     _host = host;
     _port = port;
-    _type = type;
+    _pType = pType;
 
     connect(&_nam, SIGNAL(finished(QNetworkReply*)),
             this,  SLOT(nam_finished(QNetworkReply*)));
 
-    _attemptType = Peercast::TYPE_VP;
+    _attemptTypes << Peercast::TYPE_VP << Peercast::TYPE_ST;
 }
 
 void GetPeercastTypeTask::nam_finished(QNetworkReply* reply)
 {
-    bool error = !(reply->error() == QNetworkReply::NoError);
+    bool failed = !(reply->error() == QNetworkReply::NoError);
 
-    if( !error ) {
+    Q_ASSERT( !_attemptTypes.isEmpty() );
+
+    if( !failed ) {
         QString out = reply->readAll();
-        if( _attemptType == Peercast::TYPE_VP )
-            error = !whetherPcVp(out);
+        if( _attemptTypes.first() == Peercast::TYPE_ST )
+            failed = !whetherPcSt(out);
         else
-            error = !whetherPcSt(out);
+            failed = !whetherPcVp(out);
 
-        if( !error )
-            *_type = _attemptType;
+        if( !failed )
+            *_pType = _attemptTypes.first();
     }
 
-    if( error ) {
-        if( _attemptType == Peercast::TYPE_VP ) {
-            _attemptType = Peercast::TYPE_ST;
+    if( failed ) {
+        _attemptTypes.pop_front();
+        if( _attemptTypes.isEmpty() )
+            *_pType = Peercast::TYPE_UNKNOWN;
+        else {
             queryPeercastType();
             reply->deleteLater();
             return;
         }
-        else
-            *_type = Peercast::TYPE_UNKNOWN;
     }
+
+    LogDialog::debug(QString("GetPeercastTypeTask::nam_finished(): peercast type %1").arg(*_pType));
 
     reply->deleteLater();
     deleteLater();
@@ -153,7 +154,9 @@ void GetPeercastTypeTask::start()
 
 void GetPeercastTypeTask::queryPeercastType()
 {
-    if( _attemptType == Peercast::TYPE_VP ) {
+    if( _attemptTypes.isEmpty() ) return;
+
+    if( _attemptTypes.first() == Peercast::TYPE_VP ) {
         QUrl url(QString("http://%1:%2/html/ja/index.html").arg(_host).arg(_port));
         _nam.get(QNetworkRequest(url));
     }
@@ -219,15 +222,17 @@ void GetChannelInfoTask::nam_finished(QNetworkReply* reply)
         if( reply == _replyChannelInfo ) {
             _replyChannelInfo = NULL;
 
-            if( _type == Peercast::TYPE_VP ) {
-                if( parseChannelInfoPcVp(out) )
-                    emit finished(_chInfo);
-            }
-            else { // _type == Peercast::TYPE_ST
+            if( _type == Peercast::TYPE_ST ) {
                 if( parseChannelInfoPcSt(out) ) {
                     getChannelStatusPcSt();
                     reply->deleteLater();
                     return;
+                }
+            }
+            else { // _type==Peercast::TYPE_VP || _type==Peercast::TYPE_UNKNOWN
+                if( parseChannelInfoPcVp(out) ) {
+                    debugChannelInfo();
+                    emit finished(_chInfo);
                 }
             }
         }
@@ -235,12 +240,14 @@ void GetChannelInfoTask::nam_finished(QNetworkReply* reply)
         if( reply == _replyChannelStatusPcSt ) {
             _replyChannelStatusPcSt = NULL;
 
-            if( parseChannelStatusPcSt(out) )
+            if( parseChannelStatusPcSt(out) ) {
+                debugChannelInfo();
                 emit finished(_chInfo);
+            }
         }
     }
     else
-        LogDialog::debug(debugPrefix + "error " + QString::number(reply->error()), QColor(255,0,0));
+        LogDialog::debug(debugPrefix + "reply error " + QString::number(reply->error()), QColor(255,0,0));
 
     reply->deleteLater();
     deleteLater();
@@ -248,16 +255,12 @@ void GetChannelInfoTask::nam_finished(QNetworkReply* reply)
 
 void GetChannelInfoTask::start()
 {
-    if( _type == Peercast::TYPE_UNKNOWN ) {
-        deleteLater();
-        return;
-    }
+//  if( _type == Peercast::TYPE_UNKNOWN ) {
+//      deleteLater();
+//      return;
+//  }
 
-    if( _type == Peercast::TYPE_VP ) {
-        QUrl url(QString("http://%1:%2/admin?cmd=viewxml").arg(_host).arg(_port));
-        _replyChannelInfo = _nam.get(QNetworkRequest(url));
-    }
-    else { // _type == Peercast::TYPE_ST
+    if( _type == Peercast::TYPE_ST ) {
         QUrl url(QString("http://%1:%2/api/1").arg(_host).arg(_port));
         QString json("{\"jsonrpc\": \"2.0\", \"method\": \"%1\", \"params\": [\"" + _id + "\"], \"id\": 1}");
         QNetworkRequest request(url);
@@ -266,6 +269,10 @@ void GetChannelInfoTask::start()
         QByteArray data(json.arg("getChannelInfo").toLatin1());
         request.setHeader(QNetworkRequest::ContentLengthHeader, data.size());
         _replyChannelInfo = _nam.post(request, data);
+    }
+    else { // _type==Peercast::TYPE_VP || _type==Peercast::TYPE_UNKNOWN
+        QUrl url(QString("http://%1:%2/admin?cmd=viewxml").arg(_host).arg(_port));
+        _replyChannelInfo = _nam.get(QNetworkRequest(url));
     }
 }
 
@@ -341,12 +348,6 @@ bool GetChannelInfoTask::parseChannelInfoPcVp(const QString& reply)
         return false;
     }
 
-    if( !status.isNull() ) {
-        LogDialog::debug(debugPrefix + "name " + _chInfo.chName);
-        LogDialog::debug(debugPrefix + "url " + _chInfo.contactUrl);
-        LogDialog::debug(debugPrefix + "bitrate " + QString::number(_chInfo.bitrate));
-        LogDialog::debug(debugPrefix + "status " + status);
-    }
     return !status.isNull();
 }
 
@@ -372,10 +373,6 @@ bool GetChannelInfoTask::parseChannelInfoPcSt(const QString& reply)
     _chInfo.chName     = value.property("name").toString();
     _chInfo.contactUrl = value.property("url").toString();
     _chInfo.bitrate    = value.property("bitrate").toInt32();
-
-    LogDialog::debug(debugPrefix + "name " + _chInfo.chName);
-    LogDialog::debug(debugPrefix + "url " + _chInfo.contactUrl);
-    LogDialog::debug(debugPrefix + "bitrate " + QString::number(_chInfo.bitrate));
 
     return true;
 }
@@ -414,9 +411,17 @@ bool GetChannelInfoTask::parseChannelStatusPcSt(const QString& reply)
     else
         _chInfo.status = ChannelInfo::ST_UNKNOWN;
 
-    LogDialog::debug(debugPrefix + "status " + status);
-
     return true;
+}
+
+void GetChannelInfoTask::debugChannelInfo()
+{
+    const QString debugPrefix = "GetChannelInfoTask::debugChannelInfo(): ";
+
+    LogDialog::debug(debugPrefix + "name " + _chInfo.chName);
+    LogDialog::debug(debugPrefix + "url " + _chInfo.contactUrl);
+    LogDialog::debug(debugPrefix + "bitrate " + QString::number(_chInfo.bitrate));
+    LogDialog::debug(debugPrefix + "status " + _chInfo.statusString());
 }
 
 // ---------------------------------------------------------------------------------------

@@ -38,6 +38,11 @@ public:
         bitrate = 0;
         status = ST_UNKNOWN;
     }
+
+    QString statusString() {
+        const char* str[] = { "UNKNOWN", "CONNECT", "RECEIVE", "SEARCH", "ERROR" };
+        return str[this->status];
+    }
 };
 
 class Peercast : public QObject
@@ -81,7 +86,7 @@ class GetPeercastTypeTask : public Task
     Q_OBJECT
 
 public:
-    GetPeercastTypeTask(const QString& host, ushort port, Peercast::TYPE* type, QObject* parent);
+    GetPeercastTypeTask(const QString& host, ushort port, Peercast::TYPE* pType, QObject* parent);
 
 protected slots:
     void nam_finished(QNetworkReply*);
@@ -94,11 +99,11 @@ protected:
 
 private:
     QNetworkAccessManager _nam;
-    Peercast::TYPE _attemptType;
+    QList<Peercast::TYPE> _attemptTypes;
 
     QString _host;
     ushort  _port;
-    Peercast::TYPE* _type;
+    Peercast::TYPE* _pType;
 };
 
 class GetChannelInfoTask : public Task
@@ -121,6 +126,7 @@ protected:
     bool parseChannelInfoPcVp(const QString& reply);
     bool parseChannelInfoPcSt(const QString& reply);
     bool parseChannelStatusPcSt(const QString& reply);
+    void debugChannelInfo();
 
 private:
     QNetworkAccessManager _nam;
