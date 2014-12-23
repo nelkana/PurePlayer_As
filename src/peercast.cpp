@@ -111,6 +111,9 @@ GetPeercastTypeTask::GetPeercastTypeTask(const QString& host, ushort port,
             this,  SLOT(nam_finished(QNetworkReply*)));
 
     _attemptTypes << Peercast::TYPE_VP << Peercast::TYPE_ST;
+    int i = _attemptTypes.indexOf(*_pType);
+    if( i > 0 )
+        _attemptTypes.move(i, 0);
 }
 
 void GetPeercastTypeTask::nam_finished(QNetworkReply* reply)
@@ -118,6 +121,7 @@ void GetPeercastTypeTask::nam_finished(QNetworkReply* reply)
     bool failed = !(reply->error() == QNetworkReply::NoError);
 
     Q_ASSERT( !_attemptTypes.isEmpty() );
+//  LogDialog::debug(QString("peercast type %1").arg(_attemptTypes.first()));
 
     if( !failed ) {
         QString out = reply->readAll();
