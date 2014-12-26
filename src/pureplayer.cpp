@@ -97,7 +97,8 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _fileFormat = "";
     _isMute = false;
     _alwaysShowStatusBar = false;
-    _noVideo = false;
+    _existAudio = true;
+    _existVideo = true;
     _isSeekable = false;
     _playNoSound = false;
     _controlFlags = FLG_NONE;
@@ -125,7 +126,8 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 
     _reconnectScore = 0;
     _reconnectCount = 0;
-    _reconnectControlTime  = 0;
+    _reconnectControlTimeAo = 0;
+    _reconnectControlTimeVo = 0;
     connect(&_timerReconnect, SIGNAL(timeout()), this, SLOT(timerReconnect_timeout()));
 
     _fpsCount = 0;
@@ -2287,7 +2289,7 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
     static QRegExp rxAuthor("^ author: (.+)");
     static QRegExp rxCopyright("^ copyright: (.+)");
     static QRegExp rxComments("^ comments: (.+)");
-    static QRegExp rxStatus("^[AV]: *([0-9.-]+)");
+    static QRegExp rxStatus("^[AV]: *([0-9.-]+) (?:V: *([0-9.-]+))?");
     static QRegExp rxFrame(".+ (\\d+)\\/ *\\d+");
     static QRegExp rxScreenshot("^\\*\\*\\* screenshot '(.+)'");
     static QRegExp rxScreenshotError(".+ Error opening .+ for writing!");
@@ -2306,10 +2308,27 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
             if( _startTime == -1 ) {
                 _startTime = rxStatus.cap(1).toDouble();
                 _oldTime = _startTime;
+
+                if( isPeercastStream() ) {
+                    if( _existAudio ) {
+                        _reconnectControlTimeAo = rxStatus.cap(1).toDouble();
+                        _reconnectControlTimeVo = rxStatus.cap(2).toDouble();
+                    }
+                    else
+                        _reconnectControlTimeVo = rxStatus.cap(1).toDouble();
+                }
+
                 LogDialog::debug(debugPrefix + QString("init startTime %1").arg(_startTime));
             }
 
             _currentTime = rxStatus.cap(1).toDouble();
+
+            if( _existAudio ) {
+                _currentTimeAo = _currentTime;
+                _currentTimeVo = rxStatus.cap(2).toDouble();
+            }
+            else
+                _currentTimeVo = _currentTime;
 
             if( _currentTime > _startTime ) {
                 if( isPeercastStream() ) {
@@ -2335,7 +2354,6 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
                         LogDialog::debug(debugPrefix + "reconnect diff", QColor(255,0,0));
 
                         reconnectPurePlayer();
-                        //reconnect();
                     }
                 }
                 else {
@@ -2399,16 +2417,11 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
         if( line.startsWith("Cache empty") || line.startsWith("Cache not filling")
          || line.contains("Bits overconsumption:") )
         {
-            if( isPeercastStream() ) {
-//              LogDialog::debug(debugPrefix + QString("time %1").arg(_timeLabel->time()));
-//              LogDialog::debug(debugPrefix + QString("timea %1").arg(_currentTime));
-//              LogDialog::debug(debugPrefix + QString("frame %1").arg(_currentFrame));
-
+            if( isPeercastStream() )
                 _reconnectScore += 100;
-            }
         }
         else
-        if( (line.startsWith("Starting playback...") && _noVideo)
+        if( (line.startsWith("Starting playback...") && !_existVideo)
          || (rxVideoDriverWH.indexIn(line) != -1) )
         {
             setStatus(ST_PLAY);
@@ -2446,17 +2459,17 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
             }
 
             // ビデオドライバ,サイズの取得
-            if( _noVideo ) {
-                _usingVideoDriver.clear();
-                _videoSize = QSize(320, 240);
-            }
-            else {
+            if( _existVideo ) {
                 _usingVideoDriver = rxVideoDriverWH.cap(1);
                 _videoSize.setWidth(rxVideoDriverWH.cap(2).toInt());
                 if( _videoSize.width() <= 0 ) _videoSize.setWidth(320);
 
                 _videoSize.setHeight(rxVideoDriverWH.cap(3).toInt());
                 if( _videoSize.height() <= 0 ) _videoSize.setHeight(240);
+            }
+            else {
+                _usingVideoDriver.clear();
+                _videoSize = QSize(320, 240);
             }
 
             if( _controlFlags.testFlag(FLG_OPENED_PATH) ) {
@@ -2479,11 +2492,15 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
 
                 _timerReconnect.start(6000); // 再スタート
                 _reconnectScore = 0;
-                _reconnectControlTime = _elapsedTime; // _reconnectControlTimeの比較を、再生開始時の開始時間から比較できる様に更新する
+                _reconnectControlTimeAo = 0;
+                _reconnectControlTimeVo = 0;
 
                 if( _channelInfo.status == ChannelInfo::ST_SEARCH )
                     updateChannelInfo();
             }
+
+            _currentTimeAo = 0;
+            _currentTimeVo = 0;
 
             // ウィンドウリサイズ
             if( _controlFlags.testFlag(FLG_RESIZE_WHEN_PLAYED) ) {
@@ -2551,7 +2568,10 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
             _infoLabel->setClipComments(rxComments.cap(1));
         else
         if( line.startsWith("Video: no video") )
-            _noVideo = true;
+            _existVideo = false;
+        else
+        if( line.startsWith("Audio: no sound") )
+            _existAudio = false;
         else
         if( rxFileFormat.indexIn(line) != -1 ) {
             _fileFormat = rxFileFormat.cap(1);
@@ -2640,9 +2660,12 @@ void PurePlayer::timerReconnect_timeout()
     }
     else
     if( _state == ST_PLAY ) {
-        if( _reconnectControlTime == _timeLabel->time() ) {
-            LogDialog::debug(QString(debugPrefix + "reconnect time %1")
-                    .arg(_reconnectControlTime), QColor(255,0,0));
+                                // 再接続され易い傾向にする為、(int)で誤差を吸収している
+        if( (int)_reconnectControlTimeAo == (int)_currentTimeAo
+            && (int)_reconnectControlTimeVo == (int)_currentTimeVo )
+        {
+            LogDialog::debug(QString(debugPrefix + "reconnect stop time A:%1, V:%2")
+                    .arg(_reconnectControlTimeAo).arg(_reconnectControlTimeVo), QColor(255,0,0));
 
             if( _channelInfo.status == ChannelInfo::ST_SEARCH
              || (!_fileFormat.isEmpty() && _fileFormat != "ASF") )
@@ -2666,10 +2689,12 @@ void PurePlayer::timerReconnect_timeout()
         if( _reconnectScore == 0 )
             _reconnectCount = 0;
 
-        _reconnectControlTime = _timeLabel->time();
+        _reconnectControlTimeAo = _currentTimeAo;
+        _reconnectControlTimeVo = _currentTimeVo;
         _reconnectScore = 0;
-    }
 
+//      LogDialog::debug(debugPrefix + QString("A:%1 V:%2").arg(_currentTimeAo).arg(_currentTimeVo));
+    }
 }
 
 void PurePlayer::timerFps_timeout()
@@ -2884,7 +2909,8 @@ void PurePlayer::playCommonProcess()
 
     _channelInfo.status = ChannelInfo::ST_UNKNOWN;
 
-    _noVideo = false;
+    _existAudio = true;
+    _existVideo = true;
     _controlFlags &= ~FLG_EOF;
     _controlFlags &= ~FLG_EXPLICITLY_STOPPED;
     _controlFlags &= ~FLG_RECONNECTED;
@@ -3555,14 +3581,14 @@ void PurePlayer::setStatus(const STATE s)
 
         _infoLabel->startClipInfo();
 
-        if( !_noVideo ) {
+        if( _existVideo ) {
             _timerFps.start(1000);
             _fpsCount = 0;
             _oldFrame = 0;
         }
 
 #ifdef Q_WS_X11
-        if( !_noVideo ) {
+        if( _existVideo ) {
             _videoScreen->setAttribute(Qt::WA_NoSystemBackground);
             _videoScreen->setAttribute(Qt::WA_PaintOnScreen);
         }
@@ -3589,7 +3615,7 @@ void PurePlayer::setStatus(const STATE s)
         _actStop->setEnabled(true);
 
 #ifdef Q_WS_X11
-        if( !_noVideo ) {
+        if( _existVideo ) {
             _videoScreen->setAttribute(Qt::WA_NoSystemBackground, false);
             _videoScreen->setAttribute(Qt::WA_PaintOnScreen, false);
         }
@@ -3637,7 +3663,7 @@ void PurePlayer::setStatus(const STATE s)
         _labelFps->setText("0fps");
 
 #ifdef Q_WS_X11
-        if( !_noVideo ) {
+        if( _existVideo ) {
             _videoScreen->setAttribute(Qt::WA_NoSystemBackground, false);
             _videoScreen->setAttribute(Qt::WA_PaintOnScreen, false);
             _videoScreen->repaint();

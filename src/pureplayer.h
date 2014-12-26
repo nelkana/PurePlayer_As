@@ -287,13 +287,16 @@ private:
     double          _videoLength;
     QString         _fileFormat;
     bool            _isSeekable;
-    bool            _noVideo;
+    bool            _existAudio;
+    bool            _existVideo;
     QRect           _clipRect;
 
+    double          _currentTimeAo;
+    double          _currentTimeVo;
     double          _currentTime;
     double          _startTime;
-    double          _oldTime;
-    int             _elapsedTime;
+    double          _oldTime;           // 後で削除する
+    int             _elapsedTime;       // 後で削除する
     int             _repeatStartTime;
     int             _repeatEndTime;
 
@@ -322,7 +325,8 @@ private:
     QTimer          _timerReconnect;
     quint8          _reconnectCount;
     quint16         _reconnectScore;
-    int             _reconnectControlTime;
+    double          _reconnectControlTimeAo;
+    double          _reconnectControlTimeVo;
 
     bool            _outputStatusLog;
 
