@@ -220,7 +220,10 @@ void GetChannelInfoTask::nam_finished(QNetworkReply* reply)
 {
     const QString debugPrefix = "GetChannelInfoTask::nam_finished(): ";
 
-    if( reply->error() == QNetworkReply::NoError ) {
+        // PeercastIMではviewxml返却時のヘッダに誤りがある為、その場合のエラーは通過させる
+    if( reply->error() == QNetworkReply::NoError
+     || (reply->error()==QNetworkReply::RemoteHostClosedError && _type!=Peercast::TYPE_ST) )
+    {
         QString out = reply->readAll();
 
         if( reply == _replyChannelInfo ) {
@@ -460,7 +463,7 @@ DisconnectChannelTask::DisconnectChannelTask(const QString& host, ushort port,
     _host = host;
     _port = port;
     _id   = id;
-    _peercastType = type;
+    _type = type;
     _startSec = startSec;
     _listeners = -1;
     _retryGetStatus = false;
@@ -473,7 +476,7 @@ DisconnectChannelTask::DisconnectChannelTask(const QString& host, ushort port,
 
 void DisconnectChannelTask::timerSingleShot_timeout()
 {
-    if( _peercastType == Peercast::TYPE_ST ) {
+    if( _type == Peercast::TYPE_ST ) {
         QUrl url(QString("http://%1:%2/api/1").arg(_host).arg(_port));
         QString json("{\"jsonrpc\": \"2.0\", \"method\": \"%1\", \"params\": [\"" + _id + "\"], \"id\": 1}");
         QNetworkRequest request(url);
@@ -483,7 +486,7 @@ void DisconnectChannelTask::timerSingleShot_timeout()
         request.setHeader(QNetworkRequest::ContentLengthHeader, data.size());
         _nam.post(request, data);
     }
-    else { // _peercastType==Peercast::TYPE_VP || _peercastType==Peercast::TYPE_UNKNOWN
+    else { // _type==Peercast::TYPE_VP || _type==Peercast::TYPE_UNKNOWN
         QUrl url(QString("http://%1:%2/admin?cmd=viewxml").arg(_host).arg(_port));
         _nam.get(QNetworkRequest(url));
     }
@@ -491,11 +494,14 @@ void DisconnectChannelTask::timerSingleShot_timeout()
 
 void DisconnectChannelTask::nam_finished(QNetworkReply* reply)
 {
-    if( reply->error() == QNetworkReply::NoError ) {
+        // PeercastIMではviewxml返却時のヘッダに誤りがある為、その場合のエラーは通過させる
+    if( reply->error() == QNetworkReply::NoError
+     || (reply->error()==QNetworkReply::RemoteHostClosedError && _type!=Peercast::TYPE_ST) )
+    {
         QString out = reply->readAll();
 
         bool result = false;
-        if( _peercastType == Peercast::TYPE_ST )
+        if( _type == Peercast::TYPE_ST )
             result = getChannelStatusPcSt(out);
         else
             result = getChannelStatusPcVp(out);
@@ -527,7 +533,7 @@ void DisconnectChannelTask::start()
     _timer.start(MONITORING_MSEC);
     QTimer::singleShot(_startSec * 1000, this, SLOT(timerSingleShot_timeout()));
 
-    qDebug("DisconnectChannelTask::start(): peercast type %d", _peercastType);
+    qDebug("DisconnectChannelTask::start(): peercast type %d", _type);
 }
 
 bool DisconnectChannelTask::getChannelStatusPcVp(const QString& reply)

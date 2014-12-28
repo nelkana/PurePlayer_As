@@ -185,7 +185,7 @@ private:
     QString _host;
     ushort  _port;
     QString _id;
-    Peercast::TYPE _peercastType;
+    Peercast::TYPE _type;
     int     _startSec;
     int     _listeners;
     bool    _retryGetStatus;
