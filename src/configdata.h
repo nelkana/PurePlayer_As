@@ -32,6 +32,7 @@ public:
         QString aoName;
         bool    useSoftWareVideoEq;
         bool    openIn320x240Size;
+        bool    autoHideMouseCursor;
         bool    reverseWheelSeek;
         int     volumeMax;
         bool    useCacheSize;

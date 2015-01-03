@@ -36,6 +36,7 @@
 #include "windowcontroller.h"
 #include "aboutdialog.h"
 #include "clipwindow.h"
+#include "mousecursor.h"
 #include "commonmenu.h"
 
 #define INIT_VIDEO_CLIENT_WIDTH  320//400
@@ -85,6 +86,14 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     initColorKey();
 #endif
 
+    setMouseTrackingClient(true);
+
+    _mouseCursor = new MouseCursor(this);
+    _mouseCursor->setTargetWidget(centralWidget());
+    _mouseCursor->setAutoHideTime(500);
+    connect(_mouseCursor, SIGNAL(changedShape(Qt::CursorShape)),
+            this,         SLOT(updateShowInterface()));
+
 //  _oldTime = -1;
     _path = "";
     _speedRate = 1.0;
@@ -102,8 +111,6 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     _isSeekable = false;
     _playNoSound = false;
     _controlFlags = FLG_NONE;
-    _timerBlockCursorHide.setSingleShot(true);
-    _timerBlockCursorHide.setInterval(500);
 
     connect(&_peercast, SIGNAL(gotChannelInfo(const ChannelInfo&)),
             this,       SLOT(peercast_gotChannelInfo(const ChannelInfo&)));
@@ -645,9 +652,7 @@ void PurePlayer::createActionContextMenu()
     _menuContext->addSeparator();
     _menuContext->addMenu(menuEtc);
 
-#ifdef Q_OS_WIN32
     connect(_menuContext, SIGNAL(aboutToHide()), this, SLOT(menuContext_aboutToHide()));
-#endif
 
     // ショートカットキー単体登録
     QShortcut* fullscreen = new QShortcut(tr("f"), this);
@@ -1458,11 +1463,6 @@ void PurePlayer::toggleFullScreenOrWindow()
         _statusbarSpaceR->hide();
 
         _actStatusBar->setEnabled(true);
-
-        hideMouseCursor(false);
-#ifdef Q_OS_WIN32
-        updateVideoScreenGeometry(); // windowsではshowNormal()内でresizeEvent()が発生する為
-#endif // Q_OS_WIN32
     }
     else {
         if( isMaximized() )
@@ -1487,12 +1487,15 @@ void PurePlayer::toggleFullScreenOrWindow()
         _statusbarSpaceL->show();
         _statusbarSpaceR->show();
         _actStatusBar->setEnabled(false);
-
-        hideMouseCursor(false);
-#ifdef Q_OS_WIN32
-        updateVideoScreenGeometry(); //
-#endif // Q_OS_WIN32
     }
+
+    _mousePressPos = QPoint(INT_MIN, INT_MIN);
+
+    updateShowInterface();
+    _mouseCursor->setVisible(true);
+#ifdef Q_OS_WIN32
+    updateVideoScreenGeometry(); // windowsではshowNormal()内でresizeEvent()が発生する為
+#endif // Q_OS_WIN32
 
     // ウィンドウモードを切り替えた時の、
     // マウス入力したままでのマウスウィンドウ移動を無効にする。
@@ -1676,7 +1679,8 @@ bool PurePlayer::event(QEvent* e)
 {
 //  LogDialog::debug(tr("%1").arg(e->type()));
     if( e->type() == QEvent::WindowActivate ) {
-        _timerBlockCursorHide.start();
+        _mouseCursor->setVisible(true); // 非アクティブでマウスカーソル非表示時の右クリック対応
+        _mouseCursor->tempDisableChangeShape();
     }
     else    // 初めにボタンプレスしたウィンドウ側にイベント送信先が切り替わる様に作り直す
     if( e->type() == QEvent::MouseButtonPress ) {
@@ -1837,8 +1841,6 @@ void PurePlayer::resizeEvent(QResizeEvent* )
 #endif
 
     updateVideoScreenGeometry();
-    _mousePressPos.setX(INT_MIN);
-    _mousePressPos.setY(INT_MIN);
 
     // サイズ情報の出力
     QString sizeInfo;
@@ -1923,33 +1925,17 @@ void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
 
         if( isFullScreen() ) {
             if( _mousePressPos == e->globalPos() ) {
-                if( whetherMuteArea(e->y()) )
+                if( whetherMuteArea(e->y()) ) {
                     mute(!isMute());
-                else
-                {
-#ifdef Q_OS_WIN32
-                    if( !_timerBlockCursorHide.isActive() )
-#endif // Q_OS_WIN32
-                    hideMouseCursor(true);
+                    _mouseCursor->setVisible(true);
                 }
             }
-
-#ifdef Q_OS_WIN32
-            _timerBlockCursorHide.stop();
-#endif // Q_OS_WIN32
         }
         else {
             if( _mousePressPos == e->globalPos() ) {
                 if( whetherMuteArea(e->y()) )
                     mute(!isMute());
-                else
-                if( centralWidget()->rect().contains(e->pos()) ) {
-                    if( !_timerBlockCursorHide.isActive() )
-                        hideMouseCursor(true);
-                }
             }
-
-            _timerBlockCursorHide.stop();
         }
     }
     else
@@ -1958,8 +1944,8 @@ void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
             && geometry().contains(e->globalPos())
             && !containsInClipWindow(e->globalPos()) )
         {
-            if( isHideMouseCursor() )
-                hideMouseCursor(false);
+            // menuContext_aboutToHide()での処理と対の処理(カーソル自動消去挙動調整)
+            _mouseCursor->stopAutoHide();
 
             _menuContext->popup(e->globalPos());
         }
@@ -1983,10 +1969,7 @@ void PurePlayer::mouseDoubleClickEvent(QMouseEvent* e)
 void PurePlayer::mouseMoveEvent(QMouseEvent* e)
 {
     if( isFullScreen() ) {
-        if( isHideMouseCursor() && _mousePressPos!=e->globalPos() )
-            hideMouseCursor(false);
-
-            updateShowInterface();
+        updateShowInterface();
     }
     else {
         if( !isMaximized() ) {
@@ -1995,9 +1978,6 @@ void PurePlayer::mouseMoveEvent(QMouseEvent* e)
                     move(e->globalPos() - _mousePressLocalPos);
             }
         }
-
-        if( isHideMouseCursor() )
-            hideMouseCursor(false);
     }
 }
 
@@ -2078,21 +2058,6 @@ void PurePlayer::setMouseTrackingClient(bool b)
     centralWidget()->setMouseTracking(b);
     _clipScreen->setMouseTracking(b);
     _videoScreen->setMouseTracking(b);
-}
-
-void PurePlayer::hideMouseCursor(bool b)
-{
-    if( isFullScreen() )
-        setMouseTrackingClient(true);
-    else
-        setMouseTrackingClient(b);
-
-    if( b )
-        centralWidget()->setCursor(QCursor(Qt::BlankCursor));
-    else
-        centralWidget()->unsetCursor();
-
-    updateShowInterface();
 }
 
 void PurePlayer::middleClickResize()
@@ -2644,11 +2609,6 @@ void PurePlayer::actGroupDeinterlace_changed(QAction* action)
 void PurePlayer::timerReconnect_timeout()
 {
     const QString debugPrefix = "PurePlayer::timerReconnect_timeout(): ";
-//  LogDialog::debug(QString(debugPrefix + "time %1").arg(_timeLabel->time()));
-//  LogDialog::debug(QString(debugPrefix + "currentTime %1").arg(_currentTime));
-//  LogDialog::debug(QString(debugPrefix + "currentFrame %1").arg(_currentFrame));
-
-//  LogDialog::debug(debugPrefix + QString::number(_reconnectScore));
 
     if( _state == ST_READY ) {
         if( _reconnectScore > 1000 ) {
@@ -2706,6 +2666,21 @@ void PurePlayer::timerFps_timeout()
 */
     _labelFps->setText(QString("%1fps").arg(_fpsCount));
     _fpsCount = 0;
+}
+
+void PurePlayer::menuContext_aboutToHide()
+{
+#ifdef Q_OS_WIN32
+    // windowsではコンテキストメニューをウィンドウ内クリックで閉じた時、
+    // mousePressEventが発生する為、カーソル消去処理を防ぐ。
+    _mouseCursor->tempDisableChangeShape();
+#endif
+
+    // linuxとwindowsではコンテキストメニュー表示中のマウスカーソルの表示、
+    // メニューを閉じた後のマウスイベントの挙動が異なる為、
+    // カーソル自動消去の挙動が同じになる様に機能を一時停止再開する(mouseReleaseEvent)。
+    if( isPlaying() && ConfigData::data()->autoHideMouseCursor )
+        _mouseCursor->startAutoHide();
 }
 
 void PurePlayer::clipWindow_changedTranslucentDisplay(bool b)
@@ -2794,7 +2769,14 @@ void PurePlayer::configDialog_applied()
 
     ConfigData::setData(newData);
     ConfigData::saveData();
+
+    if( isPlaying() && ConfigData::data()->autoHideMouseCursor )
+        _mouseCursor->startAutoHide();
+    else
+        _mouseCursor->stopAutoHide();
+
     _timeSlider->setReverseWheelSeek(ConfigData::data()->reverseWheelSeek);
+
     if( ConfigData::data()->limitLogLine )
         LogDialog::dialog()->setMaximumBlockCount(ConfigData::data()->logLineMax);
     else
@@ -2879,7 +2861,7 @@ void PurePlayer::stopInternal()
 void PurePlayer::playlist_playStopCurrentTrack()
 {
     if( _playlist->isCurrentTrack(_path) && isPlaying() )
-            stop();
+        stop();
     else {
         _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
         _controlFlags |= FLG_EXPLICITLY_STOPPED;
@@ -3338,14 +3320,6 @@ bool PurePlayer::containsInClipWindow(const QPoint& pos)
 }
 
 #ifdef Q_OS_WIN32
-void PurePlayer::menuContext_aboutToHide()
-{
-    // windowsではコンテキストメニュー表示時、クライアント領域をクリックすると
-    // mousePressEvent()が発生する。
-    // その為、マウスカーソル非表示処理が行われない様にブロックする。
-    _timerBlockCursorHide.start();
-}
-
 void PurePlayer::initColorKey()
 {
     QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
@@ -3517,10 +3491,10 @@ void PurePlayer::updateShowInterface()
         }
     }
     else {
-        if( !isPlaying()
+        if( _state != ST_PLAY
          || isAlwaysShowStatusBar()
          || (_controlFlags.testFlag(FLG_CURSOR_IN_WINDOW)
-            && !isHideMouseCursor()) )
+            && !_mouseCursor->isHidden()) )
         {
             showInterface(true);
         }
@@ -3585,6 +3559,9 @@ void PurePlayer::setStatus(const STATE s)
             _timerFps.start(1000);
             _fpsCount = 0;
             _oldFrame = 0;
+
+            if( ConfigData::data()->autoHideMouseCursor )
+                _mouseCursor->startAutoHide();
         }
 
 #ifdef Q_WS_X11
@@ -3661,6 +3638,7 @@ void PurePlayer::setStatus(const STATE s)
         _timerReconnect.stop();
         _timerFps.stop();
         _labelFps->setText("0fps");
+        _mouseCursor->stopAutoHide();
 
 #ifdef Q_WS_X11
         if( _existVideo ) {

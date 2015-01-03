@@ -22,6 +22,7 @@ HEADERS += \
     commonlib.h \
     task.h \
     windowcontroller.h \
+    mousecursor.h \
     \
     logdialog.h \
     commonspinbox.h \
@@ -48,6 +49,7 @@ SOURCES += \
     commonlib.cpp \
     task.cpp \
     windowcontroller.cpp \
+    mousecursor.cpp \
     \
     logdialog.cpp \
     configdialog.cpp \

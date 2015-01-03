@@ -137,6 +137,7 @@ void ConfigDialog::setData(const ConfigData::Data& data)
 {
     _checkBoxSoftVideoEq->setChecked(data.useSoftWareVideoEq);
     _checkBox320x240->setChecked(data.openIn320x240Size);
+    _checkBoxAutoHideMouseCursor->setChecked(data.autoHideMouseCursor);
     _checkBoxReverseWheelSeek->setChecked(data.reverseWheelSeek);
     _spinBoxVolumeMax->setValue(data.volumeMax);
     _groupBoxCacheSize->setChecked(data.useCacheSize);
@@ -164,6 +165,7 @@ void ConfigDialog::getData(ConfigData::Data* data)
     data->aoName = _comboBoxAo->itemData(_comboBoxAo->currentIndex()).toString();
     data->useSoftWareVideoEq = _checkBoxSoftVideoEq->isChecked();
     data->openIn320x240Size = _checkBox320x240->isChecked();
+    data->autoHideMouseCursor = _checkBoxAutoHideMouseCursor->isChecked();
     data->reverseWheelSeek = _checkBoxReverseWheelSeek->isChecked();
     data->volumeMax = _spinBoxVolumeMax->value();
     data->useCacheSize = _groupBoxCacheSize->isChecked();

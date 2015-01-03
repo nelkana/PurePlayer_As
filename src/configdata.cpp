@@ -44,6 +44,7 @@ void ConfigData::saveData()
     s.setValue("aoName", s_data.aoName);
     s.setValue("useSoftWareVideoEq", s_data.useSoftWareVideoEq);
     s.setValue("openIn320x240Size",  s_data.openIn320x240Size);
+    s.setValue("autoHideMouseCursor", s_data.autoHideMouseCursor);
     s.setValue("reverseWheelSeek", s_data.reverseWheelSeek);
     s.setValue("volumeMax", s_data.volumeMax);
     s.setValue("useCacheSize", s_data.useCacheSize);
@@ -69,6 +70,7 @@ void ConfigData::loadData()
     s_data.aoName = s.value("aoName", AONAME_DEFAULT).toString();
     s_data.useSoftWareVideoEq = s.value("useSoftWareVideoEq", true).toBool();
     s_data.openIn320x240Size = s.value("openIn320x240Size", true).toBool();
+    s_data.autoHideMouseCursor = s.value("autoHideMouseCursor", false).toBool();
     s_data.reverseWheelSeek = s.value("reverseWheelSeek", false).toBool();
     s_data.volumeMax = s.value("volumeMax", 100).toInt();
     s_data.useCacheSize = s.value("useCacheSize", false).toBool();

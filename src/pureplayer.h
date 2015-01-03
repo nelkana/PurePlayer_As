@@ -40,6 +40,7 @@ class ControlButton;
 class TimeSlider;
 class InfoLabel;
 class TimeLabel;
+class MouseCursor;
 class PlaylistModel;
 class CommonMenu;
 class OpenDialog;
@@ -63,7 +64,7 @@ public:
     PurePlayer(QWidget* parent = 0);
     virtual ~PurePlayer();
     bool isMute()    { return _isMute; }
-    bool isPlaying() { return _state == ST_PLAY; }
+    bool isPlaying() { return (_state == ST_PLAY || _state == ST_PAUSE); }
     bool isStop()    { return _state == ST_STOP; }
     bool isClipping() { return _clipRect != QRect(0,0,_videoSize.width(),_videoSize.height()); }
     bool isAlwaysShowStatusBar() { return !isFullScreen()
@@ -204,8 +205,6 @@ protected:
     void dropEvent(QDropEvent*);
 
     void setMouseTrackingClient(bool);
-    void hideMouseCursor(bool);
-    bool isHideMouseCursor() { return centralWidget()->cursor().shape() == Qt::BlankCursor; }
     void middleClickResize();
     void setCurrentDirectory();
     void openCommonProcess(const QString& path);
@@ -234,6 +233,7 @@ private slots:
     void mpProcess_outputLine(const QString& line);
     void recProcess_finished();
     void recProcess_outputLine(const QString& line);
+    void updateShowInterface();
     void peercast_gotChannelInfo(const ChannelInfo&);
     void actGroupAudioOutput_changed(QAction*);
     void actGroupVolumeFactor_changed(QAction*);
@@ -241,15 +241,12 @@ private slots:
     void actGroupDeinterlace_changed(QAction*);
     void timerReconnect_timeout();
     void timerFps_timeout();
+    void menuContext_aboutToHide();
     void clipWindow_changedTranslucentDisplay(bool);
     void clipWindow_triggeredShow();
     void clipWindow_closed();
     void configDialog_applied();
     void videoAdjustDialog_windowActivate() { refreshVideoProfile(false, true); }
-
-#ifdef Q_OS_WIN32
-    void menuContext_aboutToHide();
-#endif
 
 private:
     void createStatusBar();
@@ -257,7 +254,6 @@ private:
     void createActionContextMenu();
     void updateVideoScreenGeometry();
     void showInterface(bool);
-    void updateShowInterface();
     bool whetherMuteArea(int mouseLocalY);
 //  bool whetherMuteArea(QPoint mousePos);
     void setStatus(const STATE);
@@ -320,7 +316,6 @@ private:
     ControlFlags    _controlFlags;
     QPoint          _mousePressLocalPos;
     QPoint          _mousePressPos;
-    QTimer          _timerBlockCursorHide;
 
     QTimer          _timerReconnect;
     quint8          _reconnectCount;
@@ -350,6 +345,7 @@ private:
     InfoLabel*      _infoLabel;
     QWidget*        _statusbarSpaceL;
     QWidget*        _statusbarSpaceR;
+    MouseCursor*    _mouseCursor;
     CommonMenu*     _menuContext;
     QMenu*          _menuReconnect;
 

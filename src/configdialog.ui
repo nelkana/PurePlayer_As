@@ -118,6 +118,19 @@
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="_checkBoxAutoHideMouseCursor">
+         <property name="focusPolicy">
+          <enum>Qt::NoFocus</enum>
+         </property>
+         <property name="toolTip">
+          <string>動画表示領域のマウスカーソルを一定時間後自動で隠します。</string>
+         </property>
+         <property name="text">
+          <string>自動でマウスカーソルを隠す</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QCheckBox" name="_checkBoxReverseWheelSeek">
          <property name="focusPolicy">
           <enum>Qt::NoFocus</enum>
@@ -283,6 +296,13 @@
          </layout>
         </widget>
        </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_3">
+      <attribute name="title">
+       <string>一般2</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_4">
        <item>
         <widget class="QGroupBox" name="_groupBoxMplayerPath">
          <property name="toolTip">
@@ -342,13 +362,6 @@
          </layout>
         </widget>
        </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="tab_3">
-      <attribute name="title">
-       <string>一般2</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_4">
        <item>
         <widget class="QGroupBox" name="_groupBoxLimitLogLine">
          <property name="toolTip">
