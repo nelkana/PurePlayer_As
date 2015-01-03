@@ -29,7 +29,8 @@
     "\n" \
     "Options:\n" \
     "  -h, --help            ヘルプ\n" \
-    "  -t, --title name      ウィンドウタイトル設定\n"
+    "  -t, --title name      ウィンドウタイトル設定\n" \
+    "  -v, --version         バージョン\n"
 
 bool parseArgs(PurePlayer* player, int argc, char** argv)
 {
@@ -57,6 +58,13 @@ bool parseArgs(PurePlayer* player, int argc, char** argv)
             }
             else
                 player->setTitleOption(argv[i]);
+        }
+        else
+        if( !strcmp(argv[i], "-v")
+         || !strcmp(argv[i], "--version") )
+        {
+            QTextStream(stdout) << QObject::tr("PurePlayer* %1\n").arg(PUREPLAYER_VERSION) << flush;
+            return false;
         }
         else {
             paths << argv[i];
