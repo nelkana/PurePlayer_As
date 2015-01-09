@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2014 nel
+/*  Copyright (C) 2012-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,10 +43,12 @@ void ConfigData::saveData()
     s.setValue("voNameForClipping", s_data.voNameForClipping);
     s.setValue("aoName", s_data.aoName);
     s.setValue("useSoftWareVideoEq", s_data.useSoftWareVideoEq);
-    s.setValue("openIn320x240Size",  s_data.openIn320x240Size);
     s.setValue("autoHideMouseCursor", s_data.autoHideMouseCursor);
     s.setValue("reverseWheelSeek", s_data.reverseWheelSeek);
     s.setValue("volumeMax", s_data.volumeMax);
+    s.setValue("initSize", s_data.initSize);
+    s.setValue("suitableResize", s_data.suitableResize);
+    s.setValue("suitableResizeValue", s_data.suitableResizeValue);
     s.setValue("useCacheSize", s_data.useCacheSize);
     s.setValue("cacheStreamSize", s_data.cacheStreamSize);
     s.setValue("useScreenshotPath", s_data.useScreenshotPath);
@@ -69,10 +71,12 @@ void ConfigData::loadData()
     s_data.voNameForClipping = s.value("voNameForClipping", VONAME_FOR_CLIPPING_DEFAULT).toString();
     s_data.aoName = s.value("aoName", AONAME_DEFAULT).toString();
     s_data.useSoftWareVideoEq = s.value("useSoftWareVideoEq", true).toBool();
-    s_data.openIn320x240Size = s.value("openIn320x240Size", true).toBool();
     s_data.autoHideMouseCursor = s.value("autoHideMouseCursor", false).toBool();
     s_data.reverseWheelSeek = s.value("reverseWheelSeek", false).toBool();
     s_data.volumeMax = s.value("volumeMax", 100).toInt();
+    s_data.initSize = s.value("initSize", QSize(320,240)).toSize();
+    s_data.suitableResize = s.value("suitableResize", true).toBool();
+    s_data.suitableResizeValue = s.value("suitableResizeValue", 400).toInt();
     s_data.useCacheSize = s.value("useCacheSize", false).toBool();
     s_data.cacheStreamSize = s.value("cacheStreamSize", 3000).toInt();
     s_data.useScreenshotPath = s.value("useScreenshotPath", false).toBool();

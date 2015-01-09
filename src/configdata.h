@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2014 nel
+/*  Copyright (C) 2012-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #define CONFIGDATA_H
 
 #include <QString>
+#include <QSize>
 
 class ConfigData
 {
@@ -31,10 +32,12 @@ public:
         QString voNameForClipping;
         QString aoName;
         bool    useSoftWareVideoEq;
-        bool    openIn320x240Size;
         bool    autoHideMouseCursor;
         bool    reverseWheelSeek;
         int     volumeMax;
+        QSize   initSize;
+        bool    suitableResize;
+        int     suitableResizeValue;
         bool    useCacheSize;
         int     cacheStreamSize;
         bool    useScreenshotPath;

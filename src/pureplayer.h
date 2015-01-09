@@ -218,6 +218,7 @@ protected:
     QSize correctToValidVideoSize(QSize toSize, const QSize& videoSize);
     QSize calcVideoViewSizeForResize(const QSize& viewSize, int percent);
     QSize calcVideoViewSizeForResize(int percent);
+    QSize calcVideoViewSizeFromThreshold(int threshold);
     QSize calcFullVideoSizeFromVideoViewSize(QSize viewSize);
 
     bool containsInClipWindow(const QPoint& pos);
@@ -349,6 +350,7 @@ private:
     CommonMenu*     _menuContext;
     QMenu*          _menuReconnect;
 
+    QAction*        _actInitialSize;
     QAction*        _actScreenshot;
     QAction*        _actReconnect;
     QAction*        _actReconnectPlayer;

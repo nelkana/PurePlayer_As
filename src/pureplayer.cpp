@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2014 nel
+/*  Copyright (C) 2012-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,9 +38,6 @@
 #include "clipwindow.h"
 #include "mousecursor.h"
 #include "commonmenu.h"
-
-#define INIT_VIDEO_CLIENT_WIDTH  320//400
-#define INIT_VIDEO_CLIENT_HEIGHT 240//225
 
 PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 {
@@ -469,10 +466,10 @@ void PurePlayer::createActionContextMenu()
 //  actSlightlyIncreaseSize->setShortcut(tr("]"));
 //  connect(actSlightlyIncreaseSize, SIGNAL(triggered()), this, SLOT(resizeSlightlyIncrease()));
 //  addAction(actSlightlyIncreaseSize);
-    QAction* actInitial = new QAction(tr("%1x%2").arg(INIT_VIDEO_CLIENT_WIDTH).arg(INIT_VIDEO_CLIENT_HEIGHT), this);
-    actInitial->setShortcut(tr("0"));
-    connect(actInitial, SIGNAL(triggered()), this, SLOT(resizeInitial()));
-    addAction(actInitial);
+    _actInitialSize = new QAction(tr("%1x%2").arg(ConfigData::data()->initSize.width()).arg(ConfigData::data()->initSize.height()), this);
+    _actInitialSize->setShortcut(tr("0"));
+    connect(_actInitialSize, SIGNAL(triggered()), this, SLOT(resizeInitial()));
+    addAction(_actInitialSize);
     QAction* act1280x720 = new QAction(tr("1280x720"), this);
     connect(act1280x720, SIGNAL(triggered()), this, SLOT(resize1280x720()));
     QAction* act25Percent = new QAction(tr("25%"), this);
@@ -506,7 +503,7 @@ void PurePlayer::createActionContextMenu()
 //  menuSize->addAction(actSlightlyReduceSize);
 //  menuSize->addAction(actSlightlyIncreaseSize);
     menuSize->addSeparator();
-    menuSize->addAction(actInitial);
+    menuSize->addAction(_actInitialSize);
     menuSize->addAction(act1280x720);
     menuSize->addSeparator();
     menuSize->addAction(act25Percent);
@@ -518,7 +515,7 @@ void PurePlayer::createActionContextMenu()
 
     menuSize->addNoCloseAction(actReduceSize);
     menuSize->addNoCloseAction(actIncreaseSize);
-    menuSize->addNoCloseAction(actInitial);
+    menuSize->addNoCloseAction(_actInitialSize);
     menuSize->addNoCloseAction(act1280x720);
     menuSize->addNoCloseAction(act25Percent);
     menuSize->addNoCloseAction(act50Percent);
@@ -716,7 +713,7 @@ void PurePlayer::open(const QStringList& paths, bool doResize)
     if( _playlistDialog != NULL )
         _playlistDialog->scrollToCurrentTrackHidden();
 
-    if( doResize )
+    if( doResize && ConfigData::data()->suitableResize )
         _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
 
     openCommonProcess(_playlist->currentTrackPath());
@@ -1385,7 +1382,7 @@ void PurePlayer::screenshot()
 
 void PurePlayer::resizeInitial()
 {
-    resizeFromVideoClient(QSize(INIT_VIDEO_CLIENT_WIDTH, INIT_VIDEO_CLIENT_HEIGHT));
+    resizeFromVideoClient(ConfigData::data()->initSize);
 }
 
 // ビデオクライアントサイズを指定してウィンドウをリサイズする
@@ -1794,9 +1791,10 @@ void PurePlayer::showEvent(QShowEvent* e)
                                     .arg(_toolBar->height()).arg(statusBar()->height()));
 
     if( _videoSize.width() < 0 ) {
-        _videoSize = QSize(INIT_VIDEO_CLIENT_WIDTH, INIT_VIDEO_CLIENT_HEIGHT);
+        _videoSize = ConfigData::data()->initSize;
         _clipRect = QRect(0,0, _videoSize.width(),_videoSize.height());
 
+        resizeFromVideoClient(_videoSize); // resize()されるまでstatusBarの正しい高さは取得できない？
         resizeFromVideoClient(_videoSize);
         _menuContext->move(x()+width()*0.2, y()+height()*0.2);
 
@@ -2283,6 +2281,12 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
                         _reconnectControlTimeVo = rxStatus.cap(1).toDouble();
                 }
 
+#ifdef Q_WS_X11
+                if( _existVideo ) {
+                    _videoScreen->setAttribute(Qt::WA_NoSystemBackground);
+                    _videoScreen->setAttribute(Qt::WA_PaintOnScreen);
+                }
+#endif
                 LogDialog::debug(debugPrefix + QString("init startTime %1").arg(_startTime));
             }
 
@@ -2426,15 +2430,13 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
             // ビデオドライバ,サイズの取得
             if( _existVideo ) {
                 _usingVideoDriver = rxVideoDriverWH.cap(1);
-                _videoSize.setWidth(rxVideoDriverWH.cap(2).toInt());
-                if( _videoSize.width() <= 0 ) _videoSize.setWidth(320);
-
-                _videoSize.setHeight(rxVideoDriverWH.cap(3).toInt());
-                if( _videoSize.height() <= 0 ) _videoSize.setHeight(240);
+                _videoSize = QSize(rxVideoDriverWH.cap(2).toInt(), rxVideoDriverWH.cap(3).toInt());
+                if( _videoSize.width()<=0 || _videoSize.height()<=0 )
+                    _videoSize = ConfigData::data()->initSize;
             }
             else {
                 _usingVideoDriver.clear();
-                _videoSize = QSize(320, 240);
+                _videoSize = ConfigData::data()->initSize;
             }
 
             if( _controlFlags.testFlag(FLG_OPENED_PATH) ) {
@@ -2469,12 +2471,7 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
 
             // ウィンドウリサイズ
             if( _controlFlags.testFlag(FLG_RESIZE_WHEN_PLAYED) ) {
-                QSize size;
-                if( ConfigData::data()->openIn320x240Size )
-                    size = QSize(INIT_VIDEO_CLIENT_WIDTH, INIT_VIDEO_CLIENT_HEIGHT);
-                else
-                    size = QSize(_videoSize.width()/2, _videoSize.height()/2);
-
+                QSize size = calcVideoViewSizeFromThreshold(ConfigData::data()->suitableResizeValue);
                 if( !resizeFromVideoClient(size) )
                     updateVideoScreenGeometry();
 
@@ -2776,6 +2773,9 @@ void PurePlayer::configDialog_applied()
         _mouseCursor->stopAutoHide();
 
     _timeSlider->setReverseWheelSeek(ConfigData::data()->reverseWheelSeek);
+
+    _actInitialSize->setText(tr("%1x%2").arg(ConfigData::data()->initSize.width())
+                                        .arg(ConfigData::data()->initSize.height()));
 
     if( ConfigData::data()->limitLogLine )
         LogDialog::dialog()->setMaximumBlockCount(ConfigData::data()->logLineMax);
@@ -3303,6 +3303,21 @@ QSize PurePlayer::calcVideoViewSizeForResize(int percent)
     return size;
 }
 
+// しきい値(幅高さの最大値)から適当にビデオ表示サイズを計算する
+QSize PurePlayer::calcVideoViewSizeFromThreshold(int threshold)
+{
+    QRect rc = CommonLib::scaleRectOnRect(QSize(threshold,threshold), QSize(4,3));
+    int thresholdA = rc.width();
+    int thresholdB = rc.height();
+
+    if( _videoSize.width() > _videoSize.height() )
+        rc = CommonLib::scaleRectOnRect(QSize(thresholdA,thresholdB), _videoSize);
+    else
+        rc = CommonLib::scaleRectOnRect(QSize(thresholdB,thresholdA), _videoSize);
+
+    return correctToValidVideoSize(rc.size(), _videoSize);
+}
+
 QSize PurePlayer::calcFullVideoSizeFromVideoViewSize(QSize viewSize)
 {
     int w = _videoSize.width() * viewSize.width()/(double)_clipRect.width() + 0.5;
@@ -3564,12 +3579,6 @@ void PurePlayer::setStatus(const STATE s)
                 _mouseCursor->startAutoHide();
         }
 
-#ifdef Q_WS_X11
-        if( _existVideo ) {
-            _videoScreen->setAttribute(Qt::WA_NoSystemBackground);
-            _videoScreen->setAttribute(Qt::WA_PaintOnScreen);
-        }
-#endif
         break;
 
     case ST_PAUSE:

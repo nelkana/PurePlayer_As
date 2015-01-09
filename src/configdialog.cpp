@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2014 nel
+/*  Copyright (C) 2012-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -136,10 +136,13 @@ ConfigDialog::ConfigDialog(QWidget* parent) : QDialog(parent)
 void ConfigDialog::setData(const ConfigData::Data& data)
 {
     _checkBoxSoftVideoEq->setChecked(data.useSoftWareVideoEq);
-    _checkBox320x240->setChecked(data.openIn320x240Size);
     _checkBoxAutoHideMouseCursor->setChecked(data.autoHideMouseCursor);
     _checkBoxReverseWheelSeek->setChecked(data.reverseWheelSeek);
     _spinBoxVolumeMax->setValue(data.volumeMax);
+    _spinBoxInitWidth->setValue(data.initSize.width());
+    _spinBoxInitHeight->setValue(data.initSize.height());
+    _checkBoxSuitableResize->setChecked(data.suitableResize);
+    _spinBoxSuitableResizeValue->setValue(data.suitableResizeValue);
     _groupBoxCacheSize->setChecked(data.useCacheSize);
     _spinBoxCacheStream->setValue(data.cacheStreamSize);
     _groupBoxScreenshotPath->setChecked(data.useScreenshotPath);
@@ -164,10 +167,12 @@ void ConfigDialog::getData(ConfigData::Data* data)
     data->voNameForClipping = _comboBoxVoClipping->itemData(_comboBoxVoClipping->currentIndex()).toString();
     data->aoName = _comboBoxAo->itemData(_comboBoxAo->currentIndex()).toString();
     data->useSoftWareVideoEq = _checkBoxSoftVideoEq->isChecked();
-    data->openIn320x240Size = _checkBox320x240->isChecked();
     data->autoHideMouseCursor = _checkBoxAutoHideMouseCursor->isChecked();
     data->reverseWheelSeek = _checkBoxReverseWheelSeek->isChecked();
     data->volumeMax = _spinBoxVolumeMax->value();
+    data->initSize = QSize(_spinBoxInitWidth->value(), _spinBoxInitHeight->value());
+    data->suitableResize = _checkBoxSuitableResize->isChecked();
+    data->suitableResizeValue = _spinBoxSuitableResizeValue->value();
     data->useCacheSize = _groupBoxCacheSize->isChecked();
     data->cacheStreamSize = _spinBoxCacheStream->value();
     data->useScreenshotPath = _groupBoxScreenshotPath->isChecked();
@@ -235,6 +240,9 @@ void ConfigDialog::showEvent(QShowEvent*)
 //  adjustSize();
     setFixedSize(size());
     _spinBoxVolumeMax->clearFocus();
+    _spinBoxInitWidth->clearFocus();
+    _spinBoxInitHeight->clearFocus();
+    _spinBoxSuitableResizeValue->clearFocus();
     _spinBoxCacheStream->clearFocus();
     _lineEditScreenshotPath->clearFocus();
     _lineEditMplayerPath->clearFocus();
