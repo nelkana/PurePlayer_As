@@ -51,7 +51,7 @@ inline AboutDialog::AboutDialog(QWidget* parent) : QDialog(parent)
         "Qtバージョン(コンパイル): %3<br>"
         "ライセンス: GNU GPLv3<br>"
         "<br>"
-        "Copyright (C) 2012-2014 nel<br>"
+        "Copyright (C) 2012-2015 nel<br>"
         "<a href=\"http://jbbs.shitaraba.net/internet/9117/\">http://jbbs.shitaraba.net/internet/9117/</a><br>"
         ).arg(PUREPLAYER_VERSION).arg(qVersion()).arg(QT_VERSION_STR);
 
