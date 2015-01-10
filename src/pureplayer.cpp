@@ -2269,10 +2269,9 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
         if( rxStatus.indexIn(line) != -1 )
         {
             if( _startTime == -1 ) {
-                _startTime = rxStatus.cap(1).toDouble();
-                _oldTime = _startTime;
-
                 if( isPeercastStream() ) {
+                    _startTime = rxStatus.cap(1).toDouble();
+
                     if( _existAudio ) {
                         _reconnectControlTimeAo = rxStatus.cap(1).toDouble();
                         _reconnectControlTimeVo = rxStatus.cap(2).toDouble();
@@ -2280,6 +2279,10 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
                     else
                         _reconnectControlTimeVo = rxStatus.cap(1).toDouble();
                 }
+                else
+                    _startTime = 0;
+
+                _oldTime = _startTime;
 
 #ifdef Q_WS_X11
                 if( _existVideo ) {
@@ -2446,8 +2449,6 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
                 // テキスト内容によってステータスバーの高さが変わる為、高さを固定にする
                 statusBar()->setFixedHeight(statusBar()->height());
 
-                _startTime = -1; // open()のタイミングでの初期化では、
-                                 // 前の再生のステータスラインを拾ってしまう為ここで初期化。
                 _elapsedTime = 0;
 
                 _clipRect = QRect(0,0, _videoSize.width(),_videoSize.height());
@@ -2455,8 +2456,6 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
             }
 
             if( isPeercastStream() ) {
-                _startTime = -1;
-
                 _timerReconnect.start(6000); // 再スタート
                 _reconnectScore = 0;
                 _reconnectControlTimeAo = 0;
@@ -2466,6 +2465,7 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
                     updateChannelInfo();
             }
 
+            _startTime = -1;
             _currentTimeAo = 0;
             _currentTimeVo = 0;
 
