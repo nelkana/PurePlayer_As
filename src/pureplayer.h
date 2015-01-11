@@ -181,7 +181,7 @@ protected:
         FLG_RECONNECT_WHEN_PLAYED       = 1 << 10, // 再生した時、再接続(peercast)する
         FLG_MAXIMIZED_BEFORE_FULLSCREEN = 1 << 11, // フルスクリーンの前は最大化
         FLG_RECONNECTED                 = 1 << 12, // 再接続した
-        FLG_EXPLICITLY_STOPPED          = 1 << 13, // 明示的に停止した
+        FLG_EXPLICITLY_STOPPED          = 1 << 13, // 明示的に停止した // 利用無し
         FLG_NO_CHANGE_VDRIVER_WHEN_CLIPPING= 1 << 14, // クリッピングした時、ビデオドライバを切り替えない
         FLG_MOUSE_PRESSED_CLIPWINDOW    = 1 << 15, // クリップウィンドウ内をマウス押下した
     };
