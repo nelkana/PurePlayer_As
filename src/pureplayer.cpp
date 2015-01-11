@@ -1848,7 +1848,7 @@ void PurePlayer::resizeEvent(QResizeEvent* )
         sizeInfo = QString("%1%").arg(_videoScreen->height()*100/_videoSize.height());
 
     sizeInfo += QString(" %1x%2").arg(_clipScreen->width()).arg(_clipScreen->height());
-    _infoLabel->setText(sizeInfo, 1000);
+    _infoLabel->setText(sizeInfo, 1800);
 }
 
 void PurePlayer::keyPressEvent(QKeyEvent* e)
