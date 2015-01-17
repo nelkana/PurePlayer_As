@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2014 nel
+/*  Copyright (C) 2012-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 #include "ui_aboutdialog.h"
 
-#define PUREPLAYER_VERSION "0.7.11"
+#define PUREPLAYER_VERSION "0.8.0"
 
 class AboutDialog : public QDialog, Ui::AboutDialog
 {
