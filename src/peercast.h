@@ -1,4 +1,4 @@
-/*  Copyright (C) 2013-2014 nel
+/*  Copyright (C) 2013-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,30 +20,7 @@
 #include <QNetworkAccessManager>
 #include "task.h"
 
-class ChannelInfo
-{
-public:
-    enum STATUS { ST_UNKNOWN, ST_CONNECT, ST_RECEIVE, ST_SEARCH, ST_ERROR };
-    QString chName;
-    QString rootIp;     // 不使用
-    QString contactUrl;
-    int     bitrate;    // kbps
-    STATUS  status;
-
-    void channelInfo() { clear(); }
-    void clear() {
-        chName = "";
-        rootIp = "";
-        contactUrl = "";
-        bitrate = 0;
-        status = ST_UNKNOWN;
-    }
-
-    QString statusString() {
-        const char* str[] = { "UNKNOWN", "CONNECT", "RECEIVE", "SEARCH", "ERROR" };
-        return str[this->status];
-    }
-};
+class ChannelInfo;
 
 class Peercast : public QObject
 {
@@ -79,6 +56,31 @@ private:
     ushort  _port;
     QString _id;
     TYPE    _type;
+};
+
+class ChannelInfo
+{
+public:
+    enum STATUS { ST_UNKNOWN, ST_CONNECT, ST_RECEIVE, ST_SEARCH, ST_ERROR, ST_BROADCAST };
+    QString chName;
+    QString contactUrl;
+    int     bitrate;    // kbps
+    STATUS  status;
+
+    void channelInfo() { clear(); }
+    void clear() {
+        this->chName = "";
+        this->contactUrl = "";
+        this->bitrate = 0;
+        this->status = ST_UNKNOWN;
+    }
+
+    QString statusString() {
+        const char* str[] = { "UNKNOWN", "CONNECT", "RECEIVE", "SEARCH", "ERROR", "BROADCAST" };
+        return str[this->status];
+    }
+
+    static STATUS statusFromString(const QString& status, Peercast::TYPE type);
 };
 
 class GetPeercastTypeTask : public Task
@@ -188,7 +190,7 @@ private:
     Peercast::TYPE _type;
     int     _startSec;
     int     _listeners;
-    bool    _retryGetStatus;
+    ChannelInfo::STATUS _status;
 };
 
 #endif // PEERCAST_H

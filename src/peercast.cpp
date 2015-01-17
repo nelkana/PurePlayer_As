@@ -1,4 +1,4 @@
-/*  Copyright (C) 2013-2014 nel
+/*  Copyright (C) 2013-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -97,6 +97,44 @@ void Peercast::disconnectChannel_GetPeercastTypeTask_finished()
 void Peercast::nam_finished(QNetworkReply* reply)
 {
     reply->deleteLater();
+}
+
+// ---------------------------------------------------------------------------------------
+ChannelInfo::STATUS ChannelInfo::statusFromString(const QString& status, Peercast::TYPE type)
+{
+    STATUS ret = ST_UNKNOWN;
+
+    if( type == Peercast::TYPE_ST ) {
+        if( status == "Receiving" )
+            ret = ST_RECEIVE;
+        else
+        if( status == "Searching" )
+            ret = ST_SEARCH;
+        else
+        if( status == "Connecting" )
+            ret = ST_CONNECT;
+        else
+        if( status == "Error" )
+            ret = ST_ERROR;
+    }
+    else {
+        if( status == "RECEIVE" )
+            ret = ST_RECEIVE;
+        else
+        if( status == "SEARCH" )
+            ret = ST_SEARCH;
+        else
+        if( status == "CONNECT" )
+            ret = ST_CONNECT;
+        else
+        if( status == "ERROR" )
+            ret = ST_ERROR;
+        else
+        if( status == "BROADCAST" )
+            ret = ST_BROADCAST;
+    }
+
+    return ret;
 }
 
 // ---------------------------------------------------------------------------------------
@@ -329,20 +367,7 @@ bool GetChannelInfoTask::parseChannelInfoPcVp(const QString& reply)
             else
             if( xml.name() == "relay" ) {
                 status = xml.attributes().value("status").toString();
-                if( status == "RECEIVE" )
-                    _chInfo.status = ChannelInfo::ST_RECEIVE;
-                else
-                if( status == "SEARCH" )
-                    _chInfo.status = ChannelInfo::ST_SEARCH;
-                else
-                if( status == "CONNECT" )
-                    _chInfo.status = ChannelInfo::ST_CONNECT;
-                else
-                if( status == "ERROR" )
-                    _chInfo.status = ChannelInfo::ST_ERROR;
-                else
-                    _chInfo.status = ChannelInfo::ST_UNKNOWN;
-
+                _chInfo.status = ChannelInfo::statusFromString(status, Peercast::TYPE_VP);
                 break;
             }
             else
@@ -403,20 +428,13 @@ bool GetChannelInfoTask::parseChannelStatusPcSt(const QString& reply)
     if( !value.isValid() )
         return false;
 
-    QString status = value.property("status").toString();
-    if( status == "Receiving" )
-        _chInfo.status = ChannelInfo::ST_RECEIVE;
-    else
-    if( status == "Searching" )
-        _chInfo.status = ChannelInfo::ST_SEARCH;
-    else
-    if( status == "Connecting" )
-        _chInfo.status = ChannelInfo::ST_CONNECT;
-    else
-    if( status == "Error" )
-        _chInfo.status = ChannelInfo::ST_ERROR;
-    else
-        _chInfo.status = ChannelInfo::ST_UNKNOWN;
+    if( value.property("isBroadcasting").toBool() ) {
+        _chInfo.status = ChannelInfo::ST_BROADCAST;
+    }
+    else {
+        QString status = value.property("status").toString();
+        _chInfo.status = ChannelInfo::statusFromString(status, Peercast::TYPE_ST);
+    }
 
     return true;
 }
@@ -466,7 +484,7 @@ DisconnectChannelTask::DisconnectChannelTask(const QString& host, ushort port,
     _type = type;
     _startSec = startSec;
     _listeners = -1;
-    _retryGetStatus = false;
+    _status = ChannelInfo::ST_UNKNOWN;
 
     connect(&_nam, SIGNAL(finished(QNetworkReply*)),
             this,  SLOT(nam_finished(QNetworkReply*)));
@@ -506,17 +524,21 @@ void DisconnectChannelTask::nam_finished(QNetworkReply* reply)
         else
             result = getChannelStatusPcVp(out);
 
-        qDebug("DisconnectChannelTask::nam_finished(): result: %d, listeners: %d, retry: %d", result, _listeners, _retryGetStatus);
+        qDebug("DisconnectChannelTask::nam_finished(): result: %d, listeners: %d, status: %d", result, _listeners, _status);
         if( result ) {
-            if( _listeners == 0 )
-                Task::push(new StopChannelTask(_host, _port, _id, parent()));
-            else
-            if( _retryGetStatus || _timer.isActive() ) {
-                qDebug("--------------");
-                QTimer::singleShot(REPETITION_MSEC, this, SLOT(timerSingleShot_timeout()));
+            if( _status != ChannelInfo::ST_BROADCAST ) {
+                if( _listeners == 0 )
+                    Task::push(new StopChannelTask(_host, _port, _id, parent()));
+                else
+                if( (_status==ChannelInfo::ST_SEARCH || _status==ChannelInfo::ST_CONNECT)
+                 || _timer.isActive() )
+                {
+                    qDebug("--------------");
+                    QTimer::singleShot(REPETITION_MSEC, this, SLOT(timerSingleShot_timeout()));
 
-                reply->deleteLater();
-                return;
+                    reply->deleteLater();
+                    return;
+                }
             }
         }
     }
@@ -557,8 +579,8 @@ bool DisconnectChannelTask::getChannelStatusPcVp(const QString& reply)
             else
             if( xml.name() == "relay" ) {
                 _listeners = xml.attributes().value("listeners").toString().toInt();
-                QStringRef status = xml.attributes().value("status");
-                _retryGetStatus = (status=="SEARCH" || status=="CONNECT");
+                QString status = xml.attributes().value("status").toString();
+                _status = ChannelInfo::statusFromString(status, Peercast::TYPE_VP);
                 break;
             }
             else
@@ -589,8 +611,13 @@ bool DisconnectChannelTask::getChannelStatusPcSt(const QString& reply)
 
     _listeners = value.property("localDirects").toString().toInt();
 
-    QString status = value.property("status").toString();
-    _retryGetStatus = (status=="Searching" || status=="Connecting");
+    if( value.property("isBroadcasting").toBool() ) {
+        _status = ChannelInfo::ST_BROADCAST;
+    }
+    else {
+        QString status = value.property("status").toString();
+        _status = ChannelInfo::statusFromString(status, Peercast::TYPE_ST);
+    }
 
     return true;
 }

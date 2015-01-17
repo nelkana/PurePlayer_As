@@ -814,12 +814,6 @@ void PurePlayer::openCommonProcess(const QString& path)
                                 rxPeercastUrl.cap(2).toShort(),
                                 rxPeercastUrl.cap(3));
 
-        QRegExp rootIp(".+\\?tip=(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})");
-        if( rootIp.indexIn(_path) != -1 )
-            _channelInfo.rootIp = rootIp.cap(1);
-        else
-            _channelInfo.rootIp = "";
-
         _reconnectCount = 0;
         _labelSpeedRate->hide();
         setSpeedRate(1.0);
