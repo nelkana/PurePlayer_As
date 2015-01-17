@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2014 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -45,7 +45,8 @@ protected:
 
 private slots:
     void checkBoxSoftVideoEq_clicked(bool checked);
-    void groupBoxCache_toggled(bool) { _cacheStreamSpinBox->deselect(); }
+    void groupBoxCacheSize_toggled(bool) { _spinBoxCacheStream->deselect(); }
+    void groupBoxLimitLogLine_toggled(bool) { _spinBoxLimitLogLine->deselect(); }
     void buttonContactUrlArg_clicked();
 };
 

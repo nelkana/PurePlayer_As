@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,10 +17,14 @@
 #define CONFIGDATA_H
 
 #include <QString>
+#include <QSize>
 
 class ConfigData
 {
 public:
+    static const char* const VONAME_DEFAULT;
+    static const char* const VONAME_FOR_CLIPPING_DEFAULT;
+    static const char* const AONAME_DEFAULT;
     static const char* const CONTACTURL_ARG_DEFAULT;
 
     struct Data {
@@ -28,15 +32,20 @@ public:
         QString voNameForClipping;
         QString aoName;
         bool    useSoftWareVideoEq;
-        bool    openIn320x240Size;
+        bool    autoHideMouseCursor;
         bool    reverseWheelSeek;
         int     volumeMax;
+        QSize   initSize;
+        bool    suitableResize;
+        int     suitableResizeValue;
         bool    useCacheSize;
         int     cacheStreamSize;
         bool    useScreenshotPath;
         QString screenshotPath;
         bool    useMplayerPath;
         QString mplayerPath;
+        bool    limitLogLine;
+        int     logLineMax;
         bool    useContactUrlPath;
         QString contactUrlPath;
         QString contactUrlArg;

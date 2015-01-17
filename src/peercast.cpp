@@ -1,4 +1,4 @@
-/*  Copyright (C) 2013 nel
+/*  Copyright (C) 2013-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QScriptEngine>
+#include <QXmlStreamReader>
 #include <QDebug>
 #include "peercast.h"
 #include "task.h"
@@ -82,18 +83,15 @@ void Peercast::disconnectChannel(int startSec)
 
 void Peercast::getChannelInfo_GetPeercastTypeTask_finished()
 {
-    if( _type != TYPE_UNKNOWN ) {
-        Task* task = new GetChannelInfoTask(_host, _port, _id, _type, this);
-        connect(task, SIGNAL(finished(const ChannelInfo&)),
-                this, SIGNAL(gotChannelInfo(const ChannelInfo&)));
-        Task::push(task);
-    }
+    Task* task = new GetChannelInfoTask(_host, _port, _id, _type, this);
+    connect(task, SIGNAL(finished(const ChannelInfo&)),
+            this, SIGNAL(gotChannelInfo(const ChannelInfo&)));
+    Task::push(task);
 }
 
 void Peercast::disconnectChannel_GetPeercastTypeTask_finished()
 {
-    if( _type != TYPE_UNKNOWN )
-        Task::push(new DisconnectChannelTask(_host, _port, _id, _type, _disconnectStartSec, this));
+    Task::push(new DisconnectChannelTask(_host, _port, _id, _type, _disconnectStartSec, this));
 }
 
 void Peercast::nam_finished(QNetworkReply* reply)
@@ -102,44 +100,90 @@ void Peercast::nam_finished(QNetworkReply* reply)
 }
 
 // ---------------------------------------------------------------------------------------
+ChannelInfo::STATUS ChannelInfo::statusFromString(const QString& status, Peercast::TYPE type)
+{
+    STATUS ret = ST_UNKNOWN;
+
+    if( type == Peercast::TYPE_ST ) {
+        if( status == "Receiving" )
+            ret = ST_RECEIVE;
+        else
+        if( status == "Searching" )
+            ret = ST_SEARCH;
+        else
+        if( status == "Connecting" )
+            ret = ST_CONNECT;
+        else
+        if( status == "Error" )
+            ret = ST_ERROR;
+    }
+    else {
+        if( status == "RECEIVE" )
+            ret = ST_RECEIVE;
+        else
+        if( status == "SEARCH" )
+            ret = ST_SEARCH;
+        else
+        if( status == "CONNECT" )
+            ret = ST_CONNECT;
+        else
+        if( status == "ERROR" )
+            ret = ST_ERROR;
+        else
+        if( status == "BROADCAST" )
+            ret = ST_BROADCAST;
+    }
+
+    return ret;
+}
+
+// ---------------------------------------------------------------------------------------
 GetPeercastTypeTask::GetPeercastTypeTask(const QString& host, ushort port,
-        Peercast::TYPE* type, QObject* parent) : Task(parent)
+        Peercast::TYPE* pType, QObject* parent) : Task(parent)
 {
     _host = host;
     _port = port;
-    _type = type;
+    _pType = pType;
 
     connect(&_nam, SIGNAL(finished(QNetworkReply*)),
             this,  SLOT(nam_finished(QNetworkReply*)));
 
-    _attemptType = Peercast::TYPE_VP;
+    _attemptTypes << Peercast::TYPE_VP << Peercast::TYPE_ST;
+    int i = _attemptTypes.indexOf(*_pType);
+    if( i > 0 )
+        _attemptTypes.move(i, 0);
 }
 
 void GetPeercastTypeTask::nam_finished(QNetworkReply* reply)
 {
-    bool error = !(reply->error() == QNetworkReply::NoError);
+    bool failed = !(reply->error() == QNetworkReply::NoError);
 
-    if( !error ) {
+    Q_ASSERT( !_attemptTypes.isEmpty() );
+//  LogDialog::debug(QString("peercast type %1").arg(_attemptTypes.first()));
+
+    if( !failed ) {
         QString out = reply->readAll();
-        if( _attemptType == Peercast::TYPE_VP )
-            error = !whetherPcVp(out);
+        if( _attemptTypes.first() == Peercast::TYPE_ST )
+            failed = !whetherPcSt(out);
         else
-            error = !whetherPcSt(out);
+            failed = !whetherPcVp(out);
 
-        if( !error )
-            *_type = _attemptType;
+        if( !failed )
+            *_pType = _attemptTypes.first();
     }
 
-    if( error ) {
-        if( _attemptType == Peercast::TYPE_VP ) {
-            _attemptType = Peercast::TYPE_ST;
+    if( failed ) {
+        _attemptTypes.pop_front();
+        if( _attemptTypes.isEmpty() )
+            *_pType = Peercast::TYPE_UNKNOWN;
+        else {
             queryPeercastType();
             reply->deleteLater();
             return;
         }
-        else
-            *_type = Peercast::TYPE_UNKNOWN;
     }
+
+    LogDialog::debug(QString("GetPeercastTypeTask::nam_finished(): peercast type %1").arg(*_pType));
 
     reply->deleteLater();
     deleteLater();
@@ -152,7 +196,9 @@ void GetPeercastTypeTask::start()
 
 void GetPeercastTypeTask::queryPeercastType()
 {
-    if( _attemptType == Peercast::TYPE_VP ) {
+    if( _attemptTypes.isEmpty() ) return;
+
+    if( _attemptTypes.first() == Peercast::TYPE_VP ) {
         QUrl url(QString("http://%1:%2/html/ja/index.html").arg(_host).arg(_port));
         _nam.get(QNetworkRequest(url));
     }
@@ -212,21 +258,26 @@ void GetChannelInfoTask::nam_finished(QNetworkReply* reply)
 {
     const QString debugPrefix = "GetChannelInfoTask::nam_finished(): ";
 
-    if( reply->error() == QNetworkReply::NoError ) {
+        // PeercastIMではviewxml返却時のヘッダに誤りがある為、その場合のエラーは通過させる
+    if( reply->error() == QNetworkReply::NoError
+     || (reply->error()==QNetworkReply::RemoteHostClosedError && _type!=Peercast::TYPE_ST) )
+    {
         QString out = reply->readAll();
 
         if( reply == _replyChannelInfo ) {
             _replyChannelInfo = NULL;
 
-            if( _type == Peercast::TYPE_VP ) {
-                if( parseChannelInfoPcVp(out) )
-                    emit finished(_chInfo);
-            }
-            else { // _type == Peercast::TYPE_ST
+            if( _type == Peercast::TYPE_ST ) {
                 if( parseChannelInfoPcSt(out) ) {
                     getChannelStatusPcSt();
                     reply->deleteLater();
                     return;
+                }
+            }
+            else { // _type==Peercast::TYPE_VP || _type==Peercast::TYPE_UNKNOWN
+                if( parseChannelInfoPcVp(out) ) {
+                    debugChannelInfo();
+                    emit finished(_chInfo);
                 }
             }
         }
@@ -234,12 +285,14 @@ void GetChannelInfoTask::nam_finished(QNetworkReply* reply)
         if( reply == _replyChannelStatusPcSt ) {
             _replyChannelStatusPcSt = NULL;
 
-            if( parseChannelStatusPcSt(out) )
+            if( parseChannelStatusPcSt(out) ) {
+                debugChannelInfo();
                 emit finished(_chInfo);
+            }
         }
     }
     else
-        LogDialog::debug(debugPrefix + "error " + QString::number(reply->error()), QColor(255,0,0));
+        LogDialog::debug(debugPrefix + "reply error " + QString::number(reply->error()), QColor(255,0,0));
 
     reply->deleteLater();
     deleteLater();
@@ -247,16 +300,12 @@ void GetChannelInfoTask::nam_finished(QNetworkReply* reply)
 
 void GetChannelInfoTask::start()
 {
-    if( _type == Peercast::TYPE_UNKNOWN ) {
-        deleteLater();
-        return;
-    }
+//  if( _type == Peercast::TYPE_UNKNOWN ) {
+//      deleteLater();
+//      return;
+//  }
 
-    if( _type == Peercast::TYPE_VP ) {
-        QUrl url(QString("http://%1:%2/html/ja/relayinfo.html?id=%3").arg(_host).arg(_port).arg(_id));
-        _replyChannelInfo = _nam.get(QNetworkRequest(url));
-    }
-    else { // _type == Peercast::TYPE_ST
+    if( _type == Peercast::TYPE_ST ) {
         QUrl url(QString("http://%1:%2/api/1").arg(_host).arg(_port));
         QString json("{\"jsonrpc\": \"2.0\", \"method\": \"%1\", \"params\": [\"" + _id + "\"], \"id\": 1}");
         QNetworkRequest request(url);
@@ -265,6 +314,10 @@ void GetChannelInfoTask::start()
         QByteArray data(json.arg("getChannelInfo").toLatin1());
         request.setHeader(QNetworkRequest::ContentLengthHeader, data.size());
         _replyChannelInfo = _nam.post(request, data);
+    }
+    else { // _type==Peercast::TYPE_VP || _type==Peercast::TYPE_UNKNOWN
+        QUrl url(QString("http://%1:%2/admin?cmd=viewxml").arg(_host).arg(_port));
+        _replyChannelInfo = _nam.get(QNetworkRequest(url));
     }
 }
 
@@ -287,84 +340,47 @@ bool GetChannelInfoTask::parseChannelInfoPcVp(const QString& reply)
     const QString debugPrefix = "GetChannelInfoTask::parseChannelInfoPcVp(): ";
     LogDialog::debug(debugPrefix + "called");
 
-    int start, end;
+    QXmlStreamReader xml(reply);
+    QString status;
 
-    // チャンネル名の取得
-    start = reply.indexOf("<td>チャンネル名");
-    if( start == -1 )
+    while( !xml.atEnd() ) {
+        xml.readNext();
+//      LogDialog::debug(QString("%1/%2").arg(xml.isStartElement()).arg(xml.name().toString()));
+
+        if( xml.isStartElement() ) {
+            if( xml.name() == "peercast" )
+                ;
+            else
+            if( xml.name() == "channels_relayed" )
+                ;
+            else
+            if( xml.name() == "channel" && xml.attributes().value("id") == _id ) {
+                _chInfo.chName = xml.attributes().value("name").toString();
+                _chInfo.contactUrl = xml.attributes().value("url").toString();
+                _chInfo.bitrate = xml.attributes().value("bitrate").toString().toInt();
+
+                // 不要
+//              QTextDocument txt;
+//              txt.setHtml(_chInfo.chName);
+//              _chInfo.chName = txt.toPlainText();
+            }
+            else
+            if( xml.name() == "relay" ) {
+                status = xml.attributes().value("status").toString();
+                _chInfo.status = ChannelInfo::statusFromString(status, Peercast::TYPE_VP);
+                break;
+            }
+            else
+                xml.skipCurrentElement();
+        }
+    }
+
+    if( xml.hasError() ) {
+        LogDialog::debug(debugPrefix + xml.errorString());
         return false;
+    }
 
-    start = reply.indexOf("\">", start);
-    start += 2;
-    end = reply.indexOf('<', start);
-
-    _chInfo.chName = reply.mid(start, end - start);
-    QTextDocument txt;
-    txt.setHtml(_chInfo.chName);
-    _chInfo.chName = txt.toPlainText();
-    LogDialog::debug(debugPrefix + "name " + _chInfo.chName);
-
-    // コンタクトURLの取得
-    start = reply.indexOf("<td>URL", start);
-    if( start == -1 )
-        return false;
-
-    start = reply.indexOf("\">", start);
-    start += 2;
-    end = reply.indexOf('<', start);
-
-    _chInfo.contactUrl = reply.mid(start, end - start);
-    LogDialog::debug(debugPrefix + "url " + _chInfo.contactUrl);
-/*
-    // 接続先IPアドレスの取得
-    start = reply.indexOf("<td>取得元", start);
-    if( start == -1 )
-        return false;
-    start = reply.indexOf("<br>", start);
-    start += 4;
-    start = reply.indexOf(QRegExp("\\S"), start);
-    end = reply.indexOf('<', start);
-
-    QString temp = reply.mid(start, end - start);
-    QString connectedIp = temp.left(temp.indexOf(':'));
-
-    LogDialog::debug(debugPrefix + connectedIp + ' ' + _chInfo.rootIp);
-
-#ifndef QT_NO_DEBUG_OUTPUT
-    if( connectedIp == _chInfo.rootIp )
-        _title = "[" + _title + "]";
-#endif
-*/
-    // 接続状態の取得
-    start = reply.indexOf("<td>状態", start);
-    if( start == -1 )
-        return false;
-
-    ++start;
-    start = reply.indexOf("<td>", start);
-    start += 4;
-    end = reply.indexOf('<', start);
-
-    QString status = reply.mid(start, end - start);
-    if( status == "RECEIVE" )
-        _chInfo.status = ChannelInfo::ST_RECEIVE;
-    else
-    if( status == "SEARCH" )
-        _chInfo.status = ChannelInfo::ST_SEARCH;
-    else
-    if( status == "CONNECT" )
-        _chInfo.status = ChannelInfo::ST_CONNECT;
-    else
-    if( status == "ERROR" )
-        _chInfo.status = ChannelInfo::ST_ERROR;
-    else
-        _chInfo.status = ChannelInfo::ST_UNKNOWN;
-
-//  _searchingConnection = (rootIp == "0.0.0.0");
-
-    LogDialog::debug(debugPrefix + "status " + status);
-
-    return true;
+    return !status.isNull();
 }
 
 bool GetChannelInfoTask::parseChannelInfoPcSt(const QString& reply)
@@ -388,9 +404,7 @@ bool GetChannelInfoTask::parseChannelInfoPcSt(const QString& reply)
 
     _chInfo.chName     = value.property("name").toString();
     _chInfo.contactUrl = value.property("url").toString();
-
-    LogDialog::debug(debugPrefix + "name " + _chInfo.chName);
-    LogDialog::debug(debugPrefix + "url " + _chInfo.contactUrl);
+    _chInfo.bitrate    = value.property("bitrate").toInt32();
 
     return true;
 }
@@ -414,24 +428,25 @@ bool GetChannelInfoTask::parseChannelStatusPcSt(const QString& reply)
     if( !value.isValid() )
         return false;
 
-    QString status = value.property("status").toString();
-    if( status == "Receiving" )
-        _chInfo.status = ChannelInfo::ST_RECEIVE;
-    else
-    if( status == "Searching" )
-        _chInfo.status = ChannelInfo::ST_SEARCH;
-    else
-    if( status == "Connecting" )
-        _chInfo.status = ChannelInfo::ST_CONNECT;
-    else
-    if( status == "Error" )
-        _chInfo.status = ChannelInfo::ST_ERROR;
-    else
-        _chInfo.status = ChannelInfo::ST_UNKNOWN;
-
-    LogDialog::debug(debugPrefix + "status " + status);
+    if( value.property("isBroadcasting").toBool() ) {
+        _chInfo.status = ChannelInfo::ST_BROADCAST;
+    }
+    else {
+        QString status = value.property("status").toString();
+        _chInfo.status = ChannelInfo::statusFromString(status, Peercast::TYPE_ST);
+    }
 
     return true;
+}
+
+void GetChannelInfoTask::debugChannelInfo()
+{
+    const QString debugPrefix = "GetChannelInfoTask::debugChannelInfo(): ";
+
+    LogDialog::debug(debugPrefix + "name " + _chInfo.chName);
+    LogDialog::debug(debugPrefix + "url " + _chInfo.contactUrl);
+    LogDialog::debug(debugPrefix + "bitrate " + QString::number(_chInfo.bitrate));
+    LogDialog::debug(debugPrefix + "status " + _chInfo.statusString());
 }
 
 // ---------------------------------------------------------------------------------------
@@ -466,10 +481,10 @@ DisconnectChannelTask::DisconnectChannelTask(const QString& host, ushort port,
     _host = host;
     _port = port;
     _id   = id;
-    _peercastType = type;
+    _type = type;
     _startSec = startSec;
     _listeners = -1;
-    _retryGetStatus = false;
+    _status = ChannelInfo::ST_UNKNOWN;
 
     connect(&_nam, SIGNAL(finished(QNetworkReply*)),
             this,  SLOT(nam_finished(QNetworkReply*)));
@@ -479,7 +494,7 @@ DisconnectChannelTask::DisconnectChannelTask(const QString& host, ushort port,
 
 void DisconnectChannelTask::timerSingleShot_timeout()
 {
-    if( _peercastType == Peercast::TYPE_ST ) {
+    if( _type == Peercast::TYPE_ST ) {
         QUrl url(QString("http://%1:%2/api/1").arg(_host).arg(_port));
         QString json("{\"jsonrpc\": \"2.0\", \"method\": \"%1\", \"params\": [\"" + _id + "\"], \"id\": 1}");
         QNetworkRequest request(url);
@@ -489,7 +504,7 @@ void DisconnectChannelTask::timerSingleShot_timeout()
         request.setHeader(QNetworkRequest::ContentLengthHeader, data.size());
         _nam.post(request, data);
     }
-    else { // _peercastType==Peercast::TYPE_VP || _peercastType==Peercast::TYPE_UNKNOWN
+    else { // _type==Peercast::TYPE_VP || _type==Peercast::TYPE_UNKNOWN
         QUrl url(QString("http://%1:%2/admin?cmd=viewxml").arg(_host).arg(_port));
         _nam.get(QNetworkRequest(url));
     }
@@ -497,26 +512,33 @@ void DisconnectChannelTask::timerSingleShot_timeout()
 
 void DisconnectChannelTask::nam_finished(QNetworkReply* reply)
 {
-    if( reply->error() == QNetworkReply::NoError ) {
+        // PeercastIMではviewxml返却時のヘッダに誤りがある為、その場合のエラーは通過させる
+    if( reply->error() == QNetworkReply::NoError
+     || (reply->error()==QNetworkReply::RemoteHostClosedError && _type!=Peercast::TYPE_ST) )
+    {
         QString out = reply->readAll();
 
         bool result = false;
-        if( _peercastType == Peercast::TYPE_ST )
+        if( _type == Peercast::TYPE_ST )
             result = getChannelStatusPcSt(out);
         else
             result = getChannelStatusPcVp(out);
 
-        qDebug("DisconnectChannelTask::nam_finished(): result: %d, listeners: %d, retry: %d", result, _listeners, _retryGetStatus);
+        qDebug("DisconnectChannelTask::nam_finished(): result: %d, listeners: %d, status: %d", result, _listeners, _status);
         if( result ) {
-            if( _listeners == 0 )
-                Task::push(new StopChannelTask(_host, _port, _id, parent()));
-            else
-            if( _retryGetStatus || _timer.isActive() ) {
-                qDebug("--------------");
-                QTimer::singleShot(REPETITION_MSEC, this, SLOT(timerSingleShot_timeout()));
+            if( _status != ChannelInfo::ST_BROADCAST ) {
+                if( _listeners == 0 )
+                    Task::push(new StopChannelTask(_host, _port, _id, parent()));
+                else
+                if( (_status==ChannelInfo::ST_SEARCH || _status==ChannelInfo::ST_CONNECT)
+                 || _timer.isActive() )
+                {
+                    qDebug("--------------");
+                    QTimer::singleShot(REPETITION_MSEC, this, SLOT(timerSingleShot_timeout()));
 
-                reply->deleteLater();
-                return;
+                    reply->deleteLater();
+                    return;
+                }
             }
         }
     }
@@ -533,34 +555,45 @@ void DisconnectChannelTask::start()
     _timer.start(MONITORING_MSEC);
     QTimer::singleShot(_startSec * 1000, this, SLOT(timerSingleShot_timeout()));
 
-    qDebug("DisconnectChannelTask::start(): peercast type %d", _peercastType);
+    qDebug("DisconnectChannelTask::start(): peercast type %d", _type);
 }
 
 bool DisconnectChannelTask::getChannelStatusPcVp(const QString& reply)
 {
-    int overIndex = reply.indexOf("<channels_found total=");
-    if( overIndex == -1 )
+    QXmlStreamReader xml(reply);
+    _listeners = -1;
+
+    while( !xml.atEnd() ) {
+        xml.readNext();
+//      qDebug() << QString("%1/%2").arg(xml.isStartElement()).arg(xml.name().toString());
+
+        if( xml.isStartElement() ) {
+            if( xml.name() == "peercast" )
+                ;
+            else
+            if( xml.name() == "channels_relayed" )
+                ;
+            else
+            if( xml.name() == "channel" && xml.attributes().value("id") == _id )
+                ;
+            else
+            if( xml.name() == "relay" ) {
+                _listeners = xml.attributes().value("listeners").toString().toInt();
+                QString status = xml.attributes().value("status").toString();
+                _status = ChannelInfo::statusFromString(status, Peercast::TYPE_VP);
+                break;
+            }
+            else
+                xml.skipCurrentElement();
+        }
+    }
+
+    if( xml.hasError() ) {
+        qDebug() << "DisconnectChannelTask::getChannelStatusPcVp():" << xml.errorString();
         return false;
+    }
 
-    int start, end;
-    start = reply.indexOf(_id);
-    if( start == -1 || start > overIndex )
-        return false;
-
-    start = reply.indexOf("<relay listeners=\"", start);
-    start += 18;
-    end = reply.indexOf('\"', start);
-
-    _listeners = reply.mid(start, end - start).toInt();
-
-    start = reply.indexOf("status=\"", start);
-    start += 8;
-    end = reply.indexOf('\"', start);
-
-    QString status = reply.mid(start, end - start);
-    _retryGetStatus = (status=="SEARCH" || status=="CONNECT");
-
-    return true;
+    return _listeners != -1;
 }
 
 bool DisconnectChannelTask::getChannelStatusPcSt(const QString& reply)
@@ -578,8 +611,13 @@ bool DisconnectChannelTask::getChannelStatusPcSt(const QString& reply)
 
     _listeners = value.property("localDirects").toString().toInt();
 
-    QString status = value.property("status").toString();
-    _retryGetStatus = (status=="Searching" || status=="Connecting");
+    if( value.property("isBroadcasting").toBool() ) {
+        _status = ChannelInfo::ST_BROADCAST;
+    }
+    else {
+        QString status = value.property("status").toString();
+        _status = ChannelInfo::statusFromString(status, Peercast::TYPE_ST);
+    }
 
     return true;
 }

@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2014 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ public:
     ~LogDialog();
 
     void   setOutputTerminal(bool b) { _outputTerminal = b; }
+    void   setMaximumBlockCount(int count) { _textEdit->document()->setMaximumBlockCount(count); }
     int    blockCount() { return _textEdit->document()->blockCount(); }
     QColor TextColor() { return _textEdit->textColor(); }
     void   setTextColor(const QColor& c) { _textEdit->setTextColor(c); }
@@ -38,6 +39,7 @@ public:
     static bool isVisibleDialog();
 
 public slots:
+    void setWindowTitle(const QString& title) { QDialog::setWindowTitle(title + " - PURE LOG"); }
     void printOut(const QString& text);
     void printOut(const QString& text, const QColor& color);
     void debugOut(const QString& text);
@@ -56,6 +58,7 @@ public slots:
 signals:
     void windowActivate();
     void requestCommand(const QString& command);
+    void requestOutputStatusLine(bool);
 
 protected:
     bool event(QEvent*);

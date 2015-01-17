@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,20 +34,28 @@
 #include "commonlib.h"
 #include "task.h"
 #include "windowcontroller.h"
-#include "speedspinbox.h"
 #include "aboutdialog.h"
 #include "clipwindow.h"
+#include "mousecursor.h"
+#include "commonmenu.h"
 
 PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 {
     const QIcon appIcon(":/icons/heart.png");
 
+    ConfigData::loadData();
+
     LogDialog::initDialog(this);
 //  LogDialog::dialog()->setWindowIcon(appIcon);
+    if( ConfigData::data()->limitLogLine )
+        LogDialog::dialog()->setMaximumBlockCount(ConfigData::data()->logLineMax);
+
     connect(LogDialog::dialog(), SIGNAL(windowActivate()),
             this,                SLOT(raise()));
     connect(LogDialog::dialog(), SIGNAL(requestCommand(const QString&)),
             this,                SLOT(mpCmd(const QString&)));
+    connect(LogDialog::dialog(), SIGNAL(requestOutputStatusLine(bool)),
+            this,                SLOT(setOutputStatusLog(bool)));
 
     setFont(QFont("DejaVu Sans", 9));
     setWindowIcon(appIcon);
@@ -75,22 +83,31 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     initColorKey();
 #endif
 
+    setMouseTrackingClient(true);
+
+    _mouseCursor = new MouseCursor(this);
+    _mouseCursor->setTargetWidget(centralWidget());
+    _mouseCursor->setAutoHideTime(500);
+    connect(_mouseCursor, SIGNAL(changedShape(Qt::CursorShape)),
+            this,         SLOT(updateShowInterface()));
+
 //  _oldTime = -1;
     _path = "";
+    _speedRate = 1.0;
     _audioOutput = AO_STEREO;
     _volumeFactor = VF_NORMAL;
     _aspectRatio = AR_VIDEO;
     _deinterlace = DI_NO_DEINTERLACE;
-    _videoSize = QSize(320, 240);
-    _clipRect = QRect(0,0, _videoSize.width(),_videoSize.height());
+    _videoSize = QSize(-1, -1);
+    _clipRect = QRect(0,0, 1,1);
+    _fileFormat = "";
     _isMute = false;
     _alwaysShowStatusBar = false;
-    _noVideo = false;
+    _existAudio = true;
+    _existVideo = true;
     _isSeekable = false;
     _playNoSound = false;
     _controlFlags = FLG_NONE;
-    _timerBlockCursorHide.setSingleShot(true);
-    _timerBlockCursorHide.setInterval(500);
 
     connect(&_peercast, SIGNAL(gotChannelInfo(const ChannelInfo&)),
             this,       SLOT(peercast_gotChannelInfo(const ChannelInfo&)));
@@ -102,8 +119,8 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
             this,       SLOT(mpProcess_finished()));
     connect(_mpProcess, SIGNAL(error(QProcess::ProcessError)),
             this,       SLOT(mpProcess_error(QProcess::ProcessError)));
-    connect(_mpProcess, SIGNAL(debugKilledCPid()),
-            this,       SLOT(mpProcess_debugKilledCPid()));
+//  connect(_mpProcess, SIGNAL(debugKilledCPid()),
+//          this,       SLOT(mpProcess_debugKilledCPid()));
 
     _recProcess = new RecordingProcess(this);
     connect(_recProcess, SIGNAL(outputLine(const QString&)),
@@ -111,9 +128,10 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 //  connect(_recProcess, SIGNAL(finished()),
 //          this,        SLOT(recProcess_finished()));
 
-    _receivedErrorCount = 0;
+    _reconnectScore = 0;
     _reconnectCount = 0;
-    _reconnectControlTime  = 0;
+    _reconnectControlTimeAo = 0;
+    _reconnectControlTimeVo = 0;
     connect(&_timerReconnect, SIGNAL(timeout()), this, SLOT(timerReconnect_timeout()));
 
     _fpsCount = 0;
@@ -132,7 +150,6 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 
     createStatusBar();
     createActionContextMenu();
-    ConfigData::loadData();
     createToolBar();
     _state = ST_STOP;
     _videoSettingsModifiedId = 0;
@@ -140,11 +157,8 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
     loadInteractiveSettings();
 
     setStatus(ST_STOP);
-    resize(QSize(320,260));
-    _menuContext->move(x()+width()*0.2, y()+height()*0.2);
 
-    _debugFlag = false;
-    _debugCount = 0;
+    _outputStatusLog = false;
 
     qsrand(time(NULL));
 }
@@ -158,11 +172,13 @@ PurePlayer::~PurePlayer()
 
 void PurePlayer::createStatusBar()
 {
-    _infoLabel = new InfoLabel(tr("停止 "));
+    _infoLabel = new InfoLabel(tr("000%")); //tr("停止 "));
     _timeLabel = new TimeLabel();
     _labelFrame = new QLabel();
     _labelFps = new QLabel();
     _labelVolume = new QLabel();
+    _labelSpeedRate = new QLabel();
+    _labelSpeedRate->setToolTip(tr("再生速度(ホイールで変更)"));
     _statusbarSpaceL = new QWidget();
     _statusbarSpaceR = new QWidget();
 
@@ -198,6 +214,7 @@ void PurePlayer::createStatusBar()
     statusBar()->addWidget(_statusbarSpaceL);
     statusBar()->addWidget(_infoLabel);
     statusBar()->addPermanentWidget(_labelFrame);
+    statusBar()->addPermanentWidget(_labelSpeedRate);
     statusBar()->addPermanentWidget(_labelFps);
     statusBar()->addPermanentWidget(_timeLabel);
     statusBar()->addPermanentWidget(_labelVolume);
@@ -217,6 +234,11 @@ void PurePlayer::createStatusBar()
     _labelFps->setText(tr(" 00fps"));
     _labelFps->setMinimumWidth(_labelFps->sizeHint().width());
     _labelFps->setText("0fps");
+
+    _labelSpeedRate->setFrameShape(QFrame::NoFrame);
+    _labelSpeedRate->setText(tr("x0.0 "));
+    _labelSpeedRate->setMinimumWidth(_labelSpeedRate->sizeHint().width());
+    _labelSpeedRate->setText("x1.0");
 
     _labelFrame->setAlignment(Qt::AlignRight);
     _labelFrame->setText(" 00000000");
@@ -293,22 +315,15 @@ void PurePlayer::createToolBar()
     _screenshotButton->setFixedSize(buttonSize);
     _screenshotButton->setToolTip("スクリーンショット");
     connect(_screenshotButton, SIGNAL(clicked(bool)), this, SLOT(screenshot()));
+    _screenshotButton->hide(); // 仮
 
     _timeSlider   = NULL;
-    _speedSpinBox = NULL;
     _toolBar      = NULL;
     _timeSlider = new TimeSlider(this);
     _timeSlider->installEventFilter(this);
     _timeSlider->setFocusPolicy(Qt::NoFocus);
     _timeSlider->setReverseWheelSeek(ConfigData::data()->reverseWheelSeek);
     connect(_timeSlider, SIGNAL(requestSeek(double, bool)), this, SLOT(seek(double, bool)));
-
-    _speedSpinBox = new SpeedSpinBox(this);
-    _speedSpinBox->installEventFilter(this);
-    _speedSpinBox->setFixedWidth(_speedSpinBox->sizeHint().width());
-    _speedSpinBox->setFixedHeight(17);
-    _speedSpinBox->setToolTip(tr("再生速度"));
-    connect(_speedSpinBox, SIGNAL(valueChanged(double)), this, SLOT(setSpeed(double)));
 
     _toolBar = new QToolBar("toolbar", this);
     _toolBar->installEventFilter(this);
@@ -339,7 +354,6 @@ void PurePlayer::createToolBar()
     hl->addWidget(_screenshotButton);
     hl->addWidget(_timeSlider);
     //hl->addStretch();
-    hl->addWidget(_speedSpinBox);
 //  vl->addWidget(_timeSlider);
 //  vl->addLayout(hl);
     QWidget* widget = new QWidget(this);
@@ -421,10 +435,19 @@ void PurePlayer::createActionContextMenu()
     QAction* actVFactor3 = new QAction(tr("音量を3倍にする"), _actGroupVolumeFactor);
     actVFactor3->setCheckable(true);
 
-    QMenu* menuAudioOutput = new QMenu(tr("音声出力"), this);
+    CommonMenu* menuAudioOutput = new CommonMenu(tr("音声出力"), this);
     menuAudioOutput->addActions(_actGroupAudioOutput->actions());
     menuAudioOutput->addSeparator();
     menuAudioOutput->addActions(_actGroupVolumeFactor->actions());
+
+    menuAudioOutput->addNoCloseAction(actStereo);
+    menuAudioOutput->addNoCloseAction(actMonaural);
+    menuAudioOutput->addNoCloseAction(actLeft);
+    menuAudioOutput->addNoCloseAction(actRight);
+    menuAudioOutput->addNoCloseAction(actVFactor0);
+    menuAudioOutput->addNoCloseAction(actVFactor1);
+    menuAudioOutput->addNoCloseAction(actVFactor2);
+    menuAudioOutput->addNoCloseAction(actVFactor3);
 
     // サイズ変更メニュー
     QAction* actReduceSize = new QAction(tr("小さくする"), this);
@@ -443,10 +466,10 @@ void PurePlayer::createActionContextMenu()
 //  actSlightlyIncreaseSize->setShortcut(tr("]"));
 //  connect(actSlightlyIncreaseSize, SIGNAL(triggered()), this, SLOT(resizeSlightlyIncrease()));
 //  addAction(actSlightlyIncreaseSize);
-    QAction* act320x240 = new QAction(tr("320x240"), this);
-    act320x240->setShortcut(tr("0"));
-    connect(act320x240, SIGNAL(triggered()), this, SLOT(resize320x240()));
-    addAction(act320x240);
+    _actInitialSize = new QAction(tr("%1x%2").arg(ConfigData::data()->initSize.width()).arg(ConfigData::data()->initSize.height()), this);
+    _actInitialSize->setShortcut(tr("0"));
+    connect(_actInitialSize, SIGNAL(triggered()), this, SLOT(resizeInitial()));
+    addAction(_actInitialSize);
     QAction* act1280x720 = new QAction(tr("1280x720"), this);
     connect(act1280x720, SIGNAL(triggered()), this, SLOT(resize1280x720()));
     QAction* act25Percent = new QAction(tr("25%"), this);
@@ -474,13 +497,13 @@ void PurePlayer::createActionContextMenu()
     connect(act150Percent, SIGNAL(triggered()), this, SLOT(resize150Percent()));
     addAction(act150Percent);
 
-    QMenu* menuSize = new QMenu(tr("サイズ変更"), this);
+    CommonMenu* menuSize = new CommonMenu(tr("サイズ変更"), this);
     menuSize->addAction(actReduceSize);
     menuSize->addAction(actIncreaseSize);
 //  menuSize->addAction(actSlightlyReduceSize);
 //  menuSize->addAction(actSlightlyIncreaseSize);
     menuSize->addSeparator();
-    menuSize->addAction(act320x240);
+    menuSize->addAction(_actInitialSize);
     menuSize->addAction(act1280x720);
     menuSize->addSeparator();
     menuSize->addAction(act25Percent);
@@ -489,6 +512,17 @@ void PurePlayer::createActionContextMenu()
     menuSize->addAction(act100Percent);
     menuSize->addAction(act125Percent);
     menuSize->addAction(act150Percent);
+
+    menuSize->addNoCloseAction(actReduceSize);
+    menuSize->addNoCloseAction(actIncreaseSize);
+    menuSize->addNoCloseAction(_actInitialSize);
+    menuSize->addNoCloseAction(act1280x720);
+    menuSize->addNoCloseAction(act25Percent);
+    menuSize->addNoCloseAction(act50Percent);
+    menuSize->addNoCloseAction(act75Percent);
+    menuSize->addNoCloseAction(act100Percent);
+    menuSize->addNoCloseAction(act125Percent);
+    menuSize->addNoCloseAction(act150Percent);
 
     // アスペクト比変更メニュー
     _actGroupAspect = new QActionGroup(this);
@@ -505,8 +539,14 @@ void PurePlayer::createActionContextMenu()
     actAspect16_10->setCheckable(true);
     QAction* actAspectNoKeep = new QAction(tr("比を維持しない"), _actGroupAspect);
     actAspectNoKeep->setCheckable(true);
-    QMenu* menuAspect = new QMenu(tr("アスペクト比変更"), this);
+    CommonMenu* menuAspect = new CommonMenu(tr("アスペクト比変更"), this);
     menuAspect->addActions(_actGroupAspect->actions());
+
+    menuAspect->addNoCloseAction(actAspectVideo);
+    menuAspect->addNoCloseAction(actAspect4_3);
+    menuAspect->addNoCloseAction(actAspect16_9);
+    menuAspect->addNoCloseAction(actAspect16_10);
+    menuAspect->addNoCloseAction(actAspectNoKeep);
 
     // クリッピングメニュー
     _actShowClipWindow = new QAction(tr("対象領域を指定する"), this);
@@ -533,8 +573,13 @@ void PurePlayer::createActionContextMenu()
     actDeinterlaceYadif2->setCheckable(true);
     QAction* actDeinterlaceLB = new QAction(tr("リニアブレンド"), _actGroupDeinterlace);
     actDeinterlaceLB->setCheckable(true);
-    QMenu* menuDeinterlace = new QMenu(tr("インターレース解除"), this);
+    CommonMenu* menuDeinterlace = new CommonMenu(tr("インターレース解除"), this);
     menuDeinterlace->addActions(_actGroupDeinterlace->actions());
+
+    menuDeinterlace->addNoCloseAction(actDeinterlaceNo);
+    menuDeinterlace->addNoCloseAction(actDeinterlaceYadif);
+    menuDeinterlace->addNoCloseAction(actDeinterlaceYadif2);
+    menuDeinterlace->addNoCloseAction(actDeinterlaceLB);
 
     // 再接続メニュー
     _actReconnect = new QAction(tr("通常"), this);
@@ -565,8 +610,11 @@ void PurePlayer::createActionContextMenu()
     _actStatusBar = new QAction(tr("ステータスを常に表示"), this);
     _actStatusBar->setCheckable(true);
     _actStatusBar->setChecked(false);
+    _actStatusBar->setShortcut(tr("v"));
+    _actStatusBar->setAutoRepeat(false);
     _actStatusBar->setVisible(false);
     connect(_actStatusBar, SIGNAL(triggered(bool)), this, SLOT(setAlwaysShowStatusBar(bool)));
+    addAction(_actStatusBar);
     _actConfig = new QAction(tr("設定"), this);
     connect(_actConfig, SIGNAL(triggered()), this, SLOT(showConfigDialog()));
     _actLog = new QAction(tr("ログ"), this);
@@ -581,7 +629,7 @@ void PurePlayer::createActionContextMenu()
     menuEtc->addAction(_actAbout);
 
     // コンテキストメニュー
-    _menuContext = new QMenu(this);
+    _menuContext = new CommonMenu(this);
     _menuContext->addMenu(menuAudioOutput);
     _menuContext->addAction(_actMute);
     _menuContext->addSeparator();
@@ -601,9 +649,7 @@ void PurePlayer::createActionContextMenu()
     _menuContext->addSeparator();
     _menuContext->addMenu(menuEtc);
 
-#ifdef Q_OS_WIN32
     connect(_menuContext, SIGNAL(aboutToHide()), this, SLOT(menuContext_aboutToHide()));
-#endif
 
     // ショートカットキー単体登録
     QShortcut* fullscreen = new QShortcut(tr("f"), this);
@@ -617,7 +663,14 @@ void PurePlayer::createActionContextMenu()
     //setContextMenuPolicy(Qt::ActionsContextMenu);
 }
 
-void PurePlayer::open(const QStringList& paths)
+void PurePlayer::setTitleOption(const QString& title)
+{
+    _pathForTitleOption = QString();
+    setWindowTitle(title);
+    _pathForTitleOption = _path;
+}
+
+void PurePlayer::open(const QStringList& paths, bool fromCommandline)
 {
     bool b;
     int rows = _playlist->appendTracks(paths, &b);
@@ -660,17 +713,19 @@ void PurePlayer::open(const QStringList& paths)
     if( _playlistDialog != NULL )
         _playlistDialog->scrollToCurrentTrackHidden();
 
-    _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
+    if( fromCommandline && ConfigData::data()->suitableResize )
+        _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
+
     openCommonProcess(_playlist->currentTrackPath());
 }
 
-void PurePlayer::open(const QList<QUrl>& urls)
+void PurePlayer::open(const QList<QUrl>& urls, bool fromCommandline)
 {
     QStringList paths;
     foreach(const QUrl& url, urls)
         paths << url.toString();
 
-    open(paths);
+    open(paths, fromCommandline);
 }
 
 void PurePlayer::play()
@@ -737,23 +792,31 @@ void PurePlayer::openCommonProcess(const QString& path)
 
     stop();
 
+    _path = path;
+    if( !_pathForTitleOption.isNull() ) {
+        if( _pathForTitleOption.isEmpty() )
+            _pathForTitleOption = _path;
+        else
+        if( _path != _pathForTitleOption )
+            _pathForTitleOption = QString();
+    }
+
+    _peercast.setHostPortId("", 0, "");
+    _channelInfo.clear();
+
     QRegExp rxPeercastUrl(
             "(?:^http|^mms|^mmsh)://(.+):(\\d+)/(?:stream|pls)/([A-F0-9]{32})");
-    if( rxPeercastUrl.indexIn(path) != -1 ) {
-        LogDialog::debug(debugPrefix + "peercast url detected.");
+//          "(?:^http|^mms|^mmsh)://(.+):(\\d+)/(?:stream|pls)/([A-F0-9]{32})(?:\\.([a-zA-Z0-9]+))?");
+    if( rxPeercastUrl.indexIn(_path) != -1 ) {
+        LogDialog::debug(debugPrefix + "detected peercast url.");
 
         _peercast.setHostPortId(rxPeercastUrl.cap(1),
                                 rxPeercastUrl.cap(2).toShort(),
                                 rxPeercastUrl.cap(3));
-        _channelInfo.clear();
-
-        QRegExp rootIp(".+\\?tip=(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})");
-        if( rootIp.indexIn(path) != -1 )
-            _channelInfo.rootIp = rootIp.cap(1);
-        else
-            _channelInfo.rootIp = "";
 
         _reconnectCount = 0;
+        _labelSpeedRate->hide();
+        setSpeedRate(1.0);
 
         _menuReconnect->menuAction()->setVisible(true);
         // _actPlayPauseとのショートカットキー切り替えの為、設定
@@ -762,10 +825,11 @@ void PurePlayer::openCommonProcess(const QString& path)
         _actPlayPause->setVisible(false);
         _actOpenContactUrl->setVisible(true);
         _actStatusBar->setVisible(true);
+
+        reflectChannelInfo();
     }
     else {
-        _peercast.setHostPortId("", 0, "");
-        _channelInfo.clear();
+        _labelSpeedRate->show();
 
         _menuReconnect->menuAction()->setVisible(false);
         // _actPlayPauseとのショートカットキー切り替えの為、設定
@@ -778,13 +842,13 @@ void PurePlayer::openCommonProcess(const QString& path)
         _repeatStartTime = -1;
         _repeatEndTime = -1;
         _repeatABButton->setIcon(QIcon(":/icons/repeata.png"));
+
+        setWindowTitle(_playlist->currentTrackTitle());
     }
 
-    _path = path;
+    _fileFormat = "";
     releaseClipping();
     _controlFlags |= FLG_OPENED_PATH;
-
-    reflectChannelInfo();
 
     _infoLabel->clearClipInfo();
 
@@ -885,24 +949,35 @@ void PurePlayer::seek(double sec, bool relative)
     }
 }
 
-void PurePlayer::setSpeed(double rate)
+void PurePlayer::upSpeedRate(double value)
 {
-    if( rate < 0.1 ) rate = 0.1; else
-    if( rate > 3.0 ) rate = 3.0;
+    _speedRate += value;
+    setSpeedRate(_speedRate);
+}
 
-    if( _speedSpinBox->value() != rate ) {
-        _speedSpinBox->setValue(rate);
-        return;
-    }
+void PurePlayer::downSpeedRate(double value)
+{
+    _speedRate -= value;
+    setSpeedRate(_speedRate);
+}
+
+void PurePlayer::setSpeedRate(double value)
+{
+    if( value < 0.1 ) value = 0.1; else
+    if( value > 3.0 ) value = 3.0;
+
+    _speedRate = CommonLib::round(value, 1);//(int)(value*10+0.5) / 10.0;
 
     if( _state == ST_PLAY ) {
-        mpCmd(QString().sprintf("speed_set %.1f", rate));
+        mpCmd(QString().sprintf("speed_set %.1f", _speedRate));
         mpCmd("osd_show_property_text 'Speed: x ${speed}'");
-        //mpCmd("osd_show_text " + QString().sprintf("'Speed: x %.1f'", rate));
+        //mpCmd("osd_show_text " + QString().sprintf("'Speed: x %.1f'", value));
     }
     else
     if( _state == ST_PAUSE )
-        mpCmd(QString().sprintf("pausing_keep_force speed_set %.1f", rate));
+        mpCmd(QString().sprintf("pausing_keep_force speed_set %.1f", _speedRate));
+
+    _labelSpeedRate->setText(QString().sprintf("x%.1f", _speedRate));
 }
 
 void PurePlayer::reconnect()
@@ -1268,6 +1343,7 @@ void PurePlayer::clipVideoViewArea(const QRect& rc)
         return;
 
     _actReleaseClipping->setEnabled(true);
+    _clipWindow->setFitToWidgetTriggerShow(true);
 
     if( !_controlFlags.testFlag(FLG_NO_CHANGE_VDRIVER_WHEN_CLIPPING)
         && ConfigData::data()->voName != ConfigData::data()->voNameForClipping
@@ -1296,6 +1372,11 @@ void PurePlayer::screenshot()
         mpCmd("pausing_keep_force screenshot 0");
         frameAdvance();
     }
+}
+
+void PurePlayer::resizeInitial()
+{
+    resizeFromVideoClient(ConfigData::data()->initSize);
 }
 
 // ビデオクライアントサイズを指定してウィンドウをリサイズする
@@ -1373,11 +1454,6 @@ void PurePlayer::toggleFullScreenOrWindow()
         _statusbarSpaceR->hide();
 
         _actStatusBar->setEnabled(true);
-
-        hideMouseCursor(false);
-#ifdef Q_OS_WIN32
-        updateVideoScreenGeometry(); // windowsではshowNormal()内でresizeEvent()が発生する為
-#endif // Q_OS_WIN32
     }
     else {
         if( isMaximized() )
@@ -1402,12 +1478,15 @@ void PurePlayer::toggleFullScreenOrWindow()
         _statusbarSpaceL->show();
         _statusbarSpaceR->show();
         _actStatusBar->setEnabled(false);
-
-        hideMouseCursor(false);
-#ifdef Q_OS_WIN32
-        updateVideoScreenGeometry(); //
-#endif // Q_OS_WIN32
     }
+
+    _mousePressPos = QPoint(INT_MIN, INT_MIN);
+
+    updateShowInterface();
+    _mouseCursor->setVisible(true);
+#ifdef Q_OS_WIN32
+    updateVideoScreenGeometry(); // windowsではshowNormal()内でresizeEvent()が発生する為
+#endif // Q_OS_WIN32
 
     // ウィンドウモードを切り替えた時の、
     // マウス入力したままでのマウスウィンドウ移動を無効にする。
@@ -1534,17 +1613,12 @@ void PurePlayer::showClipWindow()
 {
     if( _clipWindow == NULL ) {
         QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
-#ifdef Q_OS_WIN32
-        int translucentDisplay = s.value("clipWindow_translucentDisplay", false).toBool();
-#else
         int translucentDisplay = s.value("clipWindow_translucentDisplay", true).toBool();
-#endif
 
         _clipWindow = new ClipWindow(this);
         _clipWindow->setTargetWidget(_clipScreen);
         _clipWindow->setTranslucentDisplay(translucentDisplay);
-        _clipWindow->setGeometry(QRect(_clipScreen->mapToGlobal(QPoint(0,0)),
-                                       _clipScreen->size()));
+        _clipWindow->setFitToWidgetTriggerShow(true);
 
         connect(_clipWindow, SIGNAL(triggeredShow()),
                 this,        SLOT(clipWindow_triggeredShow()));
@@ -1559,6 +1633,7 @@ void PurePlayer::showClipWindow()
     }
 
     _clipWindow->triggerShow();
+    _clipWindow->setFitToWidgetTriggerShow(false);
 }
 
 void PurePlayer::openContactUrl()
@@ -1583,11 +1658,20 @@ void PurePlayer::openContactUrl()
     }
 }
 
+void PurePlayer::setWindowTitle(const QString& title)
+{
+    if( _pathForTitleOption.isNull() ) {
+        QMainWindow::setWindowTitle(title);
+        LogDialog::dialog()->setWindowTitle(title);
+    }
+}
+
 bool PurePlayer::event(QEvent* e)
 {
 //  LogDialog::debug(tr("%1").arg(e->type()));
     if( e->type() == QEvent::WindowActivate ) {
-        _timerBlockCursorHide.start();
+        _mouseCursor->setVisible(true); // 非アクティブでマウスカーソル非表示時の右クリック対応
+        _mouseCursor->tempDisableChangeShape();
     }
     else    // 初めにボタンプレスしたウィンドウ側にイベント送信先が切り替わる様に作り直す
     if( e->type() == QEvent::MouseButtonPress ) {
@@ -1688,37 +1772,31 @@ bool PurePlayer::eventFilter(QObject* o, QEvent* e)
             }
         }
     }
-    else
-    if( o == _speedSpinBox ) {
-        if( e->type() == QEvent::Wheel ) {
-            QWheelEvent* ev = static_cast<QWheelEvent*>(e);
-            if( ev->buttons() & Qt::RightButton ) {
-                QApplication::sendEvent(_toolBar, ev);
-                return true;
-            }
-        }
-    }
 
     return QMainWindow::eventFilter(o, e);
 }
-/*
+
 void PurePlayer::showEvent(QShowEvent* e)
 {
     QMainWindow::showEvent(e);
 
-    if( !_controlFlags.testFlag(FLG_SHOW_FUNC_CALLED) ) {
-        QSize size(_videoSize.width(),
-                   _videoSize.height() - _toolBar->height());
-        if( !_alwaysShowStatusBar )
-            size.rheight() -= statusBar()->height();
+    LogDialog::debug(QString("PurePlayer::showEvent(): videoSize %1,%2 %3 %4")
+                                    .arg(_videoSize.width()).arg(_videoSize.height())
+                                    .arg(_toolBar->height()).arg(statusBar()->height()));
 
-        resizeFromVideoClient(size);
+    if( _videoSize.width() < 0 ) {
+        _videoSize = ConfigData::data()->initSize;
+        _clipRect = QRect(0,0, _videoSize.width(),_videoSize.height());
+
+        resizeFromVideoClient(_videoSize); // resize()されるまでstatusBarの正しい高さは取得できない？
+        resizeFromVideoClient(_videoSize);
         _menuContext->move(x()+width()*0.2, y()+height()*0.2);
 
-        _controlFlags |= FLG_SHOW_FUNC_CALLED;
+        // テキスト内容によってステータスバーの高さが変わる為、高さを固定にする
+//      statusBar()->setFixedHeight(statusBar()->height());
     }
 }
-*/
+
 void PurePlayer::closeEvent(QCloseEvent* e)
 {
     LogDialog::debug("PurePlayer::closeEvent(): start-");
@@ -1727,8 +1805,10 @@ void PurePlayer::closeEvent(QCloseEvent* e)
     saveInteractiveSettings();
     hide();
     stopInternal();
-    if( isPeercastStream() && ConfigData::data()->disconnectChannel )
-        _peercast.disconnectChannel(5);
+    if( isPeercastStream() && ConfigData::data()->disconnectChannel ) {
+        QTextStream(stdout) << tr("チャンネル切断待機中...\n") << flush;
+        _peercast.disconnectChannel(15);
+    }
 
     e->accept();
 
@@ -1755,8 +1835,6 @@ void PurePlayer::resizeEvent(QResizeEvent* )
 #endif
 
     updateVideoScreenGeometry();
-    _mousePressPos.setX(INT_MIN);
-    _mousePressPos.setY(INT_MIN);
 
     // サイズ情報の出力
     QString sizeInfo;
@@ -1764,7 +1842,7 @@ void PurePlayer::resizeEvent(QResizeEvent* )
         sizeInfo = QString("%1%").arg(_videoScreen->height()*100/_videoSize.height());
 
     sizeInfo += QString(" %1x%2").arg(_clipScreen->width()).arg(_clipScreen->height());
-    _infoLabel->setText(sizeInfo, 1000);
+    _infoLabel->setText(sizeInfo, 1800);
 }
 
 void PurePlayer::keyPressEvent(QKeyEvent* e)
@@ -1799,28 +1877,11 @@ void PurePlayer::keyPressEvent(QKeyEvent* e)
         repeatAB();
         break;
     }
-    case Qt::Key_Z:
-    {
-        break;
-    }
-    case Qt::Key_X:
-    {
-        break;
-    }
     case Qt::Key_N:
     {
 //      recordingStartStop();
         break;
     }
-    case Qt::Key_V:
-        if( e->modifiers() & Qt::AltModifier
-         && e->modifiers() & Qt::ShiftModifier )
-        {
-            _debugFlag = !_debugFlag;
-            LogDialog::debug(QString("blockCount: %1").arg(LogDialog::dialog()->blockCount()));
-        }
-
-        break;
 #endif // QT_NO_DEBUG_OUTPUT
 
     default:
@@ -1858,33 +1919,17 @@ void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
 
         if( isFullScreen() ) {
             if( _mousePressPos == e->globalPos() ) {
-                if( whetherMuteArea(e->y()) )
+                if( whetherMuteArea(e->y()) ) {
                     mute(!isMute());
-                else
-                {
-#ifdef Q_OS_WIN32
-                    if( !_timerBlockCursorHide.isActive() )
-#endif // Q_OS_WIN32
-                    hideMouseCursor(true);
+                    _mouseCursor->setVisible(true);
                 }
             }
-
-#ifdef Q_OS_WIN32
-            _timerBlockCursorHide.stop();
-#endif // Q_OS_WIN32
         }
         else {
             if( _mousePressPos == e->globalPos() ) {
                 if( whetherMuteArea(e->y()) )
                     mute(!isMute());
-                else
-                if( centralWidget()->rect().contains(e->pos()) ) {
-                    if( !_timerBlockCursorHide.isActive() )
-                        hideMouseCursor(true);
-                }
             }
-
-            _timerBlockCursorHide.stop();
         }
     }
     else
@@ -1893,8 +1938,8 @@ void PurePlayer::mouseReleaseEvent(QMouseEvent* e)
             && geometry().contains(e->globalPos())
             && !containsInClipWindow(e->globalPos()) )
         {
-            if( isHideMouseCursor() )
-                hideMouseCursor(false);
+            // menuContext_aboutToHide()での処理と対の処理(カーソル自動消去挙動調整)
+            _mouseCursor->stopAutoHide();
 
             _menuContext->popup(e->globalPos());
         }
@@ -1918,10 +1963,7 @@ void PurePlayer::mouseDoubleClickEvent(QMouseEvent* e)
 void PurePlayer::mouseMoveEvent(QMouseEvent* e)
 {
     if( isFullScreen() ) {
-        if( isHideMouseCursor() && _mousePressPos!=e->globalPos() )
-            hideMouseCursor(false);
-
-            updateShowInterface();
+        updateShowInterface();
     }
     else {
         if( !isMaximized() ) {
@@ -1930,9 +1972,6 @@ void PurePlayer::mouseMoveEvent(QMouseEvent* e)
                     move(e->globalPos() - _mousePressLocalPos);
             }
         }
-
-        if( isHideMouseCursor() )
-            hideMouseCursor(false);
     }
 }
 
@@ -1947,22 +1986,29 @@ void PurePlayer::wheelEvent(QWheelEvent* e)
         _controlFlags |= FLG_WHEEL_RESIZED;
     }
     else {
-        int volume;
         QPoint localPoint = statusBar()->mapFromGlobal(e->globalPos());
-        QRect  labelRect  = _labelVolume->geometry();
-//      LogDialog::debug(QString().sprintf("(%d %d %d %d) (%d %d)",
-//                  labelRect.x(),labelRect.y(), labelRect.right(),labelRect.bottom(),
-//                  localPoint.x(), localPoint.y()));
 
-        if( labelRect.contains(localPoint) )
-            volume = 1;
-        else
-            volume = 5;
+        if( _labelSpeedRate->isVisible()
+            && _labelSpeedRate->geometry().contains(localPoint) )
+        {
+            if( e->delta() < 0 )
+                downSpeedRate();
+            else
+                upSpeedRate();
+        }
+        else {
+            int volume;
 
-        if( e->delta() < 0 )
-            downVolume(volume);
-        else
-            upVolume(volume);
+            if( _labelVolume->geometry().contains(localPoint) )
+                volume = 1;
+            else
+                volume = 5;
+
+            if( e->delta() < 0 )
+                downVolume(volume);
+            else
+                upVolume(volume);
+        }
     }
 }
 
@@ -2006,21 +2052,6 @@ void PurePlayer::setMouseTrackingClient(bool b)
     centralWidget()->setMouseTracking(b);
     _clipScreen->setMouseTracking(b);
     _videoScreen->setMouseTracking(b);
-}
-
-void PurePlayer::hideMouseCursor(bool b)
-{
-    if( isFullScreen() )
-        setMouseTrackingClient(true);
-    else
-        setMouseTrackingClient(b);
-
-    if( b )
-        centralWidget()->setCursor(QCursor(Qt::BlankCursor));
-    else
-        centralWidget()->unsetCursor();
-
-    updateShowInterface();
 }
 
 void PurePlayer::middleClickResize()
@@ -2068,29 +2099,22 @@ void PurePlayer::middleClickResize()
 
 void PurePlayer::reflectChannelInfo()
 {
+    if( !isPeercastStream() ) return;
+
     if( _channelInfo.contactUrl.isEmpty() )
         _actOpenContactUrl->setEnabled(false);
     else
         _actOpenContactUrl->setEnabled(true);
 
     QString title;
-    if( isPeercastStream() ) {
-        if( _channelInfo.chName.isEmpty() )
-            title = "PurePlayer*";
-        else {
-            title = _channelInfo.chName;
-            _playlist->setCurrentTrackTitle(title);
-        }
+    if( _channelInfo.chName.isEmpty() )
+        title = "PurePlayer*";
+    else {
+        title = _channelInfo.chName;
+        _playlist->setCurrentTrackTitle(title);
     }
-    else
-        title = _playlist->currentTrackTitle();
 
-    if( _debugCount )
-        setWindowTitle(title + QString(" %1").arg(_debugCount));
-    else
-        setWindowTitle(title);
-
-    LogDialog::dialog()->setWindowTitle(title + " - PureLog");
+    setWindowTitle(title);
 }
 
 QString PurePlayer::genDateTimeSaveFileName(const QString& suffix)
@@ -2158,19 +2182,11 @@ void PurePlayer::mpProcess_finished()
         _elapsedTime = _timeLabel->time();
         LogDialog::debug(debugPrefix + QString("elapsed time %1").arg(_elapsedTime));
 
-        if( isStop() ) {
-//          setStatus(ST_STOP);
-            if( ConfigData::data()->disconnectChannel
-             && _controlFlags.testFlag(FLG_EXPLICITLY_STOPPED) )
-            {
-                _peercast.disconnectChannel(15);
-            }
-        }
-        else {
+        if( !isStop() ) {
             ++_reconnectCount;
             LogDialog::debug(debugPrefix + QString("reconnectCount %1").arg(_reconnectCount));
 
-            if( _reconnectCount <= 3 ) {
+            if( _reconnectCount < 4 ) {
                 if( _channelInfo.status == ChannelInfo::ST_SEARCH ) {
                     LogDialog::debug(debugPrefix + "reconnectPurePlayer", QColor(255,0,0));
                     reconnectPurePlayer();
@@ -2182,8 +2198,6 @@ void PurePlayer::mpProcess_finished()
             }
             else {
                 setStatus(ST_STOP);
-                if( ConfigData::data()->disconnectChannel )
-                    _peercast.disconnectChannel(15);
             }
         }
     }
@@ -2207,17 +2221,13 @@ void PurePlayer::mpProcess_error(QProcess::ProcessError error)
     }
 }
 
-void PurePlayer::mpProcess_debugKilledCPid()
-{
-    ++_debugCount;
-    reflectChannelInfo();
-}
-
 void PurePlayer::mpProcess_outputLine(const QString& line)
 {
     const QString debugPrefix = "PurePlayer::mpProcess_outputLine(): ";
+//  static QRegExp rxCacheSize("^Cache size set to (\\d+)");
     static QRegExp rxCacheFill("^Cache fill: *([0-9.]+)%");
     static QRegExp rxGenIndex("^Generating Index: *(\\d+)");
+    static QRegExp rxFileFormat("^(.+) file format detected.|^Detected file format: (.+)");
 //  static QRegExp rxVideoW("^ID_VIDEO_WIDTH=(\\d+)");
 //  static QRegExp rxVideoH("^ID_VIDEO_HEIGHT=(\\d+)");
     static QRegExp rxVideoDriverWH("^VO: \\[(.+)\\] \\d+x\\d+ => (\\d+)x(\\d+)");
@@ -2228,29 +2238,55 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
     static QRegExp rxAuthor("^ author: (.+)");
     static QRegExp rxCopyright("^ copyright: (.+)");
     static QRegExp rxComments("^ comments: (.+)");
-    static QRegExp rxStatus("^[AV]: *([0-9.-]+)");
+    static QRegExp rxStatus("^[AV]: *([0-9.-]+) (?:V: *([0-9.-]+))?");
     static QRegExp rxFrame(".+ (\\d+)\\/ *\\d+");
     static QRegExp rxScreenshot("^\\*\\*\\* screenshot '(.+)'");
     static QRegExp rxScreenshotError(".+ Error opening .+ for writing!");
 
-    if( isStop() )
+    if( isStop() ) // 再生停止時、溜まってる情報を一気に出力する場合があるので解析対象外にする
     {
         if( rxStatus.indexIn(line) != -1 )
             return;
 
-        LogDialog::print(line);
+        LogDialog::print("ignore: " + line);
     }
     else
     {
         if( rxStatus.indexIn(line) != -1 )
         {
             if( _startTime == -1 ) {
-                _startTime = rxStatus.cap(1).toDouble();
+                if( isPeercastStream() ) {
+                    _startTime = rxStatus.cap(1).toDouble();
+
+                    if( _existAudio ) {
+                        _reconnectControlTimeAo = rxStatus.cap(1).toDouble();
+                        _reconnectControlTimeVo = rxStatus.cap(2).toDouble();
+                    }
+                    else
+                        _reconnectControlTimeVo = rxStatus.cap(1).toDouble();
+                }
+                else
+                    _startTime = 0;
+
                 _oldTime = _startTime;
+
+#ifdef Q_WS_X11
+                if( _existVideo ) {
+                    _videoScreen->setAttribute(Qt::WA_NoSystemBackground);
+                    _videoScreen->setAttribute(Qt::WA_PaintOnScreen);
+                }
+#endif
                 LogDialog::debug(debugPrefix + QString("init startTime %1").arg(_startTime));
             }
 
             _currentTime = rxStatus.cap(1).toDouble();
+
+            if( _existAudio ) {
+                _currentTimeAo = _currentTime;
+                _currentTimeVo = rxStatus.cap(2).toDouble();
+            }
+            else
+                _currentTimeVo = _currentTime;
 
             if( _currentTime > _startTime ) {
                 if( isPeercastStream() ) {
@@ -2276,7 +2312,6 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
                         LogDialog::debug(debugPrefix + "reconnect diff", QColor(255,0,0));
 
                         reconnectPurePlayer();
-                        //reconnect();
                     }
                 }
                 else {
@@ -2330,14 +2365,21 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
             if( _state == ST_PAUSE ) // ポーズが解除された場合
                 setStatus(ST_PLAY);
 
-//          if( time < 0 ) _debugFlag = true;
-            if( _debugFlag ) LogDialog::print(line + QString::number(_fpsCount));
+//          if( time < 0 ) _outputStatusLog = true;
+            if( _outputStatusLog ) LogDialog::print(line + QString::number(_fpsCount));
             return;
         }
 
         LogDialog::print(line);
 
-        if( (line.startsWith("Starting playback...") && _noVideo)
+        if( line.startsWith("Cache empty") || line.startsWith("Cache not filling")
+         || line.contains("Bits overconsumption:") )
+        {
+            if( isPeercastStream() )
+                _reconnectScore += 100;
+        }
+        else
+        if( (line.startsWith("Starting playback...") && !_existVideo)
          || (rxVideoDriverWH.indexIn(line) != -1) )
         {
             setStatus(ST_PLAY);
@@ -2345,12 +2387,8 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
             if( isMute() )
                 mute(true);
 
-            double roundSpeed = CommonLib::round(_speedSpinBox->value(), 1);//(int)(_speedSpinBox->value()*10+0.5) / 10.0;
-            if( roundSpeed != 1.0 ) {
-                setSpeed(_speedSpinBox->value());
-            }
-//          LogDialog::debug(QString().sprintf("%.70f", _speedSpinBox->value()));
-//          LogDialog::debug(QString().sprintf("%.70f", roundSpeed));
+            if( _speedRate != 1.0 )
+                setSpeedRate(_speedRate);
 
             _controlFlags |= FLG_HIDE_DISPLAY_MESSAGE; //mpCmd("osd 0");
 
@@ -2368,7 +2406,6 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
 
             _timeLabel->setTotalTime(_videoLength);
             _playlist->setCurrentTrackTime(_videoLength);
-            //_speedSpinBox->setRange(0, _videoLength*10);
 
             if( _isSeekable ) {
                 _timeSlider->setLength(_videoLength);
@@ -2380,17 +2417,15 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
             }
 
             // ビデオドライバ,サイズの取得
-            if( _noVideo ) {
-                _usingVideoDriver.clear();
-                _videoSize = QSize(320, 240);
+            if( _existVideo ) {
+                _usingVideoDriver = rxVideoDriverWH.cap(1);
+                _videoSize = QSize(rxVideoDriverWH.cap(2).toInt(), rxVideoDriverWH.cap(3).toInt());
+                if( _videoSize.width()<=0 || _videoSize.height()<=0 )
+                    _videoSize = ConfigData::data()->initSize;
             }
             else {
-                _usingVideoDriver = rxVideoDriverWH.cap(1);
-                _videoSize.setWidth(rxVideoDriverWH.cap(2).toInt());
-                if( _videoSize.width() <= 0 ) _videoSize.setWidth(320);
-
-                _videoSize.setHeight(rxVideoDriverWH.cap(3).toInt());
-                if( _videoSize.height() <= 0 ) _videoSize.setHeight(240);
+                _usingVideoDriver.clear();
+                _videoSize = ConfigData::data()->initSize;
             }
 
             if( _controlFlags.testFlag(FLG_OPENED_PATH) ) {
@@ -2400,8 +2435,6 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
                 // テキスト内容によってステータスバーの高さが変わる為、高さを固定にする
                 statusBar()->setFixedHeight(statusBar()->height());
 
-                _startTime = -1; // open()のタイミングでの初期化では、
-                                 // 前の再生のステータスラインを拾ってしまう為ここで初期化。
                 _elapsedTime = 0;
 
                 _clipRect = QRect(0,0, _videoSize.width(),_videoSize.height());
@@ -2409,23 +2442,22 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
             }
 
             if( isPeercastStream() ) {
-                _startTime = -1;
-
-                // _reconnectControlTimeの比較を、再生開始時の開始時間から比較できる様に更新する
-                _reconnectControlTime = _elapsedTime;
+                _timerReconnect.start(6000); // 再スタート
+                _reconnectScore = 0;
+                _reconnectControlTimeAo = 0;
+                _reconnectControlTimeVo = 0;
 
                 if( _channelInfo.status == ChannelInfo::ST_SEARCH )
                     updateChannelInfo();
             }
 
+            _startTime = -1;
+            _currentTimeAo = 0;
+            _currentTimeVo = 0;
+
             // ウィンドウリサイズ
             if( _controlFlags.testFlag(FLG_RESIZE_WHEN_PLAYED) ) {
-                QSize size;
-                if( ConfigData::data()->openIn320x240Size )
-                    size = QSize(320, 240);
-                else
-                    size = QSize(_videoSize.width()/2, _videoSize.height()/2);
-
+                QSize size = calcVideoViewSizeFromThreshold(ConfigData::data()->suitableResizeValue);
                 if( !resizeFromVideoClient(size) )
                     updateVideoScreenGeometry();
 
@@ -2446,12 +2478,17 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
         }
         else
         if( line.startsWith("Cache size set to") ) {
-            if( _controlFlags.testFlag(FLG_RECONNECT_WHEN_PLAYED) ) { // 再接続(peercast)は接続後行う
-                reconnectPeercast();
-                _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
-            }
+            if( isPeercastStream() ) {
+                if( _controlFlags.testFlag(FLG_RECONNECT_WHEN_PLAYED) ) { // 再接続(peercast)は再生後行う
+                    reconnectPeercast();
+                    _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
+                }
 
-            updateChannelInfo();
+                updateChannelInfo();
+
+                _timerReconnect.start(6000);
+                _reconnectScore = 0;
+            }
         }
         else
         if( rxCacheFill.indexIn(line) != -1 )
@@ -2479,18 +2516,15 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
             _infoLabel->setClipComments(rxComments.cap(1));
         else
         if( line.startsWith("Video: no video") )
-            _noVideo = true;
+            _existVideo = false;
         else
-        if( line.startsWith("Cache empty") || line.startsWith("Cache not filling")
-         || line.contains("Bits overconsumption:") )
-        {
-            if( isPeercastStream() ) {
-/*              LogDialog::debug(debugPrefix + QString("time %1").arg(_timeLabel->time()));
-                LogDialog::debug(debugPrefix + QString("timea %1").arg(_currentTime));
-                LogDialog::debug(debugPrefix + QString("frame %1").arg(_currentFrame));
-*/
-                ++_receivedErrorCount;
-            }
+        if( line.startsWith("Audio: no sound") )
+            _existAudio = false;
+        else
+        if( rxFileFormat.indexIn(line) != -1 ) {
+            _fileFormat = rxFileFormat.cap(1);
+            if( _fileFormat.size() == 0 )
+                _fileFormat = rxFileFormat.cap(2);
         }
     }
 
@@ -2525,10 +2559,10 @@ void PurePlayer::recProcess_outputLine(const QString& line)
 
 void PurePlayer::peercast_gotChannelInfo(const ChannelInfo& chInfo)
 {
-    _channelInfo.chName     = chInfo.chName;
-    _channelInfo.contactUrl = chInfo.contactUrl;
-    _channelInfo.status     = chInfo.status;
-    reflectChannelInfo();
+    if( !chInfo.chName.isEmpty() ) { // チャンネル名が空の場合は取得情報が空になったと判断する
+        _channelInfo = chInfo;
+        reflectChannelInfo();
+    }
 }
 
 void PurePlayer::actGroupAudioOutput_changed(QAction* action)
@@ -2558,40 +2592,52 @@ void PurePlayer::actGroupDeinterlace_changed(QAction* action)
 void PurePlayer::timerReconnect_timeout()
 {
     const QString debugPrefix = "PurePlayer::timerReconnect_timeout(): ";
-//  LogDialog::debug(QString(debugPrefix + "time %1").arg(_timeLabel->time()));
-//  LogDialog::debug(QString(debugPrefix + "currentTime %1").arg(_currentTime));
-//  LogDialog::debug(QString(debugPrefix + "frame %1").arg(_currentFrame));
 
-//  LogDialog::debug(debugPrefix + QString::number(_receivedErrorCount));
+    if( _state == ST_READY ) {
+        if( _reconnectScore > 1000 ) {
+            LogDialog::debug(QString(debugPrefix + "reconnect score %1")
+                    .arg(_reconnectScore), QColor(255,0,0));
 
-    if( _reconnectControlTime == _timeLabel->time() ) {
-        LogDialog::debug(QString(debugPrefix + "reconnect time %1")
-                .arg(_reconnectControlTime), QColor(255,0,0));
-
-        if( _channelInfo.status == ChannelInfo::ST_SEARCH )
             reconnectPurePlayer();
+        }
+    }
+    else
+    if( _state == ST_PLAY ) {
+                                // 再接続され易い傾向にする為、(int)で誤差を吸収している
+        if( (int)_reconnectControlTimeAo == (int)_currentTimeAo
+            && (int)_reconnectControlTimeVo == (int)_currentTimeVo )
+        {
+            LogDialog::debug(QString(debugPrefix + "reconnect stop time A:%1, V:%2")
+                    .arg(_reconnectControlTimeAo).arg(_reconnectControlTimeVo), QColor(255,0,0));
+
+            if( _channelInfo.status == ChannelInfo::ST_SEARCH
+             || (!_fileFormat.isEmpty() && _fileFormat != "ASF") )
+            {
+                reconnectPurePlayer();
+            }
+            else
+                reconnect();
+        }
         else
+        if( _reconnectScore > 1000 ) {
+            LogDialog::debug(QString(debugPrefix + "reconnect score %1")
+                    .arg(_reconnectScore), QColor(255,0,0));
+
             reconnect();
+        }
+        else
+        if( _channelInfo.status == ChannelInfo::ST_SEARCH )
+            updateChannelInfo();
+        else
+        if( _reconnectScore == 0 )
+            _reconnectCount = 0;
+
+        _reconnectControlTimeAo = _currentTimeAo;
+        _reconnectControlTimeVo = _currentTimeVo;
+        _reconnectScore = 0;
+
+//      LogDialog::debug(debugPrefix + QString("A:%1 V:%2").arg(_currentTimeAo).arg(_currentTimeVo));
     }
-    else
-    if( _receivedErrorCount > 10 ) {
-        LogDialog::debug(QString(debugPrefix + "reconnect count %1")
-                .arg(_receivedErrorCount), QColor(255,0,0));
-
-        reconnect();
-    }
-    else
-    if( _channelInfo.status == ChannelInfo::ST_SEARCH )
-        updateChannelInfo();
-    else
-    if( _receivedErrorCount == 0 )
-        _reconnectCount = 0;
-
-    _reconnectControlTime = _timeLabel->time();
-
-    _receivedErrorCount = 0;
-
-//  _debugFlag = !_debugFlag;
 }
 
 void PurePlayer::timerFps_timeout()
@@ -2603,6 +2649,21 @@ void PurePlayer::timerFps_timeout()
 */
     _labelFps->setText(QString("%1fps").arg(_fpsCount));
     _fpsCount = 0;
+}
+
+void PurePlayer::menuContext_aboutToHide()
+{
+#ifdef Q_OS_WIN32
+    // windowsではコンテキストメニューをウィンドウ内クリックで閉じた時、
+    // mousePressEventが発生する為、カーソル消去処理を防ぐ。
+    _mouseCursor->tempDisableChangeShape();
+#endif
+
+    // linuxとwindowsではコンテキストメニュー表示中のマウスカーソルの表示、
+    // メニューを閉じた後のマウスイベントの挙動が異なる為、
+    // カーソル自動消去の挙動が同じになる様に機能を一時停止再開する(mouseReleaseEvent)。
+    if( isPlaying() && ConfigData::data()->autoHideMouseCursor )
+        _mouseCursor->startAutoHide();
 }
 
 void PurePlayer::clipWindow_changedTranslucentDisplay(bool b)
@@ -2691,7 +2752,21 @@ void PurePlayer::configDialog_applied()
 
     ConfigData::setData(newData);
     ConfigData::saveData();
+
+    if( isPlaying() && ConfigData::data()->autoHideMouseCursor )
+        _mouseCursor->startAutoHide();
+    else
+        _mouseCursor->stopAutoHide();
+
     _timeSlider->setReverseWheelSeek(ConfigData::data()->reverseWheelSeek);
+
+    _actInitialSize->setText(tr("%1x%2").arg(ConfigData::data()->initSize.width())
+                                        .arg(ConfigData::data()->initSize.height()));
+
+    if( ConfigData::data()->limitLogLine )
+        LogDialog::dialog()->setMaximumBlockCount(ConfigData::data()->logLineMax);
+    else
+        LogDialog::dialog()->setMaximumBlockCount(0);
 
     if( restartMplayer ) {
         setCurrentDirectory();
@@ -2772,11 +2847,11 @@ void PurePlayer::stopInternal()
 void PurePlayer::playlist_playStopCurrentTrack()
 {
     if( _playlist->isCurrentTrack(_path) && isPlaying() )
-            stop();
+        stop();
     else {
         _controlFlags &= ~FLG_RESIZE_WHEN_PLAYED;
         _controlFlags |= FLG_EXPLICITLY_STOPPED;
-        _reconnectCount=0;
+        _reconnectCount = 0;
         restartPlay();
     }
 }
@@ -2802,7 +2877,8 @@ void PurePlayer::playCommonProcess()
 
     _channelInfo.status = ChannelInfo::ST_UNKNOWN;
 
-    _noVideo = false;
+    _existAudio = true;
+    _existVideo = true;
     _controlFlags &= ~FLG_EOF;
     _controlFlags &= ~FLG_EXPLICITLY_STOPPED;
     _controlFlags &= ~FLG_RECONNECTED;
@@ -2881,8 +2957,18 @@ void PurePlayer::playCommonProcess()
     default          : args << "110";
     }
 
-    if( ConfigData::data()->useCacheSize && !QUrl(_path).scheme().isEmpty() )
-        args << "-cache" << QString::number(ConfigData::data()->cacheStreamSize);
+    if( !QUrl(_path).scheme().isEmpty() ) {
+        if( ConfigData::data()->useCacheSize )
+            args << "-cache" << QString::number(ConfigData::data()->cacheStreamSize);
+        else
+        if( isPeercastStream() ) {
+            if( !_fileFormat.isEmpty() && _fileFormat != "ASF" ) {
+                int size = _channelInfo.bitrate/8 * 20;
+                if( size > 320 )
+                    args << "-cache" << QString::number(size);
+            }
+        }
+    }
 
     if( _controlFlags.testFlag(FLG_SEEK_WHEN_PLAYED) ) {
         args << "-ss" << QString::number(_timeLabel->time());
@@ -2916,6 +3002,8 @@ void PurePlayer::playCommonProcess()
     << "-colorkey" << QString().sprintf("%#08x",
                         qRgba(qBlue(_colorKey), qGreen(_colorKey), qRed(_colorKey), 0))
 #endif
+
+//  << "-bluray-device" << "/dev/sr1"
 
     << "-idx";
 
@@ -3201,6 +3289,21 @@ QSize PurePlayer::calcVideoViewSizeForResize(int percent)
     return size;
 }
 
+// しきい値(幅高さの最大値)から適当にビデオ表示サイズを計算する
+QSize PurePlayer::calcVideoViewSizeFromThreshold(int threshold)
+{
+    QRect rc = CommonLib::scaleRectOnRect(QSize(threshold,threshold), QSize(4,3));
+    int thresholdA = rc.width();
+    int thresholdB = rc.height();
+
+    if( _videoSize.width() > _videoSize.height() )
+        rc = CommonLib::scaleRectOnRect(QSize(thresholdA,thresholdB), _videoSize);
+    else
+        rc = CommonLib::scaleRectOnRect(QSize(thresholdB,thresholdA), _videoSize);
+
+    return correctToValidVideoSize(rc.size(), _videoSize);
+}
+
 QSize PurePlayer::calcFullVideoSizeFromVideoViewSize(QSize viewSize)
 {
     int w = _videoSize.width() * viewSize.width()/(double)_clipRect.width() + 0.5;
@@ -3218,14 +3321,6 @@ bool PurePlayer::containsInClipWindow(const QPoint& pos)
 }
 
 #ifdef Q_OS_WIN32
-void PurePlayer::menuContext_aboutToHide()
-{
-    // windowsではコンテキストメニュー表示時、クライアント領域をクリックすると
-    // mousePressEvent()が発生する。
-    // その為、マウスカーソル非表示処理が行われない様にブロックする。
-    _timerBlockCursorHide.start();
-}
-
 void PurePlayer::initColorKey()
 {
     QSettings s(QSettings::IniFormat, QSettings::UserScope, CommonLib::QSETTINGS_ORGNAME, "PurePlayer");
@@ -3397,10 +3492,10 @@ void PurePlayer::updateShowInterface()
         }
     }
     else {
-        if( !isPlaying()
+        if( _state != ST_PLAY
          || isAlwaysShowStatusBar()
          || (_controlFlags.testFlag(FLG_CURSOR_IN_WINDOW)
-            && !isHideMouseCursor()) )
+            && !_mouseCursor->isHidden()) )
         {
             showInterface(true);
         }
@@ -3461,21 +3556,15 @@ void PurePlayer::setStatus(const STATE s)
 
         _infoLabel->startClipInfo();
 
-        if( isPeercastStream() )
-            _timerReconnect.start(6000);
-
-        if( !_noVideo ) {
+        if( _existVideo ) {
             _timerFps.start(1000);
             _fpsCount = 0;
             _oldFrame = 0;
+
+            if( ConfigData::data()->autoHideMouseCursor )
+                _mouseCursor->startAutoHide();
         }
 
-#ifdef Q_WS_X11
-        if( !_noVideo ) {
-            _videoScreen->setAttribute(Qt::WA_NoSystemBackground);
-            _videoScreen->setAttribute(Qt::WA_PaintOnScreen);
-        }
-#endif
         break;
 
     case ST_PAUSE:
@@ -3498,7 +3587,7 @@ void PurePlayer::setStatus(const STATE s)
         _actStop->setEnabled(true);
 
 #ifdef Q_WS_X11
-        if( !_noVideo ) {
+        if( _existVideo ) {
             _videoScreen->setAttribute(Qt::WA_NoSystemBackground, false);
             _videoScreen->setAttribute(Qt::WA_PaintOnScreen, false);
         }
@@ -3540,14 +3629,14 @@ void PurePlayer::setStatus(const STATE s)
         _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
 
         _infoLabel->stopClipInfo();
-        _receivedErrorCount = 0;
 
         _timerReconnect.stop();
         _timerFps.stop();
         _labelFps->setText("0fps");
+        _mouseCursor->stopAutoHide();
 
 #ifdef Q_WS_X11
-        if( !_noVideo ) {
+        if( _existVideo ) {
             _videoScreen->setAttribute(Qt::WA_NoSystemBackground, false);
             _videoScreen->setAttribute(Qt::WA_PaintOnScreen, false);
             _videoScreen->repaint();

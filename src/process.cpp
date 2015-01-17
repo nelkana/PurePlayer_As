@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2014 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -136,7 +136,7 @@ void MplayerProcess::slot_finished(int /*exitCode*/, QProcess::ExitStatus /*exit
             if( !s.isEmpty() ) { // 子プロセスが存在しているなら
                 p.start("kill", QStringList() << QString("%1").arg(_mplayerCPid));
                 p.waitForFinished();
-                LogDialog::debug(debugPrefix + QString("terminated cpid %1")
+                LogDialog::debug(debugPrefix + QString("terminated cpid %1 -------------")
                                                     .arg(_mplayerCPid), QColor(255,0,0));
 
 #ifndef QT_NO_DEBUG_OUTPUT

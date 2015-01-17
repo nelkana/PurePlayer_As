@@ -1,4 +1,4 @@
-/*  Copyright (C) 2013 nel
+/*  Copyright (C) 2013-2014 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -67,6 +67,7 @@ ClipWindow::ClipWindow(QWidget* parent) : QWidget(parent)
     _menuContext->addSeparator();
     _menuContext->addAction(_actTranslucentDisplay);
 
+    _fitToWidgetWhenTriggerShow = false;
     _isTranslucentDisplay = false;
     setTranslucentDisplay(true);
 }

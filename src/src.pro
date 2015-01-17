@@ -12,16 +12,17 @@ HEADERS += \
     peercast.h \
     process.h \
     controlbutton.h \
-    speedspinbox.h \
     timeslider.h \
     infolabel.h \
     timelabel.h \
     configdata.h \
     videosettings.h \
     playlist.h \
+    commonmenu.h \
     commonlib.h \
     task.h \
     windowcontroller.h \
+    mousecursor.h \
     \
     logdialog.h \
     commonspinbox.h \
@@ -38,16 +39,17 @@ SOURCES += \
     pureplayer.cpp \
     peercast.cpp \
     process.cpp \
-    speedspinbox.cpp \
     timeslider.cpp \
     infolabel.cpp \
     timelabel.cpp \
     configdata.cpp \
     videosettings.cpp \
     playlist.cpp \
+    commonmenu.cpp \
     commonlib.cpp \
     task.cpp \
     windowcontroller.cpp \
+    mousecursor.cpp \
     \
     logdialog.cpp \
     configdialog.cpp \
@@ -71,6 +73,8 @@ win32 {
     CONFIG(debug, debug|release) {
         CONFIG += console
     }
+
+    RC_FILE = myapp.rc
 }
 
 CONFIG(release, debug|release) {

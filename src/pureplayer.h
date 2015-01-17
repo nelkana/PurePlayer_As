@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,11 +37,12 @@ class QNetworkReply;
 class MplayerProcess;
 class RecordingProcess;
 class ControlButton;
-class SpeedSpinBox;
 class TimeSlider;
 class InfoLabel;
 class TimeLabel;
+class MouseCursor;
 class PlaylistModel;
+class CommonMenu;
 class OpenDialog;
 class VideoAdjustDialog;
 class ConfigDialog;
@@ -63,20 +64,21 @@ public:
     PurePlayer(QWidget* parent = 0);
     virtual ~PurePlayer();
     bool isMute()    { return _isMute; }
-    bool isPlaying() { return _state == ST_PLAY; }
+    bool isPlaying() { return (_state == ST_PLAY || _state == ST_PAUSE); }
     bool isStop()    { return _state == ST_STOP; }
     bool isClipping() { return _clipRect != QRect(0,0,_videoSize.width(),_videoSize.height()); }
     bool isAlwaysShowStatusBar() { return !isFullScreen()
                                         && (_alwaysShowStatusBar || !isPeercastStream()); }
     bool isPeercastStream() { return _peercast.port() != 0; }
+    void setTitleOption(const QString& title);
 
 //  void resize(const QSize&);
 //  void resize(int w, int h) { resize(QSize(w, h)); }
 
 public slots:
-    void open(const QString& path) { open(QStringList() << path); }
-    void open(const QStringList& paths);
-    void open(const QList<QUrl>& urls);
+    void open(const QString& path, bool fromCommandline=false) { open(QStringList() << path, fromCommandline); }
+    void open(const QStringList& paths, bool fromCommandline=false);
+    void open(const QList<QUrl>& urls, bool fromCommandline=false);
     void openFromDialog();
     void play();
     bool playPrev(bool forceLoop=false);
@@ -87,7 +89,9 @@ public slots:
     void frameAdvance();
     void repeatAB();
     void seek(double sec, bool relative=false);
-    void setSpeed(double rate);
+    void upSpeedRate(double value=0.1);
+    void downSpeedRate(double value=0.1);
+    void setSpeedRate(double value);
     void reconnect();
     void reconnectPurePlayer() { restartPlay(); }
     void reconnectPeercast();
@@ -112,7 +116,7 @@ public slots:
     void screenshot();
     void resizeReduce()     { resizeFromCurrent(-300); }
     void resizeIncrease()   { resizeFromCurrent(+300); }
-    void resize320x240()    { resizeFromVideoClient(QSize(320,240)); }
+    void resizeInitial();
     void resize1280x720()   { resizeFromVideoClient(QSize(1280,720)); }
     void resize25Percent()  { resizeFromVideoClient(calcVideoViewSizeForResize(25)); }
     void resize50Percent()  { resizeFromVideoClient(calcVideoViewSizeForResize(50)); }
@@ -143,6 +147,8 @@ public slots:
     void updateChannelInfo() { _peercast.getChannelInfo(); }
     void openContactUrl();
 
+    void setWindowTitle(const QString&);
+
 protected slots:
     void mpCmd(const QString& command);
     void stopInternal();
@@ -154,6 +160,7 @@ protected slots:
     void prevButton_clicked() { playPrev(true); }
     void exitFullScreen() { if( isFullScreen() ) toggleFullScreenOrWindow(); }
     void restartPlay(bool keepSeekPos=false) { if(keepSeekPos && _isSeekable) _controlFlags |= FLG_SEEK_WHEN_PLAYED; stopInternal(); play(); }
+    void setOutputStatusLog(bool b) { _outputStatusLog = b; }
 
     void refreshVideoProfile(bool restoreVideoValue=true, bool warning=false);
 
@@ -174,7 +181,7 @@ protected:
         FLG_RECONNECT_WHEN_PLAYED       = 1 << 10, // 再生した時、再接続(peercast)する
         FLG_MAXIMIZED_BEFORE_FULLSCREEN = 1 << 11, // フルスクリーンの前は最大化
         FLG_RECONNECTED                 = 1 << 12, // 再接続した
-        FLG_EXPLICITLY_STOPPED          = 1 << 13, // 明示的に停止した
+        FLG_EXPLICITLY_STOPPED          = 1 << 13, // 明示的に停止した // 利用無し
         FLG_NO_CHANGE_VDRIVER_WHEN_CLIPPING= 1 << 14, // クリッピングした時、ビデオドライバを切り替えない
         FLG_MOUSE_PRESSED_CLIPWINDOW    = 1 << 15, // クリップウィンドウ内をマウス押下した
     };
@@ -182,6 +189,7 @@ protected:
 
     bool event(QEvent*);
     bool eventFilter(QObject*, QEvent*);
+    void showEvent(QShowEvent*);
     void closeEvent(QCloseEvent*);
     void moveEvent(QMoveEvent*);
     void resizeEvent(QResizeEvent*);
@@ -197,8 +205,6 @@ protected:
     void dropEvent(QDropEvent*);
 
     void setMouseTrackingClient(bool);
-    void hideMouseCursor(bool);
-    bool isHideMouseCursor() { return centralWidget()->cursor().shape() == Qt::BlankCursor; }
     void middleClickResize();
     void setCurrentDirectory();
     void openCommonProcess(const QString& path);
@@ -212,6 +218,7 @@ protected:
     QSize correctToValidVideoSize(QSize toSize, const QSize& videoSize);
     QSize calcVideoViewSizeForResize(const QSize& viewSize, int percent);
     QSize calcVideoViewSizeForResize(int percent);
+    QSize calcVideoViewSizeFromThreshold(int threshold);
     QSize calcFullVideoSizeFromVideoViewSize(QSize viewSize);
 
     bool containsInClipWindow(const QPoint& pos);
@@ -224,10 +231,10 @@ protected:
 private slots:
     void mpProcess_finished();
     void mpProcess_error(QProcess::ProcessError);
-    void mpProcess_debugKilledCPid();                    // debug
     void mpProcess_outputLine(const QString& line);
     void recProcess_finished();
     void recProcess_outputLine(const QString& line);
+    void updateShowInterface();
     void peercast_gotChannelInfo(const ChannelInfo&);
     void actGroupAudioOutput_changed(QAction*);
     void actGroupVolumeFactor_changed(QAction*);
@@ -235,15 +242,12 @@ private slots:
     void actGroupDeinterlace_changed(QAction*);
     void timerReconnect_timeout();
     void timerFps_timeout();
+    void menuContext_aboutToHide();
     void clipWindow_changedTranslucentDisplay(bool);
     void clipWindow_triggeredShow();
     void clipWindow_closed();
     void configDialog_applied();
     void videoAdjustDialog_windowActivate() { refreshVideoProfile(false, true); }
-
-#ifdef Q_OS_WIN32
-    void menuContext_aboutToHide();
-#endif
 
 private:
     void createStatusBar();
@@ -251,7 +255,6 @@ private:
     void createActionContextMenu();
     void updateVideoScreenGeometry();
     void showInterface(bool);
-    void updateShowInterface();
     bool whetherMuteArea(int mouseLocalY);
 //  bool whetherMuteArea(QPoint mousePos);
     void setStatus(const STATE);
@@ -270,26 +273,32 @@ private:
 
     STATE           _state;
     QString         _path;
+    QString         _pathForTitleOption;
 
-    ChannelInfo _channelInfo;
-    Peercast _peercast;
+    Peercast        _peercast;
+    ChannelInfo     _channelInfo;
 
     QString         _usingVideoDriver;
 
     QSize           _videoSize;
     double          _videoLength;
+    QString         _fileFormat;
     bool            _isSeekable;
-    bool            _noVideo;
+    bool            _existAudio;
+    bool            _existVideo;
     QRect           _clipRect;
 
+    double          _currentTimeAo;
+    double          _currentTimeVo;
     double          _currentTime;
     double          _startTime;
-    double          _oldTime;
-    int             _elapsedTime;
+    double          _oldTime;           // 後で削除する
+    int             _elapsedTime;       // 後で削除する
     int             _repeatStartTime;
     int             _repeatEndTime;
 
     qint8           _volume;
+    double          _speedRate;
 
     QTimer          _timerFps;
     quint16         _fpsCount;
@@ -308,12 +317,14 @@ private:
     ControlFlags    _controlFlags;
     QPoint          _mousePressLocalPos;
     QPoint          _mousePressPos;
-    QTimer          _timerBlockCursorHide;
 
     QTimer          _timerReconnect;
-    quint16         _receivedErrorCount;
-    qint8           _reconnectCount;
-    int             _reconnectControlTime;
+    quint8          _reconnectCount;
+    quint16         _reconnectScore;
+    double          _reconnectControlTimeAo;
+    double          _reconnectControlTimeVo;
+
+    bool            _outputStatusLog;
 
     PlaylistModel*  _playlist;
 
@@ -327,17 +338,19 @@ private:
     ControlButton*  _loopButton;
     ControlButton*  _screenshotButton;
     TimeSlider*     _timeSlider;
-    SpeedSpinBox*   _speedSpinBox;
     TimeLabel*      _timeLabel;
     QLabel*         _labelFrame;
     QLabel*         _labelFps;
     QLabel*         _labelVolume;
+    QLabel*         _labelSpeedRate;
     InfoLabel*      _infoLabel;
     QWidget*        _statusbarSpaceL;
     QWidget*        _statusbarSpaceR;
-    QMenu*          _menuContext;
+    MouseCursor*    _mouseCursor;
+    CommonMenu*     _menuContext;
     QMenu*          _menuReconnect;
 
+    QAction*        _actInitialSize;
     QAction*        _actScreenshot;
     QAction*        _actReconnect;
     QAction*        _actReconnectPlayer;
@@ -369,9 +382,6 @@ private:
     AboutDialog*       _aboutDialog;
     ClipWindow*        _clipWindow;
     QList<QWidget*>    _hiddenWindowList;
-
-    bool _debugFlag;
-    int  _debugCount;
 };
 
 #endif // PUREPLAYER_H

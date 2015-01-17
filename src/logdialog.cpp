@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2014 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,10 +26,10 @@ LogDialog::LogDialog(QWidget* parent) : QDialog(parent)
     setupUi(this);
 //  setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
     connect(_buttonClear, SIGNAL(clicked()), this, SLOT(clear()));
+    connect(_checkBoxStatusLine, SIGNAL(clicked(bool)), this, SIGNAL(requestOutputStatusLine(bool)));
 
     _textEdit->setTextColor(QColor(212,210,207));
 #ifdef QT_NO_DEBUG_OUTPUT
-    _textEdit->document()->setMaximumBlockCount(300);
     _lineEditCommand->hide();
 #endif
 
