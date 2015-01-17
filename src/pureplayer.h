@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2014 nel
+/*  Copyright (C) 2012-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -76,9 +76,9 @@ public:
 //  void resize(int w, int h) { resize(QSize(w, h)); }
 
 public slots:
-    void open(const QString& path, bool doResize=false) { open(QStringList() << path, doResize); }
-    void open(const QStringList& paths, bool doResize=false);
-    void open(const QList<QUrl>& urls, bool doResize=false);
+    void open(const QString& path, bool fromCommandline=false) { open(QStringList() << path, fromCommandline); }
+    void open(const QStringList& paths, bool fromCommandline=false);
+    void open(const QList<QUrl>& urls, bool fromCommandline=false);
     void openFromDialog();
     void play();
     bool playPrev(bool forceLoop=false);

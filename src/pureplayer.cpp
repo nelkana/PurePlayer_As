@@ -670,7 +670,7 @@ void PurePlayer::setTitleOption(const QString& title)
     _pathForTitleOption = _path;
 }
 
-void PurePlayer::open(const QStringList& paths, bool doResize)
+void PurePlayer::open(const QStringList& paths, bool fromCommandline)
 {
     bool b;
     int rows = _playlist->appendTracks(paths, &b);
@@ -713,19 +713,19 @@ void PurePlayer::open(const QStringList& paths, bool doResize)
     if( _playlistDialog != NULL )
         _playlistDialog->scrollToCurrentTrackHidden();
 
-    if( doResize && ConfigData::data()->suitableResize )
+    if( fromCommandline && ConfigData::data()->suitableResize )
         _controlFlags |= FLG_RESIZE_WHEN_PLAYED;
 
     openCommonProcess(_playlist->currentTrackPath());
 }
 
-void PurePlayer::open(const QList<QUrl>& urls, bool doResize)
+void PurePlayer::open(const QList<QUrl>& urls, bool fromCommandline)
 {
     QStringList paths;
     foreach(const QUrl& url, urls)
         paths << url.toString();
 
-    open(paths, doResize);
+    open(paths, fromCommandline);
 }
 
 void PurePlayer::play()
