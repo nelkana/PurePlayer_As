@@ -982,16 +982,15 @@ void PurePlayer::setSpeedRate(double value)
 
 void PurePlayer::reconnect()
 {
-    if( _peercast.type() == Peercast::TYPE_ST ) {
-        bool stoped = isStop();
-        stopInternal();
-        if( stoped || _controlFlags.testFlag(FLG_RECONNECTED) )
-            _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
-        else
-            _controlFlags |= FLG_RECONNECT_WHEN_PLAYED;
+    bool stoped = isStop();
+    stopInternal();
+
+    if( stoped
+     || (_peercast.type() == Peercast::TYPE_ST && _controlFlags.testFlag(FLG_RECONNECTED)) )
+    {
+        _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
     }
     else {
-        stopInternal();
         _controlFlags |= FLG_RECONNECT_WHEN_PLAYED;
     }
 
