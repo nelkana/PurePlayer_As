@@ -56,8 +56,9 @@ bool parseArgs(PurePlayer* player, int argc, char** argv)
 
                 return false;
             }
-            else
-                player->setTitleOption(argv[i]);
+            else {
+                player->setTitleOption(QTextCodec::codecForLocale()->toUnicode(argv[i]));
+            }
         }
         else
         if( !strcmp(argv[i], "-v")
@@ -67,7 +68,7 @@ bool parseArgs(PurePlayer* player, int argc, char** argv)
             return false;
         }
         else {
-            paths << argv[i];
+            paths << QTextCodec::codecForLocale()->toUnicode(argv[i]);
         }
     }
 
