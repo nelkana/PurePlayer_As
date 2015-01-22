@@ -598,10 +598,10 @@
           <enum>Qt::NoFocus</enum>
          </property>
          <property name="toolTip">
-          <string>ウィンドウを閉じた後、数秒後チャンネルの切断を行います。</string>
+          <string>配信の再生が停止した時、数秒後チャンネルの切断を行います。</string>
          </property>
          <property name="text">
-          <string>ウィンドウを閉じた後チャンネルを切断する</string>
+          <string>配信の再生が停止した時、チャンネルを切断する</string>
          </property>
         </widget>
        </item>

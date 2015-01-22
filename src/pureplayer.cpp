@@ -982,16 +982,15 @@ void PurePlayer::setSpeedRate(double value)
 
 void PurePlayer::reconnect()
 {
-    if( _peercast.type() == Peercast::TYPE_ST ) {
-        bool stoped = isStop();
-        stopInternal();
-        if( stoped || _controlFlags.testFlag(FLG_RECONNECTED) )
-            _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
-        else
-            _controlFlags |= FLG_RECONNECT_WHEN_PLAYED;
+    bool stoped = isStop();
+    stopInternal();
+
+    if( stoped
+     || (_peercast.type() == Peercast::TYPE_ST && _controlFlags.testFlag(FLG_RECONNECTED)) )
+    {
+        _controlFlags &= ~FLG_RECONNECT_WHEN_PLAYED;
     }
     else {
-        stopInternal();
         _controlFlags |= FLG_RECONNECT_WHEN_PLAYED;
     }
 
@@ -1807,7 +1806,7 @@ void PurePlayer::closeEvent(QCloseEvent* e)
     stopInternal();
     if( isPeercastStream() && ConfigData::data()->disconnectChannel ) {
         QTextStream(stdout) << tr("チャンネル切断待機中...\n") << flush;
-        _peercast.disconnectChannel(15);
+        _peercast.disconnectChannel(20);
     }
 
     e->accept();
@@ -2182,7 +2181,14 @@ void PurePlayer::mpProcess_finished()
         _elapsedTime = _timeLabel->time();
         LogDialog::debug(debugPrefix + QString("elapsed time %1").arg(_elapsedTime));
 
-        if( !isStop() ) {
+        if( isStop() ) {
+            if( ConfigData::data()->disconnectChannel
+                && _controlFlags.testFlag(FLG_EXPLICITLY_STOPPED) )
+            {
+                _peercast.disconnectChannel(20);
+            }
+        }
+        else {
             ++_reconnectCount;
             LogDialog::debug(debugPrefix + QString("reconnectCount %1").arg(_reconnectCount));
 
@@ -2198,6 +2204,8 @@ void PurePlayer::mpProcess_finished()
             }
             else {
                 setStatus(ST_STOP);
+                if( ConfigData::data()->disconnectChannel )
+                    _peercast.disconnectChannel(20);
             }
         }
     }
