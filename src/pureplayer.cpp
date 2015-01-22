@@ -2181,7 +2181,14 @@ void PurePlayer::mpProcess_finished()
         _elapsedTime = _timeLabel->time();
         LogDialog::debug(debugPrefix + QString("elapsed time %1").arg(_elapsedTime));
 
-        if( !isStop() ) {
+        if( isStop() ) {
+            if( ConfigData::data()->disconnectChannel
+                && _controlFlags.testFlag(FLG_EXPLICITLY_STOPPED) )
+            {
+                _peercast.disconnectChannel(15);
+            }
+        }
+        else {
             ++_reconnectCount;
             LogDialog::debug(debugPrefix + QString("reconnectCount %1").arg(_reconnectCount));
 
@@ -2197,6 +2204,8 @@ void PurePlayer::mpProcess_finished()
             }
             else {
                 setStatus(ST_STOP);
+                if( ConfigData::data()->disconnectChannel )
+                    _peercast.disconnectChannel(15);
             }
         }
     }
