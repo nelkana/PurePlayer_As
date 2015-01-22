@@ -1806,7 +1806,7 @@ void PurePlayer::closeEvent(QCloseEvent* e)
     stopInternal();
     if( isPeercastStream() && ConfigData::data()->disconnectChannel ) {
         QTextStream(stdout) << tr("チャンネル切断待機中...\n") << flush;
-        _peercast.disconnectChannel(15);
+        _peercast.disconnectChannel(20);
     }
 
     e->accept();
@@ -2185,7 +2185,7 @@ void PurePlayer::mpProcess_finished()
             if( ConfigData::data()->disconnectChannel
                 && _controlFlags.testFlag(FLG_EXPLICITLY_STOPPED) )
             {
-                _peercast.disconnectChannel(15);
+                _peercast.disconnectChannel(20);
             }
         }
         else {
@@ -2205,7 +2205,7 @@ void PurePlayer::mpProcess_finished()
             else {
                 setStatus(ST_STOP);
                 if( ConfigData::data()->disconnectChannel )
-                    _peercast.disconnectChannel(15);
+                    _peercast.disconnectChannel(20);
             }
         }
     }
