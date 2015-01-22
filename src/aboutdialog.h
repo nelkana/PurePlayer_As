@@ -18,7 +18,7 @@
 
 #include "ui_aboutdialog.h"
 
-#define PUREPLAYER_VERSION "0.8.0"
+#define PUREPLAYER_VERSION "0.8.1"
 
 class AboutDialog : public QDialog, Ui::AboutDialog
 {
