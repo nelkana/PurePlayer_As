@@ -83,7 +83,7 @@ public:
     int     bitrate;    // kbps
     STATUS  status;
 
-    void channelInfo() { clear(); }
+    ChannelInfo() { clear(); }
     void clear() {
         this->chName = "";
         this->contactUrl = "";
