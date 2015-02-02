@@ -61,7 +61,23 @@ private:
 class ChannelInfo
 {
 public:
-    enum STATUS { ST_UNKNOWN, ST_CONNECT, ST_RECEIVE, ST_SEARCH, ST_ERROR, ST_BROADCAST };
+    enum STATUS {
+        ST_UNKNOWN,
+        ST_NONE,
+        ST_WAIT,
+        ST_CONNECT,
+        ST_REQUEST,
+        ST_CLOSE,
+        ST_RECEIVE,
+        ST_BROADCAST,
+        ST_ABORT,
+        ST_SEARCH,
+        ST_NOHOSTS,
+        ST_IDLE,
+        ST_ERROR,
+        ST_NOTFOUND
+    };
+
     QString chName;
     QString contactUrl;
     int     bitrate;    // kbps
@@ -75,10 +91,7 @@ public:
         this->status = ST_UNKNOWN;
     }
 
-    QString statusString() {
-        const char* str[] = { "UNKNOWN", "CONNECT", "RECEIVE", "SEARCH", "ERROR", "BROADCAST" };
-        return str[this->status];
-    }
+    QString statusString();
 
     static STATUS statusFromString(const QString& status, Peercast::TYPE type);
 };

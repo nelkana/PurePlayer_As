@@ -100,38 +100,53 @@ void Peercast::nam_finished(QNetworkReply* reply)
 }
 
 // ---------------------------------------------------------------------------------------
+QString ChannelInfo::statusString()
+{
+    const char* str[] = {
+        "UNKNOWN",
+        "NONE",
+        "WAIT",
+        "CONNECT",
+        "REQUEST",
+        "CLOSE",
+        "RECEIVE",
+        "BROADCAST",
+        "ABORT",
+        "SEARCH",
+        "NOHOSTS",
+        "IDLE",
+        "ERROR",
+        "NOTFOUND"
+    };
+
+    return str[this->status];
+}
+
 ChannelInfo::STATUS ChannelInfo::statusFromString(const QString& status, Peercast::TYPE type)
 {
     STATUS ret = ST_UNKNOWN;
 
     if( type == Peercast::TYPE_ST ) {
-        if( status == "Receiving" )
-            ret = ST_RECEIVE;
-        else
-        if( status == "Searching" )
-            ret = ST_SEARCH;
-        else
-        if( status == "Connecting" )
-            ret = ST_CONNECT;
-        else
-        if( status == "Error" )
-            ret = ST_ERROR;
+        if( status == "Idle" )            ret = ST_IDLE;
+        else if( status == "Searching" )  ret = ST_SEARCH;
+        else if( status == "Connecting" ) ret = ST_CONNECT;
+        else if( status == "Receiving" )  ret = ST_RECEIVE;
+        else if( status == "Error" )      ret = ST_ERROR;
     }
     else {
-        if( status == "RECEIVE" )
-            ret = ST_RECEIVE;
-        else
-        if( status == "SEARCH" )
-            ret = ST_SEARCH;
-        else
-        if( status == "CONNECT" )
-            ret = ST_CONNECT;
-        else
-        if( status == "ERROR" )
-            ret = ST_ERROR;
-        else
-        if( status == "BROADCAST" )
-            ret = ST_BROADCAST;
+        if( status == "NONE" )           ret = ST_NONE;
+        else if( status == "WAIT" )      ret = ST_WAIT;
+        else if( status == "CONNECT" )   ret = ST_CONNECT;
+        else if( status == "REQUEST" )   ret = ST_REQUEST;
+        else if( status == "CLOSE" )     ret = ST_CLOSE;
+        else if( status == "RECEIVE" )   ret = ST_RECEIVE;
+        else if( status == "BROADCAST" ) ret = ST_BROADCAST;
+        else if( status == "ABORT" )     ret = ST_ABORT;
+        else if( status == "SEARCH" )    ret = ST_SEARCH;
+        else if( status == "NOHOSTS" )   ret = ST_NOHOSTS;
+        else if( status == "IDLE" )      ret = ST_IDLE;
+        else if( status == "ERROR" )     ret = ST_ERROR;
+        else if( status == "NOTFOUND" )  ret = ST_NOTFOUND;
     }
 
     return ret;
