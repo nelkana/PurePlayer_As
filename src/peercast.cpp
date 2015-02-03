@@ -100,7 +100,7 @@ void Peercast::nam_finished(QNetworkReply* reply)
 }
 
 // ---------------------------------------------------------------------------------------
-QString ChannelInfo::statusString()
+QString ChannelInfo::statusString(const STATUS status)
 {
     const char* str[] = {
         "UNKNOWN",
@@ -119,7 +119,7 @@ QString ChannelInfo::statusString()
         "NOTFOUND"
     };
 
-    return str[this->status];
+    return str[status];
 }
 
 ChannelInfo::STATUS ChannelInfo::statusFromString(const QString& status, Peercast::TYPE type)
@@ -503,8 +503,6 @@ DisconnectChannelTask::DisconnectChannelTask(const QString& host, ushort port,
 
     connect(&_nam, SIGNAL(finished(QNetworkReply*)),
             this,  SLOT(nam_finished(QNetworkReply*)));
-
-    _timer.setSingleShot(true);
 }
 
 void DisconnectChannelTask::timerSingleShot_timeout()
@@ -539,20 +537,24 @@ void DisconnectChannelTask::nam_finished(QNetworkReply* reply)
         else
             result = getChannelStatusPcVp(out);
 
-        qDebug("DisconnectChannelTask::nam_finished(): result: %d, listeners: %d, status: %d", result, _listeners, _status);
+        qDebug("DisconnectChannelTask::nam_finished(): result: %d, listeners: %d, status: %s",
+               result, _listeners, ChannelInfo::statusString(_status).toAscii().constData());
         if( result ) {
             if( _status != ChannelInfo::ST_BROADCAST ) {
-                if( _listeners == 0 )
+                if( _listeners == 0 ) {
                     Task::push(new StopChannelTask(_host, _port, _id, parent()));
+                }
                 else
-                if( (_status==ChannelInfo::ST_SEARCH || _status==ChannelInfo::ST_CONNECT)
-                 || _timer.isActive() )
-                {
-                    qDebug("--------------");
+                if( (_status==ChannelInfo::ST_SEARCH || _status==ChannelInfo::ST_CONNECT) ) {
+                    qDebug("wait...");
                     QTimer::singleShot(REPETITION_MSEC, this, SLOT(timerSingleShot_timeout()));
 
                     reply->deleteLater();
                     return;
+                }
+                else
+                if( _status != ChannelInfo::ST_RECEIVE ) {
+                    Task::push(new StopChannelTask(_host, _port, _id, parent()));
                 }
             }
         }
@@ -567,7 +569,6 @@ void DisconnectChannelTask::nam_finished(QNetworkReply* reply)
 
 void DisconnectChannelTask::start()
 {
-    _timer.start(MONITORING_MSEC);
     QTimer::singleShot(_startSec * 1000, this, SLOT(timerSingleShot_timeout()));
 
     qDebug("DisconnectChannelTask::start(): peercast type %d", _type);

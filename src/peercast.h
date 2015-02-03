@@ -91,8 +91,9 @@ public:
         this->status = ST_UNKNOWN;
     }
 
-    QString statusString();
+    QString statusString() { return ChannelInfo::statusString(this->status); }
 
+    static QString statusString(const STATUS status);
     static STATUS statusFromString(const QString& status, Peercast::TYPE type);
 };
 
@@ -193,9 +194,8 @@ protected:
     bool getChannelStatusPcSt(const QString& reply);
 
 private:
-    enum { MONITORING_MSEC = 15000, REPETITION_MSEC = 5000 };
+    enum { REPETITION_MSEC = 5000 };
 
-    QTimer  _timer;
     QNetworkAccessManager _nam;
     QString _host;
     ushort  _port;
