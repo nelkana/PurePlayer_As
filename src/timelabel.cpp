@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,9 +27,9 @@ void TimeLabel::initMinimumWidth()
     QString s;
 
     if( _visibleHour )
-        s = " 00:00:00";
+        s = "00:00:00";
     else
-        s = " 00:00";
+        s = "00:00";
 
     s += _totalTime;
 //  s.append(" "); // 末尾スペース追加

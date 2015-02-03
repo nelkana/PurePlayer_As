@@ -225,13 +225,13 @@ void PurePlayer::createStatusBar()
 
     _labelVolume->setFrameShape(QFrame::NoFrame);
     _labelVolume->setAlignment(Qt::AlignRight);
-    _labelVolume->setText(tr(" 000"));
+    _labelVolume->setText(tr("000"));
     _labelVolume->setMinimumWidth(_labelVolume->sizeHint().width());
     _labelVolume->setText("");
 
     _labelFps->setFrameShape(QFrame::NoFrame);
     _labelFps->setAlignment(Qt::AlignRight);
-    _labelFps->setText(tr(" 00fps"));
+    _labelFps->setText(tr("00fps"));
     _labelFps->setMinimumWidth(_labelFps->sizeHint().width());
     _labelFps->setText("0fps");
 
