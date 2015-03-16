@@ -2424,6 +2424,7 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
                 _repeatABButton->setEnabled(false);
             }
 
+            QSize oldVideoSize = _videoSize;
             // ビデオドライバ,サイズの取得
             if( _existVideo ) {
                 _usingVideoDriver = rxVideoDriverWH.cap(1);
@@ -2447,6 +2448,10 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
 
                 _clipRect = QRect(0,0, _videoSize.width(),_videoSize.height());
                 _controlFlags &= ~FLG_OPENED_PATH;
+            }
+            else
+            if( _videoSize != oldVideoSize ) {
+                releaseClipping();
             }
 
             if( isPeercastStream() ) {
