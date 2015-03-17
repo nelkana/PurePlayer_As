@@ -34,7 +34,7 @@ void TimeLabel::initMinimumWidth()
     s += _totalTime;
 //  s.append(" "); // 末尾スペース追加
 
-    setMinimumWidth(fontMetrics().width(s));
+    setMinimumWidth(fontMetrics().width(s) + 1);
 }
 
 void TimeLabel::setTotalTime(int sec)
