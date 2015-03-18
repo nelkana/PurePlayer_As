@@ -1,4 +1,4 @@
-/*  Copyright (C) 2013-2014 nel
+/*  Copyright (C) 2013-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -84,8 +84,11 @@ void ClipWindow::setResizeMargin(quint8 margin)
 
 void ClipWindow::decideClipArea()
 {
-    QRect rc = CommonLib::clipRect(QRect(QPoint(0,0), _targetWidget->size()),
-                                   QRect(_targetWidget->mapFromGlobal(pos()), size()));
+    QRect rc = CommonLib::clipRect(
+                    QRect(QPoint(0,0), _targetWidget->size()),
+                    QRect(_targetWidget->mapFromGlobal(geometry().topLeft()), size()));
+                                // Ubuntu Unityデスクトップでpos()が正しい値を返さない為、
+                                // geometry()で位置を取得している。
 
     close();
     if( rc.x() >= 0 ) {
