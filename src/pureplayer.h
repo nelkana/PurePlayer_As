@@ -318,6 +318,7 @@ private:
     QPoint          _mousePressLocalPos;
     QPoint          _mousePressPos;
 
+    QTimer          _timerChannelInfo;
     QTimer          _timerReconnect;
     quint8          _reconnectCount;
     quint16         _reconnectScore;
@@ -339,6 +340,7 @@ private:
     ControlButton*  _screenshotButton;
     TimeSlider*     _timeSlider;
     TimeLabel*      _timeLabel;
+    QLabel*         _labelRelay;
     QLabel*         _labelFrame;
     QLabel*         _labelFps;
     QLabel*         _labelVolume;

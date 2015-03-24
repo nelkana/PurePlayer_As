@@ -128,6 +128,9 @@ PurePlayer::PurePlayer(QWidget* parent) : QMainWindow(parent)
 //  connect(_recProcess, SIGNAL(finished()),
 //          this,        SLOT(recProcess_finished()));
 
+    _timerChannelInfo.setInterval(60000);
+    connect(&_timerChannelInfo, SIGNAL(timeout()), this, SLOT(updateChannelInfo()));
+
     _reconnectScore = 0;
     _reconnectCount = 0;
     _reconnectControlTimeAo = 0;
@@ -174,6 +177,8 @@ void PurePlayer::createStatusBar()
 {
     _infoLabel = new InfoLabel(tr("000%")); //tr("停止 "));
     _timeLabel = new TimeLabel();
+    _labelRelay = new QLabel("0/0");
+    _labelRelay->setToolTip(tr("総リレー数/直下へのリレー数"));
     _labelFrame = new QLabel();
     _labelFps = new QLabel();
     _labelVolume = new QLabel();
@@ -215,6 +220,7 @@ void PurePlayer::createStatusBar()
     statusBar()->addWidget(_infoLabel);
     statusBar()->addPermanentWidget(_labelFrame);
     statusBar()->addPermanentWidget(_labelSpeedRate);
+    statusBar()->addPermanentWidget(_labelRelay);
     statusBar()->addPermanentWidget(_labelFps);
     statusBar()->addPermanentWidget(_timeLabel);
     statusBar()->addPermanentWidget(_labelVolume);
@@ -818,6 +824,8 @@ void PurePlayer::openCommonProcess(const QString& path)
         _labelSpeedRate->hide();
         setSpeedRate(1.0);
 
+        _labelRelay->show();
+
         _menuReconnect->menuAction()->setVisible(true);
         // _actPlayPauseとのショートカットキー切り替えの為、設定
         _actReconnect->setVisible(true);
@@ -830,6 +838,7 @@ void PurePlayer::openCommonProcess(const QString& path)
     }
     else {
         _labelSpeedRate->show();
+        _labelRelay->hide();
 
         _menuReconnect->menuAction()->setVisible(false);
         // _actPlayPauseとのショートカットキー切り替えの為、設定
@@ -2114,6 +2123,14 @@ void PurePlayer::reflectChannelInfo()
     }
 
     setWindowTitle(title);
+
+    _labelRelay->setText(QString("%1/%2").arg(_channelInfo.totalRelays).arg(_channelInfo.localRelays));
+
+    if( _state == ST_READY ) {
+        QString prefix = "PurePlayer::reflectChannelInfo(): ";
+        LogDialog::debug(prefix + "peercast type " +  QString::number(_peercast.type()));
+        LogDialog::debug(_channelInfo.toString(prefix));
+    }
 }
 
 QString PurePlayer::genDateTimeSaveFileName(const QString& suffix)
@@ -2272,6 +2289,8 @@ void PurePlayer::mpProcess_outputLine(const QString& line)
                     }
                     else
                         _reconnectControlTimeVo = rxStatus.cap(1).toDouble();
+
+                    _timerChannelInfo.start();
                 }
                 else
                     _startTime = 0;
@@ -3643,6 +3662,7 @@ void PurePlayer::setStatus(const STATE s)
 
         _infoLabel->stopClipInfo();
 
+        _timerChannelInfo.stop();
         _timerReconnect.stop();
         _timerFps.stop();
         _labelFps->setText("0fps");

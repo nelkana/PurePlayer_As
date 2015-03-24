@@ -100,6 +100,30 @@ void Peercast::nam_finished(QNetworkReply* reply)
 }
 
 // ---------------------------------------------------------------------------------------
+void ChannelInfo::clear()
+{
+    this->chName = "";
+    this->contactUrl = "";
+    this->bitrate = 0;
+    this->localRelays = 0;
+    this->totalRelays = 0;
+    this->status = ST_UNKNOWN;
+}
+
+QString ChannelInfo::toString(const QString& prefix)
+{
+    QString str;
+
+    str += prefix + "chName " + this->chName + '\n';
+    str += prefix + "contactUrl " + this->contactUrl + '\n';
+    str += prefix + "bitrate " + QString::number(this->bitrate) + '\n';
+    str += prefix + "localRelays " + QString::number(this->localRelays) + '\n';
+    str += prefix + "totalRelays " + QString::number(this->totalRelays) + '\n';
+    str += prefix + "status " + statusString();
+
+    return str;
+}
+
 QString ChannelInfo::statusString(const STATUS status)
 {
     const char* str[] = {
@@ -198,7 +222,7 @@ void GetPeercastTypeTask::nam_finished(QNetworkReply* reply)
         }
     }
 
-    LogDialog::debug(QString("GetPeercastTypeTask::nam_finished(): peercast type %1").arg(*_pType));
+//  LogDialog::debug(QString("GetPeercastTypeTask::nam_finished(): peercast type %1").arg(*_pType));
 
     reply->deleteLater();
     deleteLater();
@@ -291,7 +315,7 @@ void GetChannelInfoTask::nam_finished(QNetworkReply* reply)
             }
             else { // _type==Peercast::TYPE_VP || _type==Peercast::TYPE_UNKNOWN
                 if( parseChannelInfoPcVp(out) ) {
-                    debugChannelInfo();
+//                  LogDialog::debug(_chInfo.toString(debugPrefix));
                     emit finished(_chInfo);
                 }
             }
@@ -301,7 +325,7 @@ void GetChannelInfoTask::nam_finished(QNetworkReply* reply)
             _replyChannelStatusPcSt = NULL;
 
             if( parseChannelStatusPcSt(out) ) {
-                debugChannelInfo();
+//              LogDialog::debug(_chInfo.toString(debugPrefix));
                 emit finished(_chInfo);
             }
         }
@@ -353,7 +377,7 @@ void GetChannelInfoTask::getChannelStatusPcSt()
 bool GetChannelInfoTask::parseChannelInfoPcVp(const QString& reply)
 {
     const QString debugPrefix = "GetChannelInfoTask::parseChannelInfoPcVp(): ";
-    LogDialog::debug(debugPrefix + "called");
+//  LogDialog::debug(debugPrefix + "called");
 
     QXmlStreamReader xml(reply);
     QString status;
@@ -381,6 +405,9 @@ bool GetChannelInfoTask::parseChannelInfoPcVp(const QString& reply)
             }
             else
             if( xml.name() == "relay" ) {
+                _chInfo.localRelays = xml.attributes().value("relays").toString().toInt();
+                _chInfo.totalRelays = xml.attributes().value("hosts").toString().toInt();
+
                 status = xml.attributes().value("status").toString();
                 _chInfo.status = ChannelInfo::statusFromString(status, Peercast::TYPE_VP);
                 break;
@@ -401,7 +428,7 @@ bool GetChannelInfoTask::parseChannelInfoPcVp(const QString& reply)
 bool GetChannelInfoTask::parseChannelInfoPcSt(const QString& reply)
 {
     const QString debugPrefix = "GetChannelInfoTask::parseChannelInfoPcSt(): ";
-    LogDialog::debug(debugPrefix + "called");
+//  LogDialog::debug(debugPrefix + "called");
 
     QScriptEngine engine;
     QScriptValue  value;
@@ -427,7 +454,7 @@ bool GetChannelInfoTask::parseChannelInfoPcSt(const QString& reply)
 bool GetChannelInfoTask::parseChannelStatusPcSt(const QString& reply)
 {
     const QString debugPrefix = "GetChannelInfoTask::parseChannelStatusPcSt(): ";
-    LogDialog::debug(debugPrefix + "called");
+//  LogDialog::debug(debugPrefix + "called");
 
     QScriptEngine engine;
     QScriptValue  value;
@@ -443,6 +470,9 @@ bool GetChannelInfoTask::parseChannelStatusPcSt(const QString& reply)
     if( !value.isValid() )
         return false;
 
+    _chInfo.localRelays = value.property("localRelays").toString().toInt();
+    _chInfo.totalRelays = value.property("totalRelays").toString().toInt();
+
     if( value.property("isBroadcasting").toBool() ) {
         _chInfo.status = ChannelInfo::ST_BROADCAST;
     }
@@ -452,16 +482,6 @@ bool GetChannelInfoTask::parseChannelStatusPcSt(const QString& reply)
     }
 
     return true;
-}
-
-void GetChannelInfoTask::debugChannelInfo()
-{
-    const QString debugPrefix = "GetChannelInfoTask::debugChannelInfo(): ";
-
-    LogDialog::debug(debugPrefix + "name " + _chInfo.chName);
-    LogDialog::debug(debugPrefix + "url " + _chInfo.contactUrl);
-    LogDialog::debug(debugPrefix + "bitrate " + QString::number(_chInfo.bitrate));
-    LogDialog::debug(debugPrefix + "status " + _chInfo.statusString());
 }
 
 // ---------------------------------------------------------------------------------------
@@ -498,7 +518,7 @@ DisconnectChannelTask::DisconnectChannelTask(const QString& host, ushort port,
     _id   = id;
     _type = type;
     _startSec = startSec;
-    _listeners = -1;
+    _localListeners = -1;
     _status = ChannelInfo::ST_UNKNOWN;
 
     connect(&_nam, SIGNAL(finished(QNetworkReply*)),
@@ -537,11 +557,11 @@ void DisconnectChannelTask::nam_finished(QNetworkReply* reply)
         else
             result = getChannelStatusPcVp(out);
 
-        qDebug("DisconnectChannelTask::nam_finished(): result: %d, listeners: %d, status: %s",
-               result, _listeners, ChannelInfo::statusString(_status).toAscii().constData());
+        qDebug("DisconnectChannelTask::nam_finished(): result: %d, localListeners: %d, status: %s",
+               result, _localListeners, ChannelInfo::statusString(_status).toAscii().constData());
         if( result ) {
             if( _status != ChannelInfo::ST_BROADCAST ) {
-                if( _listeners == 0 ) {
+                if( _localListeners == 0 ) {
                     Task::push(new StopChannelTask(_host, _port, _id, parent()));
                 }
                 else
@@ -577,7 +597,7 @@ void DisconnectChannelTask::start()
 bool DisconnectChannelTask::getChannelStatusPcVp(const QString& reply)
 {
     QXmlStreamReader xml(reply);
-    _listeners = -1;
+    _localListeners = -1;
 
     while( !xml.atEnd() ) {
         xml.readNext();
@@ -594,7 +614,7 @@ bool DisconnectChannelTask::getChannelStatusPcVp(const QString& reply)
                 ;
             else
             if( xml.name() == "relay" ) {
-                _listeners = xml.attributes().value("listeners").toString().toInt();
+                _localListeners = xml.attributes().value("listeners").toString().toInt();
                 QString status = xml.attributes().value("status").toString();
                 _status = ChannelInfo::statusFromString(status, Peercast::TYPE_VP);
                 break;
@@ -609,7 +629,7 @@ bool DisconnectChannelTask::getChannelStatusPcVp(const QString& reply)
         return false;
     }
 
-    return _listeners != -1;
+    return _localListeners != -1;
 }
 
 bool DisconnectChannelTask::getChannelStatusPcSt(const QString& reply)
@@ -625,7 +645,7 @@ bool DisconnectChannelTask::getChannelStatusPcSt(const QString& reply)
     if( !value.isValid() )
         return false;
 
-    _listeners = value.property("localDirects").toString().toInt();
+    _localListeners = value.property("localDirects").toString().toInt();
 
     if( value.property("isBroadcasting").toBool() ) {
         _status = ChannelInfo::ST_BROADCAST;

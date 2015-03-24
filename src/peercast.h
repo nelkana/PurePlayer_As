@@ -81,17 +81,14 @@ public:
     QString chName;
     QString contactUrl;
     int     bitrate;    // kbps
+    int     localRelays;
+    int     totalRelays;
     STATUS  status;
 
     ChannelInfo() { clear(); }
-    void clear() {
-        this->chName = "";
-        this->contactUrl = "";
-        this->bitrate = 0;
-        this->status = ST_UNKNOWN;
-    }
-
+    void    clear();
     QString statusString() { return ChannelInfo::statusString(this->status); }
+    QString toString(const QString& prefix=QString());
 
     static QString statusString(const STATUS status);
     static STATUS statusFromString(const QString& status, Peercast::TYPE type);
@@ -142,7 +139,6 @@ protected:
     bool parseChannelInfoPcVp(const QString& reply);
     bool parseChannelInfoPcSt(const QString& reply);
     bool parseChannelStatusPcSt(const QString& reply);
-    void debugChannelInfo();
 
 private:
     QNetworkAccessManager _nam;
@@ -202,7 +198,7 @@ private:
     QString _id;
     Peercast::TYPE _type;
     int     _startSec;
-    int     _listeners;
+    int     _localListeners;
     ChannelInfo::STATUS _status;
 };
 
