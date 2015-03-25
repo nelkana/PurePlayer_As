@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ public:
     void setTotalTime(int sec);
     void setTime(int sec) { _sec = sec; updateText(); }
     int  time()           { return _sec; }
-    QString& totalTimeText() { return QString(_totalTime).remove(0,1); }
+    QString totalTimeText() { return QString(_totalTime).remove(0,1); }
 
 protected:
     void updateText();
@@ -37,7 +37,7 @@ protected:
 private:
     int     _sec;
     QString _totalTime;
-    bool    _visibleHour;
+    int     _digitForHour;
 };
 
 #endif // TIMELABEL_H

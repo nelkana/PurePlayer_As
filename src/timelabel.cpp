@@ -14,6 +14,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "timelabel.h"
+#include "commonlib.h"
 
 TimeLabel::TimeLabel(QWidget* parent) : QLabel(parent)
 {
@@ -26,13 +27,11 @@ void TimeLabel::initMinimumWidth()
 {
     QString s;
 
-    if( _visibleHour )
-        s = "00:00:00";
-    else
-        s = "00:00";
+    if( _digitForHour )
+        s.sprintf("%0*d:", _digitForHour, 0);
 
+    s += "00:00";
     s += _totalTime;
-//  s.append(" "); // 末尾スペース追加
 
     setMinimumWidth(fontMetrics().width(s) + 1);
 }
@@ -41,18 +40,14 @@ void TimeLabel::setTotalTime(int sec)
 {
     if( sec <= 0 ) {
         _totalTime.clear();
-        _visibleHour = false;
+        _digitForHour = 0;
     }
     else {
         int h, m, s;
-        h = sec / 3600;
-        sec %= 3600;
-        m = sec / 60;
-        s = sec % 60;
+        CommonLib::secondTimeToHourMinSec(sec, &h, &m, &s);
 
-        _visibleHour = (bool)h;
-        if( _visibleHour )
-            _totalTime.sprintf("/%02d:%02d:%02d", h, m, s);
+        if( h )
+            _totalTime.sprintf("/%d:%02d:%02d", h, m, s);
         else
             _totalTime.sprintf("/%02d:%02d", m, s);
     }
@@ -62,20 +57,22 @@ void TimeLabel::setTotalTime(int sec)
 
 void TimeLabel::updateText()
 {
-    int sec = _sec;
     int h, m, s;
-    h = sec / 3600;
-    sec %= 3600;
-    m = sec / 60;
-    s = sec % 60;
+    CommonLib::secondTimeToHourMinSec(_sec, &h, &m, &s);
 
-    if( h != _visibleHour ) {
-        _visibleHour = (bool)h;
+    int digit;
+    if( h )
+        digit = CommonLib::digit(h);
+    else
+        digit = 0;
+
+    if( digit != _digitForHour ) {
+        _digitForHour = digit;
         initMinimumWidth();
     }
 
-    if( _visibleHour )
-        setText(QString().sprintf("%02d:%02d:%02d", h, m, s) + _totalTime);
+    if( _digitForHour )
+        setText(QString().sprintf("%d:%02d:%02d", h, m, s) + _totalTime);
     else
         setText(QString().sprintf("%02d:%02d", m, s) + _totalTime);
 }

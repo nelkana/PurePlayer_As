@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -124,6 +124,16 @@ QString CommonLib::dayOfWeek(int day)
     const char* d[7] = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
 
     return QString(d[day]);
+}
+
+void CommonLib::secondTimeToHourMinSec(int sec, int* h, int* m, int* s)
+{
+    if( !h || !m || !s ) return;
+
+    *h = sec / 3600;
+    sec %= 3600;
+    *m = sec / 60;
+    *s = sec % 60;
 }
 
 QString CommonLib::secondTimeToString(int sec)

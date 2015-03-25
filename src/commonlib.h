@@ -1,4 +1,4 @@
-/*  Copyright (C) 2012-2013 nel
+/*  Copyright (C) 2012-2015 nel
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ int    rand(int min, int max);
 void   msleep(ulong msec);
 
 QString dayOfWeek(int day);
+void    secondTimeToHourMinSec(int sec, int* h, int* m, int* s);
 QString secondTimeToString(int sec);
 QString removeSpaceBeforeAfter(QString str);
 QRect   clipRect(const QRect& target, QRect clip);
