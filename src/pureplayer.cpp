@@ -734,6 +734,35 @@ void PurePlayer::open(const QList<QUrl>& urls, bool fromCommandline)
     open(paths, fromCommandline);
 }
 
+void PurePlayer::openInNewWindow(const QString& path)
+{
+    bool b = QProcess::startDetached(QString("\"%1\" \"%2\"")
+                .arg(QApplication::applicationFilePath()).arg(path));
+
+    if( !b ) {
+        QMessageBox::warning(this, tr("エラー"),
+            tr("プレイヤーを起動できなかった為、\n"
+               "操作を中止しました。"));
+    }
+}
+
+void PurePlayer::openFromDialog()
+{
+    if( _openDialog == NULL ) {
+        _openDialog = new OpenDialog(this);
+        _openDialog->installEventFilter(new WindowController(_openDialog));
+        connect(_openDialog, SIGNAL(opened(const QString)), this, SLOT(open(const QString&)));
+        connect(_openDialog, SIGNAL(openedInNewWindow(const QString)), this, SLOT(openInNewWindow(const QString&)));
+    }
+
+    _openDialog->setPath(_path);
+    _openDialog->move(_menuContext->x()
+                        + (_menuContext->width()-_openDialog->frameSize().width())/2,
+                      _menuContext->y());
+
+    _openDialog->show();
+}
+
 void PurePlayer::play()
 {
     if( _playlist->rowCount() > 0 ) {
@@ -865,22 +894,6 @@ void PurePlayer::openCommonProcess(const QString& path)
     LogDialog::debug(debugPrefix + "current dir " + QDir::currentPath());
 
     playCommonProcess();
-}
-
-void PurePlayer::openFromDialog()
-{
-    if( _openDialog == NULL ) {
-        _openDialog = new OpenDialog(this);
-        _openDialog->installEventFilter(new WindowController(_openDialog));
-        connect(_openDialog, SIGNAL(openPath(const QString)), this, SLOT(open(const QString)));
-    }
-
-    _openDialog->setPath(_path);
-    _openDialog->move(_menuContext->x()
-                        + (_menuContext->width()-_openDialog->frameSize().width())/2,
-                      _menuContext->y());
-
-    _openDialog->show();
 }
 
 void PurePlayer::stopPeercast()

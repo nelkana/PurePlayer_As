@@ -79,6 +79,7 @@ public slots:
     void open(const QString& path, bool fromCommandline=false) { open(QStringList() << path, fromCommandline); }
     void open(const QStringList& paths, bool fromCommandline=false);
     void open(const QList<QUrl>& urls, bool fromCommandline=false);
+    void openInNewWindow(const QString& path);
     void openFromDialog();
     void play();
     bool playPrev(bool forceLoop=false);
