@@ -246,6 +246,7 @@ void GetPeercastTypeTask::queryPeercastType()
         QString json("{\"jsonrpc\": \"2.0\", \"method\": \"%1\", \"id\": 1}");
         QNetworkRequest request(url);
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("X-Requested-With", "XMLHttpRequest");
 
         QByteArray data(json.arg("getVersionInfo").toLatin1());
         request.setHeader(QNetworkRequest::ContentLengthHeader, data.size());
@@ -349,6 +350,7 @@ void GetChannelInfoTask::start()
         QString json("{\"jsonrpc\": \"2.0\", \"method\": \"%1\", \"params\": [\"" + _id + "\"], \"id\": 1}");
         QNetworkRequest request(url);
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("X-Requested-With", "XMLHttpRequest");
 
         QByteArray data(json.arg("getChannelInfo").toLatin1());
         request.setHeader(QNetworkRequest::ContentLengthHeader, data.size());
@@ -367,6 +369,7 @@ void GetChannelInfoTask::getChannelStatusPcSt()
         QString json("{\"jsonrpc\": \"2.0\", \"method\": \"%1\", \"params\": [\"" + _id + "\"], \"id\": 1}");
         QNetworkRequest request(url);
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("X-Requested-With", "XMLHttpRequest");
 
         QByteArray data(json.arg("getChannelStatus").toLatin1());
         request.setHeader(QNetworkRequest::ContentLengthHeader, data.size());
@@ -532,6 +535,7 @@ void DisconnectChannelTask::timerSingleShot_timeout()
         QString json("{\"jsonrpc\": \"2.0\", \"method\": \"%1\", \"params\": [\"" + _id + "\"], \"id\": 1}");
         QNetworkRequest request(url);
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("X-Requested-With", "XMLHttpRequest");
 
         QByteArray data(json.arg("getChannelStatus").toLatin1());
         request.setHeader(QNetworkRequest::ContentLengthHeader, data.size());
