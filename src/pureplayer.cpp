@@ -752,7 +752,6 @@ void PurePlayer::openFromDialog()
         _openDialog = new OpenDialog(this);
         _openDialog->installEventFilter(new WindowController(_openDialog));
         connect(_openDialog, SIGNAL(opened(const QString)), this, SLOT(open(const QString&)));
-        connect(_openDialog, SIGNAL(openedInNewWindow(const QString)), this, SLOT(openInNewWindow(const QString&)));
     }
 
     _openDialog->setPath(_path);

@@ -129,22 +129,6 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="_buttonWindow">
-       <property name="maximumSize">
-        <size>
-         <width>16777215</width>
-         <height>23</height>
-        </size>
-       </property>
-       <property name="focusPolicy">
-        <enum>Qt::NoFocus</enum>
-       </property>
-       <property name="text">
-        <string>別ウィンドウで開く</string>
-       </property>
-      </widget>
-     </item>
-     <item>
       <spacer name="_horizontalSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>

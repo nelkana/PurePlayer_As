@@ -31,14 +31,12 @@ public:
 public slots:
     void show() { _lineEdit->selectAll(); QDialog::show(); }
     void open() { close(); emit opened(_lineEdit->text()); }
-    void openInNewWindow() { close(); emit openedInNewWindow(_lineEdit->text()); }
     void selectFile();
     void paste() { _lineEdit->clear(); _lineEdit->paste(); _lineEdit->selectAll(); }
     void copy()  { _lineEdit->selectAll(); _lineEdit->copy(); }
 
 signals:
     void opened(const QString path);
-    void openedInNewWindow(const QString path);
 
 protected:
     void showEvent(QShowEvent*);
@@ -49,7 +47,6 @@ inline OpenDialog::OpenDialog(QWidget* parent) : QDialog(parent)
 {
     setupUi(this);
     connect(_buttonOpen,   SIGNAL(clicked()), this, SLOT(open()));
-    connect(_buttonWindow, SIGNAL(clicked()), this, SLOT(openInNewWindow()));
     connect(_buttonFile,   SIGNAL(clicked()), this, SLOT(selectFile()));
     connect(_buttonPaste,  SIGNAL(clicked()), this, SLOT(paste()));
     connect(_buttonCopy,   SIGNAL(clicked()), this, SLOT(copy()));
