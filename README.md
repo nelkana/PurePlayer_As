@@ -3,7 +3,7 @@ PurePlayer*
 
 PurePlayer*は、Linux用のメディアプレイヤー及びPeerCast視聴プレイヤーです。
 
-バックエンドにMPlayerを使用している為、MPlayer又はMPlayer2が必要です。
+バックエンドにMPlayerを使用している為、MPlayerまたはMPlayer2が必要です。
 
 コンパイルにはQtフレームワークが必要です。
 
@@ -62,7 +62,7 @@ Qtのインストールパッケージ名はqt4-default、qt-sdk(フルインス
 - MPlayer1を使用している場合、シーク性能等、再生機能がMPlayer2に劣ります。  
   動画ファイル再生ではMPlayer2が推奨になります。
 
-- Windows環境でビルドすればWindowsでも動作する様に作ってはいますが対応は完全ではありません。
+- Windows環境でビルドすればWindowsでも動作するように作ってはいますが対応は完全ではありません。
 
 - 開発中の為、更新する度に操作方法等、仕様を大きく変える可能性があります。
 
