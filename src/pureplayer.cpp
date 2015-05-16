@@ -375,6 +375,7 @@ void PurePlayer::createActionContextMenu()
     _actMute->setCheckable(true);
     _actMute->setChecked(false);
     _actMute->setShortcut(tr("m"));
+    _actMute->setAutoRepeat(false);
     connect(_actMute, SIGNAL(triggered(bool)), this, SLOT(mute(bool)));
     addAction(_actMute); // ショートカットキーを登録する為、アクションを追加
 
